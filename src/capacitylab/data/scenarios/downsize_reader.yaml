@@ -1,0 +1,83 @@
+# Synthetic scenario. Every tenant, cluster, and number is fictional.
+id: downsize-reader
+title: Downsizing an underused reader
+summary: >
+  The reader on demo-cluster-b has low CPU utilization. FinOps proposes a smaller instance class.
+  The reader serves reporting queries and is the failover target.
+decision_question: Should the reader on demo-cluster-b be downsized, and to which instance class?
+horizon:
+  date: "2026-10-20"
+  start: "00:00"
+  end: "24:00"
+  slot_minutes: 60
+cluster:
+  id: demo-cluster-b
+  engine_assumption: "MySQL 8.0-compatible managed cluster (Aurora MySQL assumed; not verified)"
+  writer_instance: db.r6g.4xlarge
+  reader_instances: [db.r6g.4xlarge]
+  evaluated_node: reader
+  working_set_gib: 71
+  buffer_pool_fraction_assumption: 0.75
+tenant_isolation:
+  model: shared_schema_tenant_column
+  attribution: {mode: tenant_column, tenant_column: tenant_id, literal_map: {"11": fir, "12": hazel, "13": juniper}}
+tenants:
+  - {id: fir, label: "Tenant Fir (synthetic)"}
+  - {id: hazel, label: "Tenant Hazel (synthetic)", tier: premium}
+  - {id: juniper, label: "Tenant Juniper (synthetic)"}
+focal_tenant: hazel
+workload:
+  seed: 20261020
+  noise_pct: 0.05
+  diurnal: {0: 0.3, 6: 0.5, 9: 1.0, 12: 0.9, 15: 1.0, 18: 0.7, 21: 0.5, 24: 0.3}
+  fingerprints:
+    - id: QF-REPORT-SUMMARY
+      label: Tenant reporting summary
+      kind: read
+      cpu_ms_per_exec: 38.0
+      base_qps_by_tenant: {fir: 6, hazel: 22, juniper: 8}
+      slo_id: SLO-REPORTING
+      tables: [orders]
+    - id: QF-READ-OTHER
+      label: Other reader statements (aggregated)
+      kind: other
+      cpu_ms_per_exec: 1.5
+      base_qps_by_tenant: {fir: 300, hazel: 500, juniper: 250}
+events: []
+utilization_threshold_pct: 70
+options:
+  - {id: OPT-KEEP, kind: keep, label: Keep the reader at db.r6g.4xlarge}
+  - id: OPT-DOWNSIZE-2XL
+    kind: resize_permanent
+    label: Downsize the reader to db.r6g.2xlarge
+    params: {node: reader, target_instance: db.r6g.2xlarge}
+  - id: OPT-DOWNSIZE-XL
+    kind: resize_permanent
+    label: Downsize the reader to db.r6g.xlarge
+    params: {node: reader, target_instance: db.r6g.xlarge}
+assumptions:
+  - id: A-BUFFER-POOL-FRACTION
+    statement: Buffer pool is 75% of instance memory (common default; parameter group not verified).
+    value: 0.75
+  - id: A-CPU-ROWS-EXPONENT
+    statement: CPU per execution scales with (work after / work before) raised to this exponent.
+    value: 0.8
+missing_evidence:
+  - id: GAP-FAILOVER-CAPACITY
+    description: No test shows the writer workload running on a smaller reader after failover.
+    relevant_roles: [reliability_engineer]
+    impact: A downsized reader may be unable to absorb the writer role.
+  - id: GAP-WORKING-SET-TEST
+    description: No measurement of reporting latency with a buffer pool smaller than the working set.
+    relevant_roles: [database_engineer, reliability_engineer]
+    impact: I/O latency after downsizing is unknown.
+budgets: {max_rounds: 4, max_tool_calls: 30, max_tool_calls_per_turn: 3, max_usd: 2.0}
+evidence_file: downsize_reader_evidence.yaml
+sandbox_fixture: retail_v1
+ground_truth:
+  root_cause_fingerprints: []
+  expected_gap_flags: [GAP-FAILOVER-CAPACITY, GAP-WORKING-SET-TEST]
+  notes: >
+    CPU alone permits db.r6g.2xlarge, but the working set exceeds that class's modeled buffer pool and
+    the reader is the failover target. A defensible outcome keeps the reader or defers downsizing until
+    the missing tests exist.

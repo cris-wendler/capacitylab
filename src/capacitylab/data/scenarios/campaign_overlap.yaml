@@ -1,0 +1,161 @@
+# Synthetic scenario. Every tenant, cluster, and number is fictional.
+id: campaign-overlap
+title: Flash sale overlapping evening traffic and the loyalty batch job
+summary: >
+  Tenant Alder (synthetic) runs a three-hour flash sale on a shared cluster. The sale overlaps
+  other tenants' evening peak, an application release, and the nightly loyalty recalculation job.
+decision_question: >
+  What should the team do on demo-cluster-a for the 2026-10-15 flash sale: keep capacity, scale up
+  temporarily, optimize the hot query, move the batch job, or combine changes?
+horizon:
+  date: "2026-10-15"
+  start: "12:00"
+  end: "24:00"
+  slot_minutes: 15
+cluster:
+  id: demo-cluster-a
+  engine_assumption: "MySQL 8.0-compatible managed cluster (Aurora MySQL assumed; not verified)"
+  writer_instance: db.r6g.2xlarge
+  reader_instances: [db.r6g.2xlarge]
+  evaluated_node: writer
+tenant_isolation:
+  model: shared_schema_tenant_column
+  attribution:
+    mode: tenant_column
+    tenant_column: tenant_id
+    literal_map: {"1": alder, "2": birch, "3": cedar, "4": dune, "5": elm}
+  notes: >
+    Demo assumption. Some fleets put one database per tenant (or tenant group) on shared clusters;
+    CapacityLab supports schema_map attribution for that model as well.
+tenants:
+  - {id: alder, label: "Tenant Alder (synthetic)", tier: premium}
+  - {id: birch, label: "Tenant Birch (synthetic)", tier: standard}
+  - {id: cedar, label: "Tenant Cedar (synthetic)", tier: standard}
+  - {id: dune, label: "Tenant Dune (synthetic)", tier: standard}
+  - {id: elm, label: "Tenant Elm (synthetic)", tier: basic}
+focal_tenant: alder
+workload:
+  seed: 20261015
+  noise_pct: 0.04
+  diurnal: {12: 0.55, 14: 0.65, 16: 0.75, 17: 0.85, 18: 0.95, 19: 1.0, 20: 0.95, 21: 0.8, 22: 0.6, 24: 0.4}
+  fingerprints:
+    - id: QF-ORDER-HISTORY
+      label: Storefront order history lookup
+      kind: read
+      cpu_ms_per_exec: 4.0
+      base_qps_by_tenant: {alder: 60, birch: 45, cedar: 35, dune: 25, elm: 15}
+      slo_id: SLO-ORDER-HISTORY
+      campaign_sensitive: true
+      release_sensitive: true
+      tables: [orders]
+    - id: QF-CHECKOUT-WRITE
+      label: Checkout order insert and loyalty point update
+      kind: write
+      cpu_ms_per_exec: 9.0
+      base_qps_by_tenant: {alder: 14, birch: 10, cedar: 8, dune: 5, elm: 3}
+      slo_id: SLO-CHECKOUT
+      campaign_sensitive: true
+      contends_with_batch: true
+      lock_wait_ms_during_batch: 140
+      tables: [orders, customers]
+    - id: QF-AUDIENCE
+      label: Campaign audience selection
+      kind: read
+      cpu_ms_per_exec: 950.0
+      base_qps_by_tenant: {alder: 0.4, birch: 0.03}
+      campaign_sensitive: true
+      tables: [customers, orders, suppressions]
+    - id: QF-OTHER
+      label: All other statements (aggregated)
+      kind: other
+      cpu_ms_per_exec: 1.2
+      base_qps_by_tenant: {alder: 300, birch: 250, cedar: 180, dune: 120, elm: 80}
+      campaign_sensitive: true
+      tables: []
+events:
+  - {kind: campaign, id: EVT-FLASH-SALE, tenant: alder, start: "18:00", end: "21:00", multiplier_assumption: A-CAMPAIGN-MULT}
+  - {kind: release, id: EVT-RELEASE, name: "App release 2.14 (recommendations widget)", start: "14:00", multiplier_assumption: A-RELEASE-MULT}
+  - kind: batch_job
+    id: EVT-LOYALTY-BATCH
+    name: loyalty-recalculation
+    start: "19:00"
+    duration_minutes: 90
+    cpu_cores: 1.6
+    deadline_next_day: "06:00"
+    contended_fingerprints: [QF-CHECKOUT-WRITE]
+utilization_threshold_pct: 80
+options:
+  - {id: OPT-KEEP, kind: keep, label: Keep current capacity}
+  - id: OPT-SCALE-TEMP
+    kind: scale_temporary
+    label: Scale writer and reader to db.r6g.4xlarge from 16:00 to 23:00
+    params: {target_instance: db.r6g.4xlarge, window_start: "16:00", window_end: "23:00", nodes: [writer, reader], failover_assumption: A-FAILOVER-SECONDS}
+  - id: OPT-INDEX
+    kind: optimize_index
+    label: Add a composite index for the audience query
+    params: {index_candidate: IDX-TENANT-DAY-CUSTOMER}
+  - id: OPT-RESCHEDULE
+    kind: reschedule_batch
+    label: Move the loyalty batch job to 01:00
+    params: {new_start: "01:00"}
+  - id: OPT-INDEX-RESCHEDULE
+    kind: combined
+    label: Index plus batch reschedule
+    params: {components: [OPT-INDEX, OPT-RESCHEDULE]}
+  - id: OPT-SCALE-RESCHEDULE
+    kind: combined
+    label: Temporary scale-up plus batch reschedule
+    params: {components: [OPT-SCALE-TEMP, OPT-RESCHEDULE]}
+assumptions:
+  - id: A-CAMPAIGN-MULT
+    statement: Planning multiplier for Alder's campaign-sensitive statements during the sale.
+    value: 5.0
+    unit: x
+    evidence_ids: [EV-TEN-ALDER-001, EV-CAL-002]
+  - id: A-RELEASE-MULT
+    statement: Release 2.14 multiplies order-history calls for every tenant from 14:00.
+    value: 1.3
+    unit: x
+    evidence_ids: [EV-REL-001]
+  - id: A-CPU-ROWS-EXPONENT
+    statement: >
+      When translating a local sandbox measurement, CPU per execution is assumed to scale with
+      (work after / work before) raised to this exponent. Pure modeling assumption.
+    value: 0.8
+  - id: A-PROD-ORDERS-ROWS
+    statement: Production-scale row count of the orders table, used to extrapolate index size.
+    value: 7200000
+    unit: rows
+    evidence_ids: [EV-TBL-001]
+  - id: A-FAILOVER-SECONDS
+    statement: Writer failover duration during an instance class modification. Not measured for this cluster.
+    value: null
+    unit: s
+missing_evidence:
+  - id: GAP-FAILOVER-DURATION
+    description: No measured failover or instance-modification duration exists for demo-cluster-a.
+    relevant_roles: [reliability_engineer, finops_analyst]
+    impact: The operational risk of temporary scaling cannot be quantified.
+  - id: GAP-PROD-PLAN-VALIDATION
+    description: Index and rewrite effects can only be measured in the local sandbox; no production-like replica test exists.
+    relevant_roles: [database_engineer, reliability_engineer]
+    impact: Modeled optimization benefits may not transfer to production.
+  - id: GAP-READER-ROUTING
+    description: It is unknown whether the application can route the audience query to the reader.
+    relevant_roles: [database_engineer, application_owner]
+    impact: Offloading reads to the reader cannot be evaluated.
+budgets:
+  max_rounds: 4
+  max_tool_calls: 40
+  max_tool_calls_per_turn: 4
+  max_usd: 3.0
+evidence_file: campaign_overlap_evidence.yaml
+sandbox_fixture: retail_v1
+ground_truth:
+  assumption_overrides: {A-CAMPAIGN-MULT: 4.2}
+  root_cause_fingerprints: [QF-AUDIENCE]
+  expected_gap_flags: [GAP-FAILOVER-DURATION, GAP-PROD-PLAN-VALIDATION]
+  notes: >
+    The synthetic workload's real campaign multiplier is 4.2x (between the tenant's 5x claim and the
+    previous sale's 3.1x). The audience query dominates rows examined because the only usable index
+    covers (tenant_id, customer_id) and cannot bound the created_day range.

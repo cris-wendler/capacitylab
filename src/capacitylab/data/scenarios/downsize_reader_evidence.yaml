@@ -1,0 +1,97 @@
+# Synthetic evidence for the downsize-reader scenario. All identities and values are fictional.
+items:
+  - id: EV-TOPO-001
+    kind: topology
+    title: demo-cluster-b topology
+    provenance: observed
+    source: fixture:inventory
+    cluster_id: demo-cluster-b
+    data:
+      cluster_id: demo-cluster-b
+      writer: {instance_class: db.r6g.4xlarge, vcpu: 16, memory_gib: 128}
+      readers: [{instance_class: db.r6g.4xlarge, vcpu: 16, memory_gib: 128, promotion_tier: 0}]
+      tenants: [fir, hazel, juniper]
+      reader_receives_application_reads: true
+      writer_peak_cpu_pct_14d: 58
+
+  - id: EV-MET-001
+    kind: metric_summary
+    title: Reader resource summary, last 14 days
+    provenance: observed
+    source: fixture:metrics
+    cluster_id: demo-cluster-b
+    data:
+      CPUUtilization: {p95_of_5min_averages_pct: 17, max_1min_pct: 38}
+      BufferPoolPagesInUseGiB: {p95: 71, max: 73}
+      BufferPoolHitRatioPct: {min: 99.8}
+      ReadIOPS: {p95: 900}
+      DatabaseConnections: {max: 260}
+
+  - id: EV-DIG-001
+    kind: query_digest
+    title: Reader statement digest summary, 09:00-10:00
+    provenance: observed
+    source: fixture:statement_digest_summary
+    cluster_id: demo-cluster-b
+    data:
+      fingerprints:
+        - {fingerprint_id: QF-REPORT-SUMMARY, label: Tenant reporting summary, calls_per_s: 36, avg_latency_ms: 95, p95_latency_ms: 310, avg_cpu_ms: 38, avg_rows_examined: 52000, share_of_cpu_pct: 46.6, by_tenant: {fir: {share_of_calls_pct: 16.7}, hazel: {share_of_calls_pct: 61.1}, juniper: {share_of_calls_pct: 22.2}}}
+        - {fingerprint_id: QF-READ-OTHER, label: Other reader statements, calls_per_s: 1050, avg_latency_ms: 2.4, avg_cpu_ms: 1.5, share_of_cpu_pct: 53.4}
+
+  - id: EV-SLO-001
+    kind: slo
+    title: Reporting service level objective
+    provenance: observed
+    source: fixture:slo_registry
+    cluster_id: demo-cluster-b
+    data:
+      slos:
+        - {id: SLO-REPORTING, fingerprint_ids: [QF-REPORT-SUMMARY], p95_ms: 800}
+      availability_target_pct: 99.9
+      error_budget_remaining_pct: 81
+
+  - id: EV-RH-001
+    kind: reliability_history
+    title: Reliability history, last 90 days
+    provenance: observed
+    source: fixture:incident_log
+    cluster_id: demo-cluster-b
+    data:
+      incidents: []
+      unplanned_failovers: 1
+      measured_failover_seconds: 34
+      reader_is_failover_target: true
+
+  - id: EV-RATE-001
+    kind: rate_card
+    title: Illustrative rate card
+    provenance: assumption
+    source: fixture:rate_card
+    data:
+      currency: USD
+      instance_hourly: {db.r6g.large: 0.30, db.r6g.xlarge: 0.60, db.r6g.2xlarge: 1.20, db.r6g.4xlarge: 2.40, db.r6g.8xlarge: 4.80, db.r6g.12xlarge: 7.20, db.r6g.16xlarge: 9.60}
+      storage_gib_month: 0.10
+      hours_per_month: 730
+      source_note: "Illustrative synthetic rates for the demo. Not provider pricing; replace with your own rate card."
+
+  - id: EV-BUD-001
+    kind: budget
+    title: Database budget for the cluster's cost center
+    provenance: observed
+    source: fixture:finance
+    cluster_id: demo-cluster-b
+    data:
+      monthly_budget_usd: 3200
+      forecast_month_usd: 3650
+      current_monthly_instance_cost_usd: 3504
+
+  - id: EV-TEN-HAZEL-001
+    kind: tenant_profile
+    title: Tenant Hazel (synthetic) reporting expectations
+    provenance: assumption
+    source: fixture:tenant_account_plan
+    tenant_id: hazel
+    data:
+      tenant: hazel
+      reporting_used_for: "daily operations dashboards at 09:00"
+      tolerance_for_slow_reports: medium

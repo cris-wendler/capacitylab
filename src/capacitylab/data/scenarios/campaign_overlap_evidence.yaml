@@ -1,0 +1,308 @@
+# Synthetic evidence for the campaign-overlap scenario. "observed" items are fixtures standing in for
+# collected telemetry; all identities and values are fictional.
+items:
+  - id: EV-TOPO-001
+    kind: topology
+    title: demo-cluster-a topology and tenant placement
+    provenance: observed
+    source: fixture:inventory
+    cluster_id: demo-cluster-a
+    data:
+      cluster_id: demo-cluster-a
+      engine: "MySQL 8.0-compatible (Aurora MySQL assumed)"
+      writer: {instance_class: db.r6g.2xlarge, vcpu: 8, memory_gib: 64}
+      readers: [{instance_class: db.r6g.2xlarge, vcpu: 8, memory_gib: 64, promotion_tier: 1}]
+      tenants: [alder, birch, cedar, dune, elm]
+      isolation_model: shared_schema_tenant_column
+      reader_receives_application_reads: false
+
+  - id: EV-MET-001
+    kind: metric_series
+    title: Writer CPU utilization on the comparable weekday (2026-10-08), 1-minute data rolled into 15-minute slots
+    provenance: observed
+    source: fixture:metrics
+    cluster_id: demo-cluster-a
+    method: 60 s period; per-slot average and maximum of 1-minute averages
+    data:
+      metric: CPUUtilization
+      unit: Percent
+      reference_day: "2026-10-08"
+      slots: ["17:00", "17:15", "17:30", "17:45", "18:00", "18:15", "18:30", "18:45", "19:00", "19:15", "19:30", "19:45", "20:00", "20:15", "20:30", "20:45"]
+      avg_by_slot: [31, 32, 34, 35, 37, 38, 38, 39, 52, 54, 55, 54, 52, 49, 38, 36]
+      max_by_slot: [38, 40, 41, 43, 45, 47, 46, 48, 66, 71, 76, 70, 67, 61, 47, 44]
+      batch_job_running: "19:00-20:31"
+      campaign_running: false
+    caveats: ["No campaign ran on the reference day; the batch job did."]
+
+  - id: EV-MET-002
+    kind: metric_summary
+    title: Writer resource summary for the reference evening (17:00-21:00)
+    provenance: observed
+    source: fixture:metrics
+    cluster_id: demo-cluster-a
+    data:
+      CPUUtilization: {p95_of_5min_averages_pct: 55, max_1min_pct: 76}
+      FreeableMemoryGiB: {min: 9.1, mean: 9.6}
+      BufferPoolHitRatioPct: {min: 99.5}
+      ReadIOPS: {p95: 2100, max: 2600}
+      DatabaseConnections: {max: 410, configured_max_connections: 2000}
+      RowLockWaitsPerSecond: {during_batch: 38, outside_batch: 0.4}
+      TmpDiskTablesPerSecond: {mean: 0.3}
+      ReplicaLagMs: {max: 24}
+    caveats:
+      - "The p95 of 5-minute averages (55%) hides 1-minute peaks (76%)."
+
+  - id: EV-DIG-001
+    kind: query_digest
+    title: Statement digest summary, 19:00-20:00 on the reference day
+    provenance: observed
+    source: fixture:statement_digest_summary
+    cluster_id: demo-cluster-a
+    method: performance_schema-style digest summary (all statements, not only slow ones)
+    data:
+      window: "2026-10-08 19:00-20:00"
+      fingerprints:
+        - fingerprint_id: QF-AUDIENCE
+          label: Campaign audience selection
+          normalized: "select c.customer_id from customers c where c.tenant_id = ? and c.marketing_opt_in = ? and c.customer_id in (select o.customer_id from orders o where o.tenant_id = ? and o.created_day >= ?) and c.customer_id not in (select s.customer_id from suppressions s where s.tenant_id = ?)"
+          calls_per_s: 0.43
+          avg_latency_ms: 1210
+          p95_latency_ms: 2900
+          avg_cpu_ms: 950
+          avg_rows_examined: 2400000
+          avg_rows_sent: 3100
+          avg_lock_wait_ms: 0.2
+          tmp_disk_tables_per_s: 0.3
+          share_of_cpu_pct: 15.7
+          share_of_rows_examined_pct: 96.2
+          by_tenant: {alder: {share_of_calls_pct: 93}, birch: {share_of_calls_pct: 7}}
+        - fingerprint_id: QF-ORDER-HISTORY
+          label: Storefront order history lookup
+          normalized: "select order_id, order_state, total_cents, created_day from orders where tenant_id = ? and customer_id = ? order by created_day desc limit ?"
+          calls_per_s: 180
+          avg_latency_ms: 11.2
+          p95_latency_ms: 38
+          avg_cpu_ms: 4.0
+          avg_rows_examined: 14
+          avg_rows_sent: 12.4
+          avg_lock_wait_ms: 0.1
+          share_of_cpu_pct: 27.6
+          share_of_rows_examined_pct: 0.2
+          by_tenant: {alder: {share_of_calls_pct: 33.3}, birch: {share_of_calls_pct: 25.0}, cedar: {share_of_calls_pct: 19.4}, dune: {share_of_calls_pct: 13.9}, elm: {share_of_calls_pct: 8.3}}
+        - fingerprint_id: QF-CHECKOUT-WRITE
+          label: Checkout order insert and loyalty point update
+          normalized: "insert into orders (?+) values (?+); update customers set loyalty_points = loyalty_points + ? where tenant_id = ? and customer_id = ?"
+          calls_per_s: 40
+          avg_latency_ms: 31
+          p95_latency_ms: 190
+          avg_cpu_ms: 9.0
+          avg_rows_examined: 1
+          avg_rows_sent: 0
+          avg_lock_wait_ms: 62
+          share_of_cpu_pct: 13.8
+          share_of_rows_examined_pct: 0.0
+          by_tenant: {alder: {share_of_calls_pct: 35}, birch: {share_of_calls_pct: 25}, cedar: {share_of_calls_pct: 20}, dune: {share_of_calls_pct: 12.5}, elm: {share_of_calls_pct: 7.5}}
+        - fingerprint_id: QF-OTHER
+          label: All other statements (aggregated)
+          calls_per_s: 930
+          avg_latency_ms: 3.1
+          avg_cpu_ms: 1.2
+          avg_rows_examined: 40
+          share_of_cpu_pct: 42.9
+          share_of_rows_examined_pct: 3.6
+        - fingerprint_id: QF-LOYALTY-BATCH
+          label: Loyalty recalculation batch (per-tenant UPDATE ... SELECT SUM)
+          calls_per_s: 0.02
+          avg_latency_ms: 81000
+          cpu_cores_while_running: 1.6
+          avg_rows_examined: 24000000
+          holds_row_locks_on: customers
+    caveats: ["CPU shares exclude the batch job, which is reported as cores while running."]
+
+  - id: EV-PLAN-001
+    kind: query_plan
+    title: Execution plan for QF-AUDIENCE (tenant alder), captured on the reference day
+    provenance: observed
+    source: fixture:explain_analyze
+    cluster_id: demo-cluster-a
+    tenant_id: alder
+    data:
+      fingerprint_id: QF-AUDIENCE
+      statistics_last_analyzed_days_ago: 41
+      steps:
+        - {table: orders, alias: o, access: "index range on idx_orders_tenant_customer (tenant_id prefix only)", filter: "created_day >= ?", estimated_rows: 1800, actual_rows: 2400000, notes: "materialized subquery; temporary table spilled to disk"}
+        - {table: customers, alias: c, access: "primary key lookup", estimated_rows: 1, actual_rows: 1, loops: 3400}
+        - {table: suppressions, alias: s, access: "index lookup on idx_suppressions_tenant", estimated_rows: 9000, actual_rows: 8800}
+      total_latency_ms: 1180
+
+  - id: EV-SCH-001
+    kind: schema
+    title: Relevant schema and indexes
+    provenance: observed
+    source: fixture:information_schema
+    cluster_id: demo-cluster-a
+    data:
+      tables:
+        customers: {primary_key: [tenant_id, customer_id], indexes: {}}
+        orders: {primary_key: [order_id], indexes: {idx_orders_tenant_customer: [tenant_id, customer_id]}}
+        suppressions: {primary_key: [suppression_id], indexes: {idx_suppressions_tenant: [tenant_id]}, nullable_columns: [customer_id]}
+        audit_events: {primary_key: [event_id], indexes: {}}
+
+  - id: EV-TBL-001
+    kind: table_stats
+    title: Table sizes and 30-day growth
+    provenance: observed
+    source: fixture:information_schema
+    cluster_id: demo-cluster-a
+    data:
+      tables:
+        - {table: audit_events, rows: 410000000, data_gib: 212, index_gib: 9, growth_pct_per_week: 2.9, accessed_by: {QF-OTHER: "insert and primary-key lookup only"}}
+        - {table: orders, rows: 7200000, data_gib: 3.1, index_gib: 1.4, growth_pct_per_week: 1.8, accessed_by: {QF-AUDIENCE: "tenant prefix scan, rows examined grow with the tenant's order count", QF-ORDER-HISTORY: "bounded index lookup", QF-CHECKOUT-WRITE: "insert"}}
+        - {table: customers, rows: 3400000, data_gib: 1.2, index_gib: 0.2, growth_pct_per_week: 0.6, accessed_by: {QF-AUDIENCE: "primary key lookup", QF-CHECKOUT-WRITE: "primary key update"}}
+        - {table: suppressions, rows: 170000, data_gib: 0.02, index_gib: 0.01, growth_pct_per_week: 0.2, accessed_by: {QF-AUDIENCE: "tenant index lookup"}}
+    assertions:
+      - {key: tables.orders.rows, value: 7200000, unit: rows, tolerance: 0.05}
+
+  - id: EV-CAL-001
+    kind: event_calendar
+    title: Tenant event calendar for 2026-10-15
+    provenance: observed
+    source: fixture:event_calendar
+    cluster_id: demo-cluster-a
+    data:
+      events:
+        - {tenant: alder, event: flash sale, start: "18:00", end: "21:00", publicly_announced: true, movable: false}
+
+  - id: EV-CAL-002
+    kind: event_calendar
+    title: Previous Alder flash sale (2026-08-20), observed traffic
+    provenance: observed
+    source: fixture:event_calendar
+    tenant_id: alder
+    cluster_id: demo-cluster-a
+    data:
+      date: "2026-08-20"
+      observed_peak_multiplier_on_campaign_statements: 3.1
+      duration_hours: 2
+    assertions:
+      - {key: campaign.alder.traffic_multiplier, value: 3.1, unit: x, tolerance: 0.15}
+
+  - id: EV-TEN-ALDER-001
+    kind: tenant_profile
+    title: Tenant Alder (synthetic) expectations for the flash sale
+    provenance: assumption
+    source: fixture:tenant_account_plan
+    tenant_id: alder
+    data:
+      tenant: alder
+      stated_expected_traffic_multiplier: 5.0
+      campaign_time_movable: false
+      reason: "Sale time was announced to customers two weeks earlier."
+      most_sensitive_journeys: [checkout, order history]
+      tolerance_for_brief_errors: low
+      flash_sales_per_quarter: 3
+    assertions:
+      - {key: campaign.alder.traffic_multiplier, value: 5.0, unit: x, tolerance: 0.15}
+    caveats: ["Stated by the tenant; not derived from telemetry."]
+
+  - id: EV-TEN-BIRCH-001
+    kind: tenant_profile
+    title: Tenant Birch (synthetic) service expectations
+    provenance: assumption
+    source: fixture:tenant_account_plan
+    tenant_id: birch
+    data:
+      tenant: birch
+      evening_peak_sensitive: true
+      campaigns_planned: none
+
+  - id: EV-REL-001
+    kind: release_calendar
+    title: Application release calendar for 2026-10-15
+    provenance: assumption
+    source: fixture:release_plan
+    cluster_id: demo-cluster-a
+    data:
+      releases:
+        - {version: "2.14", start: "14:00", change: "recommendations widget on the order page", estimated_order_history_call_multiplier: 1.3, feature_flag: true}
+      change_freeze: {start: "17:00", end: "22:00", scope: "schema changes and deploys"}
+    assertions:
+      - {key: release.order_history_multiplier, value: 1.3, unit: x}
+
+  - id: EV-BAT-001
+    kind: batch_schedule
+    title: Loyalty recalculation job schedule
+    provenance: observed
+    source: fixture:scheduler
+    cluster_id: demo-cluster-a
+    data:
+      job: loyalty-recalculation
+      start: "19:00"
+      typical_duration_minutes: 90
+      cpu_cores_while_running: 1.6
+      must_finish_before_next_day: "06:00"
+      downstream_dependency: "partner loyalty export at 06:00"
+      locks: "row locks on customers during per-tenant UPDATE"
+
+  - id: EV-BAT-002
+    kind: batch_run_log
+    title: Loyalty recalculation run log, last 14 runs
+    provenance: observed
+    source: fixture:scheduler
+    cluster_id: demo-cluster-a
+    data:
+      durations_minutes: [84, 82, 79, 88, 91, 83, 80, 86, 131, 85, 82, 81, 90, 87]
+      p50_minutes: 84.5
+      max_minutes: 131
+      checkout_lock_wait_ms: {during_batch_avg: 140, outside_batch_avg: 2}
+      failures: 0
+
+  - id: EV-SLO-001
+    kind: slo
+    title: Service level objectives
+    provenance: observed
+    source: fixture:slo_registry
+    cluster_id: demo-cluster-a
+    data:
+      slos:
+        - {id: SLO-ORDER-HISTORY, fingerprint_ids: [QF-ORDER-HISTORY], p95_ms: 150}
+        - {id: SLO-CHECKOUT, fingerprint_ids: [QF-CHECKOUT-WRITE], p95_ms: 250}
+      availability_target_pct: 99.95
+      error_budget_remaining_pct: 38
+
+  - id: EV-RH-001
+    kind: reliability_history
+    title: Reliability history, last 90 days
+    provenance: observed
+    source: fixture:incident_log
+    cluster_id: demo-cluster-a
+    data:
+      incidents:
+        - {date: "2026-09-17", summary: "Writer CPU saturation while the batch job overlapped an evening peak", elevated_latency_minutes: 11}
+      instance_class_modifications: 0
+      failover_tests: 0
+      measured_failover_seconds: null
+
+  - id: EV-RATE-001
+    kind: rate_card
+    title: Illustrative rate card
+    provenance: assumption
+    source: fixture:rate_card
+    data:
+      currency: USD
+      instance_hourly: {db.r6g.large: 0.30, db.r6g.xlarge: 0.60, db.r6g.2xlarge: 1.20, db.r6g.4xlarge: 2.40, db.r6g.8xlarge: 4.80, db.r6g.12xlarge: 7.20, db.r6g.16xlarge: 9.60}
+      storage_gib_month: 0.10
+      hours_per_month: 730
+      source_note: "Illustrative synthetic rates for the demo. Not provider pricing; replace with your own rate card."
+
+  - id: EV-BUD-001
+    kind: budget
+    title: Database budget for the cluster's cost center
+    provenance: observed
+    source: fixture:finance
+    cluster_id: demo-cluster-a
+    data:
+      monthly_budget_usd: 2600
+      month_to_date_usd: 1210
+      forecast_month_usd: 2310
+      current_monthly_instance_cost_usd: 1752
