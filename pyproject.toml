@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "capacitylab"
+version = "0.1.0"
+description = "Role-based review of database capacity, reliability, and cost decisions, grounded in measured evidence"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+dependencies = [
+  "pydantic>=2.7,<3",
+  "PyYAML>=6",
+  "fastapi>=0.111",
+  "uvicorn>=0.30",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=1.5"]
+mysql = ["pymysql>=1.1"]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.5"]
+media = ["playwright>=1.45", "pillow>=10"]
+
+[project.scripts]
+capacitylab = "capacitylab.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+capacitylab = ["data/**/*", "web/templates/*", "web/static/*", "simulation/prompts/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # tests import shared helpers from tests.conftest, with plain `pytest` as in CI
+addopts = "-m 'not live'"
+markers = [
+  "mysql: requires the local MySQL sandbox (docker compose up -d --wait sandbox-mysql)",
+  "live: calls a real model provider and spends money",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["capacitylab", "tests"]

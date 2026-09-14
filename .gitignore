@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.env
+.local/
+runs/
+node_modules/
+docs/media/_frames/
+.DS_Store
