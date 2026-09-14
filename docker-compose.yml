@@ -1,0 +1,20 @@
+# Isolated, disposable MySQL 8.0 sandbox for CapacityLab experiments.
+# Bound to localhost only; data lives in tmpfs and disappears when the container stops.
+# A local MySQL benchmark is NOT evidence of equivalent Aurora performance.
+name: capacitylab
+services:
+  sandbox-mysql:
+    image: mysql:8.0
+    container_name: capacitylab-sandbox-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CAPACITYLAB_MYSQL_PASSWORD:-change-me-local-only}
+      MYSQL_DATABASE: capacitylab_sandbox
+    ports:
+      - "127.0.0.1:3307:3306"
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
