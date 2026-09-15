@@ -1,0 +1,22 @@
+# ########################################################################
+# capacitylab_sandbox_lab.orders                                          
+# ########################################################################
+
+# idx_orders_tenant_customer is a left-prefix of idx_orders_tenant_customer_day
+# Key definitions:
+#   KEY `idx_orders_tenant_customer` (`tenant_id`,`customer_id`),
+#   KEY `idx_orders_tenant_customer_day` (`tenant_id`,`customer_id`,`created_day`)
+# Column types:
+#	  `tenant_id` int not null
+#	  `customer_id` int not null
+#	  `created_day` int not null
+# To remove this duplicate index, execute:
+ALTER TABLE `capacitylab_sandbox_lab`.`orders` DROP INDEX `idx_orders_tenant_customer`;
+
+# ########################################################################
+# Summary of indexes                                                      
+# ########################################################################
+
+# Size Duplicate Indexes   1009992
+# Total Duplicate Indexes  1
+# Total Indexes            8

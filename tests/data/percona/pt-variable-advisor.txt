@@ -1,0 +1,18 @@
+# WARN delay_key_write: MyISAM index blocks are never flushed until necessary.
+
+# WARN innodb_buffer_pool_size: The InnoDB buffer pool size is unconfigured.
+
+# WARN innodb_log_file_size: The InnoDB log file size is set to its default value, which is not usable on production systems.
+
+# WARN key_buffer_size: The key buffer size is set to its default value, which is not good for most production systems.
+
+# NOTE sort_buffer_size-1: The sort_buffer_size variable should generally be left at its default unless an expert determines it is necessary to change it.
+
+# WARN expire_logs_days: Binary logs are enabled, but automatic purging is not enabled.
+
+# NOTE innodb_data_file_path: Auto-extending InnoDB files can consume a lot of disk space that is very difficult to reclaim later.
+
+# NOTE innodb_flush_method: Most production database servers that use InnoDB should set innodb_flush_method to O_DIRECT to avoid double-buffering, unless the I/O system is very low performance.
+
+# WARN myisam_recover_options: myisam_recover_options should be set to some value such as BACKUP,FORCE to ensure that table corruption is noticed.
+

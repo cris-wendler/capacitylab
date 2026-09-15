@@ -1,0 +1,3 @@
+server	ts	thread	txn_id	txn_time	user	hostname	ip	db	tbl	idx	lock_type	lock_mode	wait_hold	victim	query
+127.0.0.1	2026-09-15T03:04:46	878	0	0	root		192.0.2.10	capacitylab_sandbox_lab	customers	PRIMARY	RECORD	X	w	1	UPDATE customers SET loyalty_points = loyalty_points + 44 WHERE tenant_id = 1 AND customer_id = 510
+127.0.0.1	2026-09-15T03:04:46	880	0	0	root		192.0.2.10	capacitylab_sandbox_lab	orders	idx_orders_tenant_customer	RECORD	S	w	0	UPDATE customers c SET loyalty_points = (SELECT COALESCE(SUM(o.total_cents), 0) DIV 100 FROM orders o WHERE o.tenant_id = c.tenant_id AND o.customer_id = c.customer_id AND o.order_state = 'paid') WHERE c.tenant_id = 1 AND c.customer_id BETWEEN 401 AND 600
