@@ -266,26 +266,27 @@ def cmd_import(args, settings) -> int:
         elif args.tenant_map or args.tenant_column:
             attribution = TenantAttribution(mode="tenant_column", tenant_column=args.tenant_column or "tenant_id",
                                             literal_map=_pairs(args.tenant_map))
-        item = importers.import_slow_log(args.file, attribution, args.long_query_time)
+        item = importers.import_slow_log(args.file, attribution, args.long_query_time, label=args.label)
     elif args.kind == "digest":
-        item = importers.import_digest_export(args.file, args.window_seconds)
+        item = importers.import_digest_export(args.file, args.window_seconds, label=args.label)
     elif args.kind == "plan":
         if not args.fingerprint:
             print("error: --fingerprint is required for plans", file=sys.stderr)
             return 1
-        item = importers.import_explain_analyze(args.file, args.fingerprint)
+        item = importers.import_explain_analyze(args.file, args.fingerprint, label=args.label)
     elif args.kind == "pt-query-digest":
-        item = importers.import_pt_query_digest(args.file)
+        item = importers.import_pt_query_digest(args.file, label=args.label)
     elif args.kind == "pt-duplicate-keys":
-        item = importers.import_pt_duplicate_keys(args.file)
+        item = importers.import_pt_duplicate_keys(args.file, label=args.label)
     elif args.kind == "pt-deadlocks":
-        item = importers.import_pt_deadlocks(args.file)
+        item = importers.import_pt_deadlocks(args.file, label=args.label)
     else:
-        item = importers.import_cloudwatch_json(args.file, args.unit or "", args.period)
+        item = importers.import_cloudwatch_json(args.file, args.unit or "", args.period, label=args.label)
     out = Path(args.out)
     existing = load_evidence_file(out) if out.is_file() else []
     if any(e.id == item.id for e in existing):
-        print(f"error: {item.id} already exists in {out}; rename the input file or use another --out", file=sys.stderr)
+        print(f"error: {item.id} already exists in {out} (same contents or same --label); "
+              "pass a different --label or use another --out", file=sys.stderr)
         return 1
     write_evidence([*existing, item], out)
     print(f"{item.id}: {item.kind.value}, {item.label} -> {out}")
@@ -421,6 +422,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "pt-deadlocks: pt-deadlock-logger --tab")
     p.add_argument("file")
     p.add_argument("--out", required=True, help="evidence YAML to create or append to")
+    p.add_argument("--label", help="name for this import in evidence ids and titles; the file name is never stored")
     p.add_argument("--tenant-column", help="slowlog: tenant key column name (default tenant_id)")
     p.add_argument("--tenant-map", help="slowlog: literal=tenant pairs, e.g. 1=alder,2=birch")
     p.add_argument("--schema-map", help="slowlog: schema=tenant pairs for database-per-tenant layouts")

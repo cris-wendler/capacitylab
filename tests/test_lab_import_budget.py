@@ -129,13 +129,33 @@ def test_slowlog_plan_and_metrics_importers(tmp_path):
     assert metric_item.data["max_of_period_maxima"] == 70.0 and metric_item.data["unit"] == "Percent"
 
 
+def test_imported_items_never_store_the_file_name(tmp_path):
+    # A file name like this can carry a host, a customer and a person; none of it may reach evidence or prompts.
+    revealing = tmp_path / "prod-db17-acmecorp-jdoe-slow.log"
+    revealing.write_text(SLOW_LOG)
+    item = import_slow_log(revealing)
+    stored = item.canonical_json().lower()
+    for fragment in ("prod-db17", "acmecorp", "jdoe", "slow.log"):
+        assert fragment not in stored, fragment
+    assert item.id.startswith("EV-IMP-SLOW-") and item.source.startswith("import:slow_log:sha256:")
+
+    copy = tmp_path / "another-name.log"
+    copy.write_text(SLOW_LOG)
+    assert import_slow_log(copy).id == item.id, "the id follows the contents, not the name"
+
+    labelled = import_slow_log(copy, label="evening peak")
+    assert labelled.id == "EV-IMP-SLOW-EVENING-PEAK" and "evening peak" in labelled.title
+
+
 def test_cli_import_then_run_with_extra_evidence(tmp_path, monkeypatch):
     monkeypatch.setenv("CAPACITYLAB_RUNS_DIR", str(tmp_path / "runs"))
     plan = tmp_path / "audience-plan.txt"
     plan.write_text(PLAN)
     evidence = tmp_path / "evidence.yaml"
-    assert cli.main(["import", "plan", str(plan), "--fingerprint", "QF-AUDIENCE", "--out", str(evidence)]) == 0
-    assert cli.main(["import", "plan", str(plan), "--fingerprint", "QF-AUDIENCE", "--out", str(evidence)]) == 1
+    assert cli.main(["import", "plan", str(plan), "--fingerprint", "QF-AUDIENCE", "--label", "audience-plan",
+                     "--out", str(evidence)]) == 0
+    assert cli.main(["import", "plan", str(plan), "--fingerprint", "QF-AUDIENCE", "--label", "audience-plan",
+                     "--out", str(evidence)]) == 1, "the same label twice collides"
     assert cli.main(["validate", "campaign-overlap", "--evidence", str(evidence)]) == 0
     _, bundle = load_scenario("campaign-overlap", [evidence])
     assert "EV-IMP-PLAN-AUDIENCE-PLAN" in bundle
