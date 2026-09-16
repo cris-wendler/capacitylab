@@ -97,6 +97,32 @@ forecast with any of them changed.
 | `A-FAILOVER-SECONDS` | unknown | Writer failover time during an instance change; never measured on this cluster | nothing measured |
 | `A-BUFFER-POOL-FRACTION` | 0.75 | Buffer pool share of instance memory in `downsize-reader`; common default, parameter group not checked | nothing measured |
 
+### Who gets the capacity
+
+On a shared cluster, a sale is not only a capacity question; it is a question of who is entitled to the capacity there
+is. Each tenant's plan is evidence (tier, contract value, the CPU share it guarantees; synthetic here), and CapacityLab
+compares it with the CPU share each tenant's workload takes, modeled from calls per second and CPU per call:
+
+| Tenant | Plan | Guaranteed | Normal evening | During Alder's sale (5×) |
+|---|---|---:|---:|---:|
+| Alder | premium | 35% | 42.5% | ![over](https://img.shields.io/badge/-78.7%25%20over-b42318?style=flat-square) |
+| Birch | standard | 20% | 23.0% | ![squeezed](https://img.shields.io/badge/-8.5%25%20squeezed-9a6700?style=flat-square) |
+| Cedar | standard | 20% | 16.4% | ![squeezed](https://img.shields.io/badge/-6.1%25%20squeezed-9a6700?style=flat-square) |
+| Dune | standard | 15% | 11.1% | ![squeezed](https://img.shields.io/badge/-4.1%25%20squeezed-9a6700?style=flat-square) |
+| Elm | basic | 10% | 7.0% | ![squeezed](https://img.shields.io/badge/-2.6%25%20squeezed-9a6700?style=flat-square) |
+
+*Over* means more than 125% of the guaranteed share; *squeezed* means less than 60% of it.
+
+> [!IMPORTANT]
+> The burst has to come from somewhere. Either Alder's plan covers capacity for announced events, capacity is bought
+> for the window, or the guaranteed shares of the other four tenants absorb it. CapacityLab reports the levers that
+> exist and their limits rather than pretending a governor is in place: per-tenant limits in the application's
+> connection pool (with a shared schema the database usually cannot tell tenants apart), MySQL 8.0 resource groups
+> for thread priority where the engine supports them (managed MySQL variants may not), or capacity for the window.
+
+The review is available to the application owner, reliability engineer and cost analyst as
+`tenant_entitlement_review`; the tenant representative sees only its own plan.
+
 ### What the capacity model says
 
 From the scripted run, with the index effect measured in the SQLite experiment database:

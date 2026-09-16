@@ -306,3 +306,19 @@ items:
       month_to_date_usd: 1210
       forecast_month_usd: 2310
       current_monthly_instance_cost_usd: 1752
+
+  - id: EV-ENT-001
+    kind: tenant_entitlements
+    title: Tenant plans and the CPU share each one guarantees (synthetic)
+    provenance: assumption
+    source: fixture:tenant_plans
+    cluster_id: demo-cluster-a
+    data:
+      basis: Share of cluster CPU each plan guarantees when tenants compete for it.
+      source_note: "Synthetic plan values for the demo. Replace with your own plans and contract terms."
+      by_tenant:
+        alder: {tier: premium, monthly_contract_usd: 4200, entitled_cpu_share_pct: 35}
+        birch: {tier: standard, monthly_contract_usd: 1800, entitled_cpu_share_pct: 20}
+        cedar: {tier: standard, monthly_contract_usd: 1500, entitled_cpu_share_pct: 20}
+        dune: {tier: standard, monthly_contract_usd: 1100, entitled_cpu_share_pct: 15}
+        elm: {tier: basic, monthly_contract_usd: 400, entitled_cpu_share_pct: 10}

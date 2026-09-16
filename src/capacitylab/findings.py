@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from capacitylab.capacity.entitlements import LEVERS, tenant_entitlement_review
 from capacitylab.capacity.options import build_context, evaluate_all
 from capacitylab.diagnostics.analysis import bottleneck_classifier, table_growth_review, tenant_skew
 from capacitylab.evidence.bundle import EvidenceBundle
@@ -198,8 +199,54 @@ def _tenant_share(bundle: EvidenceBundle) -> list[Finding]:
         evidence_ids=list(ids))]
 
 
+def _entitlements(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
+    try:
+        review, ids = tenant_entitlement_review(scenario, bundle)
+    except LookupError:
+        return []
+    out: list[Finding] = []
+    tenants = review["by_tenant"]
+    for campaign in review["campaigns"]:
+        rows = {t: next(c for c in r["during_campaigns"] if c["campaign_tenant"] == campaign["tenant"])
+                for t, r in tenants.items()}
+        squeezed = {t: c for t, c in rows.items() if c["status"] == "squeezed"}
+        if squeezed:
+            listed = ", ".join(f"{t} {c['cpu_share_pct']:g}% of {tenants[t]['entitled_cpu_share_pct']:g}%"
+                               for t, c in sorted(squeezed.items()))
+            out.append(Finding(
+                id=f"FND-TENANT-SQUEEZED-{campaign['tenant'].upper()}", area="tenant_share", severity="high",
+                headline=(f"During {campaign['tenant']}'s campaign, {len(squeezed)} tenant(s) get less than their plans "
+                          f"guarantee"),
+                detail=(f"Modeled CPU share against the plan's guaranteed share, {campaign['window']} at "
+                        f"{campaign['multiplier']:g}× ({campaign['assumption_id']}): {listed}."),
+                recommendation=f"Protect the guaranteed shares during the window. {LEVERS}",
+                evidence_ids=list(ids)))
+        owner = rows.get(campaign["tenant"])
+        if owner and owner["status"] == "over":
+            plan = tenants[campaign["tenant"]]
+            out.append(Finding(
+                id=f"FND-TENANT-OVER-{campaign['tenant'].upper()}", area="tenant_share", severity="medium",
+                headline=(f"{campaign['tenant']} needs {owner['cpu_share_pct']:g}% of CPU during its campaign; its "
+                          f"{plan['tier']} plan guarantees {plan['entitled_cpu_share_pct']:g}%"),
+                detail=(f"Baseline use is {plan['baseline_cpu_share_pct']:g}%. The campaign multiplier is an "
+                        f"assumption ({campaign['assumption_id']}), not a measurement."),
+                recommendation=("Decide who pays for the burst: a plan that includes capacity for announced events, "
+                                "or capacity bought for this window. Without either, the burst comes out of other "
+                                "tenants' guaranteed shares."),
+                evidence_ids=list(ids)))
+    if not out and tenants and all(r["baseline_status"] == "within" for r in tenants.values()):
+        out.append(Finding(
+            id="FND-TENANT-WITHIN-PLANS", area="tenant_share", severity="info",
+            headline="Every tenant's modeled use is within what its plan guarantees",
+            detail=", ".join(f"{t} {r['baseline_cpu_share_pct']:g}% of {r['entitled_cpu_share_pct']:g}%"
+                             for t, r in sorted(tenants.items())) + ".",
+            recommendation="No plan conflicts to resolve; revisit when a tenant schedules a campaign.",
+            evidence_ids=list(ids)))
+    return out
+
+
 def review_findings(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
     """Everything the evidence already says, ordered by severity. No review run, no model calls."""
     findings = (_capacity(scenario, bundle) + _availability(scenario, bundle) + _data_growth(bundle)
-                + _contention(bundle) + _tenant_share(bundle))
+                + _contention(bundle) + _tenant_share(bundle) + _entitlements(scenario, bundle))
     return sorted(findings, key=lambda f: (SEVERITY_ORDER.get(f.severity, 3), AREAS.index(f.area)))
