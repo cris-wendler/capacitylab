@@ -52,6 +52,7 @@ class EvidenceKind(StrEnum):
     RATE_CARD = "rate_card"
     BUDGET = "budget"
     TENANT_PROFILE = "tenant_profile"
+    TENANT_ENTITLEMENTS = "tenant_entitlements"
     EXPERIMENT_RESULT = "experiment_result"
     CALCULATION = "calculation"
 

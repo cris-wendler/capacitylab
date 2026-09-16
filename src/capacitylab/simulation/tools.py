@@ -16,6 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from capacitylab.capacity.entitlements import tenant_entitlement_review
 from capacitylab.capacity.options import OptimizationEffect, build_context, evaluate_option
 from capacitylab.diagnostics import analysis, experiments
 from capacitylab.diagnostics import fixture_db as fx
@@ -330,6 +331,14 @@ TOOLS: dict[str, ToolSpec] = {
                  {}, EvidenceKind.CALCULATION, Provenance.OBSERVED,
                  _analysis(lambda env, a, r: analysis.tenant_skew(
                      env.bundle, env.scenario.focal_tenant if ROLES[r].tenant_scoped else None), "Tenant skew"),
+                 role_sensitive=True),
+        ToolSpec("tenant_entitlement_review",
+                 "Compare each tenant's plan with the CPU share its workload takes, at baseline and during campaigns "
+                 "(tenant-scoped viewers see only their own).",
+                 {}, EvidenceKind.CALCULATION, Provenance.MODELED,
+                 _analysis(lambda env, a, r: tenant_entitlement_review(
+                     env.scenario, env.bundle, env.scenario.focal_tenant if ROLES[r].tenant_scoped else None),
+                     "Tenant entitlement review"),
                  role_sensitive=True),
         ToolSpec("table_growth_review", "Relate table size and growth to the statements that actually touch each table.",
                  {}, EvidenceKind.CALCULATION, Provenance.OBSERVED,

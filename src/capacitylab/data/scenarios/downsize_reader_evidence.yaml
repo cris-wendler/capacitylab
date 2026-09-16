@@ -95,3 +95,17 @@ items:
       tenant: hazel
       reporting_used_for: "daily operations dashboards at 09:00"
       tolerance_for_slow_reports: medium
+
+  - id: EV-ENT-001
+    kind: tenant_entitlements
+    title: Tenant plans and the CPU share each one guarantees (synthetic)
+    provenance: assumption
+    source: fixture:tenant_plans
+    cluster_id: demo-cluster-b
+    data:
+      basis: Share of cluster CPU each plan guarantees when tenants compete for it.
+      source_note: "Synthetic plan values for the demo. Replace with your own plans and contract terms."
+      by_tenant:
+        hazel: {tier: premium, monthly_contract_usd: 3900, entitled_cpu_share_pct: 50}
+        fir: {tier: standard, monthly_contract_usd: 1600, entitled_cpu_share_pct: 25}
+        juniper: {tier: standard, monthly_contract_usd: 1500, entitled_cpu_share_pct: 25}
