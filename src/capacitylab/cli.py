@@ -284,6 +284,11 @@ def cmd_import(args, settings) -> int:
     from capacitylab.lab.runner import write_evidence
     from capacitylab.scenarios.loader import load_evidence_file
 
+    if args.kind == "aws":
+        return _import_aws(args, write_evidence, load_evidence_file)
+    if not args.file:
+        print(f"error: import {args.kind} needs a file", file=sys.stderr)
+        return 1
     if args.kind == "slowlog":
         attribution = None
         if args.schema_map:
@@ -306,7 +311,7 @@ def cmd_import(args, settings) -> int:
     elif args.kind == "pt-deadlocks":
         item = importers.import_pt_deadlocks(args.file, label=args.label)
     else:
-        item = importers.import_cloudwatch_json(args.file, args.unit or "", args.period, label=args.label)
+        item = importers.import_cloudwatch_json(args.file, args.unit or "", args.period or 60, label=args.label)
     out = Path(args.out)
     existing = load_evidence_file(out) if out.is_file() else []
     if any(e.id == item.id for e in existing):
@@ -315,6 +320,47 @@ def cmd_import(args, settings) -> int:
         return 1
     write_evidence([*existing, item], out)
     print(f"{item.id}: {item.kind.value}, {item.label} -> {out}")
+    return 0
+
+
+def _import_aws(args, write_evidence, load_evidence_file) -> int:
+    try:
+        import botocore.exceptions
+    except ImportError:
+        print("error: import aws needs boto3: pip install -e '.[aws]'", file=sys.stderr)
+        return 4
+    from capacitylab.aws_import import EMULATOR_ENDPOINT, AwsTarget, UnsafeAwsTarget, import_aws
+
+    if not args.instance:
+        print("error: import aws needs --instance", file=sys.stderr)
+        return 1
+    try:
+        target = AwsTarget(region=args.region, live=args.live,
+                           endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+        result = import_aws(target, args.instance, hours=args.hours, period_s=args.period or 300,
+                            label=args.label, include_cost=not args.no_cost)
+    except UnsafeAwsTarget as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except botocore.exceptions.EndpointConnectionError:
+        print("error: no AWS emulator at the endpoint. Start it: docker compose --profile aws up -d floci", file=sys.stderr)
+        return 4
+    except (botocore.exceptions.ClientError, botocore.exceptions.NoCredentialsError) as exc:
+        print(f"error: AWS call failed ({type(exc).__name__}: {str(exc).splitlines()[0]})", file=sys.stderr)
+        return 4
+    out = Path(args.out)
+    existing = load_evidence_file(out) if out.is_file() else []
+    clash = {e.id for e in existing} & {i.id for i in result.items}
+    if clash:
+        print(f"error: {', '.join(sorted(clash))} already in {out}; pass a different --label or use another --out",
+              file=sys.stderr)
+        return 1
+    write_evidence([*existing, *result.items], out)
+    for item in result.items:
+        print(f"{item.id}: {item.kind.value}, {item.title}")
+    for reason in result.skipped:
+        print(f"skipped {reason}")
+    print(f"{len(result.items)} items from {'AWS' if args.live else 'the emulator'} -> {out}")
     return 0
 
 
@@ -444,10 +490,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("import", help="build evidence from your own exports")
     p.add_argument("kind", choices=["slowlog", "digest", "plan", "metrics", "pt-query-digest", "pt-duplicate-keys",
-                                    "pt-deadlocks"],
+                                    "pt-deadlocks", "aws"],
                    help="pt-query-digest: --output json; pt-duplicate-keys: pt-duplicate-key-checker text; "
-                        "pt-deadlocks: pt-deadlock-logger --tab")
-    p.add_argument("file")
+                        "pt-deadlocks: pt-deadlock-logger --tab; aws: read RDS, CloudWatch, Pricing and Cost Explorer "
+                        "(a local emulator unless --live)")
+    p.add_argument("file", nargs="?", help="the export to read (not used by aws)")
     p.add_argument("--out", required=True, help="evidence YAML to create or append to")
     p.add_argument("--label", help="name for this import in evidence ids and titles; the file name is never stored")
     p.add_argument("--tenant-column", help="slowlog: tenant key column name (default tenant_id)")
@@ -457,7 +504,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--window-seconds", type=float, help="digest: length of the collection window")
     p.add_argument("--fingerprint", help="plan: statement id the plan belongs to")
     p.add_argument("--unit", help="metrics: unit label")
-    p.add_argument("--period", type=int, default=60, help="metrics: period in seconds")
+    p.add_argument("--period", type=int, help="metrics and aws: period in seconds (default 60 for metrics, 300 for aws)")
+    p.add_argument("--instance", help="aws: DB instance identifier (used for the API calls only, never stored)")
+    p.add_argument("--region", default="us-east-1", help="aws: region (default us-east-1)")
+    p.add_argument("--hours", type=float, default=24.0, help="aws: metric window ending now (default 24)")
+    p.add_argument("--endpoint", default=None, help="aws: emulator endpoint (default http://127.0.0.1:4566)")
+    p.add_argument("--live", action="store_true",
+                   help="aws: read a real AWS account with your normal credentials; read-only calls")
+    p.add_argument("--no-cost", action="store_true", help="aws: skip Cost Explorer (it is billed per request on AWS)")
     p.set_defaults(func=cmd_import)
 
     sub.add_parser("spend", help="show recorded model spend against the total budget").set_defaults(func=cmd_spend)
