@@ -16,12 +16,12 @@ assumptions the roles never saw (for example the real campaign multiplier). That
   <tr>
     <td><strong>{{ approach_labels.get(a.approach, a.approach) }}</strong>{% for n in a.notes %}<div class="small muted">{{ n }}</div>{% endfor %}</td>
     <td>{{ labels.get(a.recommendation, a.recommendation) }}{% if a.distinct_final_positions|length > 1 %}<div class="small muted">roles split across: {% for o in a.distinct_final_positions %}{{ labels.get(o, o) }}{% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}</td>
-    <td class="num">{{ a.breach_slot_regret }}</td>
-    <td class="num">{% if a.cost_regret_usd is not none %}${{ '%.2f' % a.cost_regret_usd }}{% endif %}</td>
-    <td>{{ {True: 'yes', False: 'no'}.get(a.root_cause_identified, 'n/a') }}</td>
-    <td class="num">{{ '%d%%' % (a.gap_recall * 100) if a.gap_recall is not none else 'n/a' }}</td>
-    <td class="num">{{ a.citation_errors }}</td>
-    <td class="num">{{ a.ungrounded_numbers }}</td>
+    <td class="num"><span class="pill {{ 'pill-ok' if a.breach_slot_regret == 0 else 'pill-bad' }}">{{ a.breach_slot_regret }}</span></td>
+    <td class="num">{% if a.cost_regret_usd is not none %}<span class="pill {{ 'pill-ok' if a.cost_regret_usd <= 0 else 'pill-warn' }}">${{ '%.2f' % a.cost_regret_usd }}</span>{% endif %}</td>
+    <td>{% if a.root_cause_identified is none %}<span class="muted">n/a</span>{% else %}<span class="pill {{ 'pill-ok' if a.root_cause_identified else 'pill-bad' }}">{{ 'found' if a.root_cause_identified else 'missed' }}</span>{% endif %}</td>
+    <td class="num">{% if a.gap_recall is not none %}<span class="pill {{ 'pill-ok' if a.gap_recall >= 0.99 else ('pill-warn' if a.gap_recall > 0 else 'pill-bad') }}">{{ '%d%%' % (a.gap_recall * 100) }}</span>{% else %}n/a{% endif %}</td>
+    <td class="num">{% if a.citation_errors %}<span class="pill pill-bad">{{ a.citation_errors }}</span>{% else %}0{% endif %}</td>
+    <td class="num">{% if a.ungrounded_numbers %}<span class="pill pill-bad">{{ a.ungrounded_numbers }}</span>{% else %}0{% endif %}</td>
     <td class="num">{{ a.tool_calls_executed }}</td>
     <td class="num">{{ a.unresolved_disagreements }}</td>
   </tr>

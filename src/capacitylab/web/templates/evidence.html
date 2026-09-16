@@ -3,17 +3,24 @@
 {% block title %}{{ item.id }} · CapacityLab{% endblock %}
 {% block content %}
 <div class="crumbs"><a href="/runs/{{ run.run_id }}">Run</a> / evidence / {{ item.id }}</div>
-<h1><span class="mono">{{ item.id }}</span> {{ item.title }}</h1>
+<div class="evidence-head prov-card-{{ item.provenance.value }}">
+  <div class="finding-head">{{ prov(item.provenance.value) }}<span class="tag">{{ item.kind.value.replace('_', ' ') }}</span>
+    {% if item.environment %}<span class="tag">{{ environment_labels.get(item.environment, item.environment) }}</span>{% endif %}</div>
+  <h1><span class="mono">{{ item.id }}</span> {{ item.title }}</h1>
+  <p class="muted">{{ item.label }}</p>
+</div>
 <dl class="facts-list">
-  <dt>Provenance</dt><dd>{{ prov(item.provenance.value) }} {{ item.label }}</dd>
-  <dt>Kind</dt><dd>{{ item.kind.value.replace('_', ' ') }}</dd>
   <dt>Source</dt><dd class="mono">{{ item.source }}</dd>
   {% if item.method %}<dt>Method</dt><dd>{{ item.method }}</dd>{% endif %}
   {% if item.tenant_id %}<dt>Tenant</dt><dd>{{ item.tenant_id }}</dd>{% endif %}
   {% if call %}<dt>Produced by</dt><dd><span class="mono">{{ call.call_id }}</span> {{ call.tool }} requested by {{ call.requested_by|join(', ') }} in round {{ call.round }} — {{ call.purpose }}</dd>{% endif %}
-  {% if item.caveats %}<dt>Caveats</dt><dd>{% for c in item.caveats %}<div>{{ c }}</div>{% endfor %}</dd>{% endif %}
   {% if item.assertions %}<dt>Assertions</dt><dd>{% for a in item.assertions %}<div class="mono">{{ a.key }} = {{ a.value }}{{ a.unit or '' }}</div>{% endfor %}</dd>{% endif %}
 </dl>
+{% if item.caveats %}
+<section class="callout callout-disputed"><h3>Read this with care</h3>
+  <ul class="plain">{% for c in item.caveats %}<li>{{ c }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
 <h2>Data</h2>
 <pre class="json">{{ item.data|tojson(indent=2) }}</pre>
 {% endblock %}
