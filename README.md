@@ -430,6 +430,25 @@ capacitylab spend
 The model receives the same evidence and rules as the scripted roles and must return the same structured turn.
 CapacityLab still runs every check itself. Spend is recorded in `runs/spend-ledger.json`.
 
+**What the model never touches.** Statement digests, query plans, lock waits, deadlock reports, the queueing
+model, option scoring and costs are computed by deterministic code. The model writes the role's turn — its position,
+claims, challenges, assumptions and requests — and every number in a claim is rejected unless it appears in the
+evidence that claim cites. A model cannot introduce a measurement here, only reason about the ones on the table.
+
+**Reasoning effort per role.** The API for these models exposes effort rather than temperature. With
+`CAPACITYLAB_EFFORT=auto` (the default), roles whose turns mostly quote measurements run at low effort, and the role
+weighing risk tradeoffs gets more room:
+
+| Role | Effort | Why |
+|---|---|---|
+| Database engineer | low | reads digests, plans and lab measurements; answers should stay close to them |
+| Application owner | low | states calendars, freezes and deadlines |
+| Cost analyst | low | works from the rate card and budget |
+| Tenant representative | low | speaks for one tenant's stated expectations |
+| Reliability engineer | medium | weighs unmeasured failover risk against headroom and cost |
+
+Setting `CAPACITYLAB_EFFORT` to `low`, `medium` or `high` applies that value to every role instead.
+
 > [!IMPORTANT]
 > Before each call, the spend check estimates the worst case (the full context plus the maximum output) and stops the
 > run rather than go over the per-run or total limit. A turn cut off at the output limit fails cleanly and is still
@@ -515,7 +534,8 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 | `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted roles) or `anthropic` |
 | `ANTHROPIC_API_KEY` | *(empty)* | Only needed for `anthropic` |
 | `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for keys not scoped to a workspace; sent as the `anthropic-workspace-id` header |
-| `CAPACITYLAB_MODEL` / `CAPACITYLAB_EFFORT` | `claude-opus-5` / `medium` | Model and effort level |
+| `CAPACITYLAB_MODEL` | `claude-opus-5` | Model used for the roles |
+| `CAPACITYLAB_EFFORT` | `auto` | Per-role reasoning effort; `low`/`medium`/`high` applies one value to every role |
 | `CAPACITYLAB_MAX_USD_TOTAL` | `3.00` | Spend limit across all runs |
 | `CAPACITYLAB_MAX_USD_PER_RUN` | `3.00` (`.env.example`: `2.00`) | Spend limit per run |
 | `CAPACITYLAB_MAX_OUTPUT_TOKENS` | `5000` | Output limit per turn; also bounds the spend estimate |

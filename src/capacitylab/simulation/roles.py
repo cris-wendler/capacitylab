@@ -133,6 +133,18 @@ ROLES[RoleId.SINGLE_AGENT] = RoleDefinition(
     priorities=("meet objectives", "lowest risk", "lowest cost"),
 )
 
+# Reasoning effort per role, used when the provider is set to "auto". Roles whose turns mostly quote
+# measurements run low, which keeps answers close to the evidence; roles that weigh tradeoffs between
+# risk, cost and commitments get more room. Numbers are validated against cited evidence either way.
+EFFORT: dict[RoleId, str] = {
+    RoleId.DATABASE_ENGINEER: "low",
+    RoleId.APPLICATION_OWNER: "low",
+    RoleId.RELIABILITY_ENGINEER: "medium",
+    RoleId.FINOPS_ANALYST: "low",
+    RoleId.TENANT_REPRESENTATIVE: "low",
+    RoleId.SINGLE_AGENT: "medium",
+}
+
 ROLE_ORDER = [
     RoleId.DATABASE_ENGINEER,
     RoleId.APPLICATION_OWNER,

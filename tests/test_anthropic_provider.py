@@ -103,6 +103,17 @@ def test_request_shape_structured_output_and_cost(campaign):
     assert run.spend_usd == pytest.approx(0.01 * len(run.turns))
 
 
+def test_effort_is_per_role_by_default_and_overridable(campaign):
+    client = fake_client(fake_response(make_draft()))
+    one_round(campaign, AnthropicProvider(client=client), max_usd=10)
+    efforts = [c["output_config"]["effort"] for c in client.beta.messages.calls]
+    assert efforts == ["low", "low", "medium", "low", "low"], "roles quoting measurements run low"
+
+    fixed = fake_client(fake_response(make_draft()))
+    one_round(campaign, AnthropicProvider(client=fixed, effort="high"), max_usd=10)
+    assert {c["output_config"]["effort"] for c in fixed.beta.messages.calls} == {"high"}
+
+
 def test_tenant_persona_pack_excludes_other_tenants(campaign):
     client = fake_client(fake_response(make_draft()))
     one_round(campaign, AnthropicProvider(client=client), max_usd=10)

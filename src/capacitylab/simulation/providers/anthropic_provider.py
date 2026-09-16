@@ -47,7 +47,7 @@ class AnthropicProvider:
     def __init__(
         self,
         model: str = "claude-opus-5",
-        effort: str = "medium",
+        effort: str = "auto",  # "auto" means per-role (see roles.EFFORT); any other value applies to all roles
         input_usd_per_mtok: float = 5.0,
         output_usd_per_mtok: float = 25.0,
         refusal_fallback: bool = True,
@@ -103,6 +103,14 @@ class AnthropicProvider:
         return round(reused * 0.1 * rate_in + (total - reused) * 1.25 * rate_in
                      + self.max_tokens * self.output_usd_per_mtok / 1e6, 6)
 
+    def _effort_for(self, role) -> str:
+        """Per-role effort when configured as "auto"; an explicit setting applies to every role."""
+        if self.effort != "auto":
+            return self.effort
+        from capacitylab.simulation.roles import EFFORT
+
+        return EFFORT.get(role.id, "low")
+
     def _cost(self, usage) -> float:
         rate_in = self.input_usd_per_mtok / 1e6
         cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
@@ -135,7 +143,8 @@ class AnthropicProvider:
                     {"type": "text", "text": stable, "cache_control": {"type": "ephemeral"}},
                     {"type": "text", "text": per_round + extra},
                 ]}],
-                output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": TURN_SCHEMA()}},
+                output_config={"effort": self._effort_for(ctx.role),
+                               "format": {"type": "json_schema", "schema": TURN_SCHEMA()}},
             )
             try:
                 if self.refusal_fallback:

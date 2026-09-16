@@ -42,7 +42,7 @@ class MySQLSettings:
 class Settings:
     provider: str = "mock"
     model: str = "claude-opus-5"
-    effort: str = "medium"
+    effort: str = "auto"  # per-role effort (see simulation.roles.EFFORT); low/medium/high applies to every role
     refusal_fallback: bool = True
     input_usd_per_mtok: float = 5.0
     output_usd_per_mtok: float = 25.0
@@ -69,7 +69,7 @@ class Settings:
         return cls(
             provider=env.get("CAPACITYLAB_PROVIDER", "mock"),
             model=env.get("CAPACITYLAB_MODEL", "claude-opus-5"),
-            effort=env.get("CAPACITYLAB_EFFORT", "medium"),
+            effort=env.get("CAPACITYLAB_EFFORT", "auto"),
             refusal_fallback=_bool(env.get("CAPACITYLAB_REFUSAL_FALLBACK"), True),
             input_usd_per_mtok=float(env.get("CAPACITYLAB_INPUT_USD_PER_MTOK", "5.0")),
             output_usd_per_mtok=float(env.get("CAPACITYLAB_OUTPUT_USD_PER_MTOK", "25.0")),
