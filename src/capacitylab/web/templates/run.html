@@ -123,7 +123,7 @@
 
 {% if lab %}
 <h2 id="lab-measurements">Lab measurements used <span class="prov-note">{{ prov('measured') }}</span></h2>
-<p class="section-lead">Measured on the local MySQL lab with a synthetic workload ({{ lab.data.engine }}). They show how this workload behaves on a
+<p class="section-lead">Measured in the local lab with a synthetic workload ({{ lab.data.engine }}). They show how this workload behaves on a
 real engine at small scale; they are not production numbers.</p>
 {{ lab_table(lab) }}
 {% endif %}

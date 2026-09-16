@@ -53,12 +53,14 @@
       {% endfor %}
     </tr>
   {% endfor %}
-    <tr class="sep"><td>Row-lock waits</td>{% for n in names %}<td class="num">{{ cmp.data.lock_waits.get(n) }}</td>{% endfor %}</tr>
-    <tr><td>Average lock wait</td>{% for n in names %}<td class="num">{{ cmp.data.avg_row_lock_wait_ms.get(n) }} ms</td>{% endfor %}</tr>
+{% set pg = (cmp.data.engine or '').startswith('PostgreSQL') %}
+    <tr class="sep"><td>{{ 'Sessions seen waiting on locks' if pg else 'Row-lock waits' }}</td>{% for n in names %}<td class="num">{{ cmp.data.lock_waits.get(n) }}</td>{% endfor %}</tr>
+    {% if not pg %}<tr><td>Average lock wait</td>{% for n in names %}<td class="num">{{ cmp.data.avg_row_lock_wait_ms.get(n) }} ms</td>{% endfor %}</tr>{% endif %}
+    {% if cmp.data.get('deadlocks') %}<tr><td>Deadlocks</td>{% for n in names %}<td class="num">{{ cmp.data.deadlocks.get(n) }}</td>{% endfor %}</tr>{% endif %}
     <tr><td>Database load (avg. active sessions)</td>{% for n in names %}<td class="num">{{ cmp.data.db_load_average_active_sessions.get(n) }}</td>{% endfor %}</tr>
-    <tr><td>Threads running (max)</td>{% for n in names %}<td class="num">{{ cmp.data.threads_running_max.get(n) }}</td>{% endfor %}</tr>
+    <tr><td>{{ 'Active sessions (max)' if pg else 'Threads running (max)' }}</td>{% for n in names %}<td class="num">{{ cmp.data.threads_running_max.get(n) }}</td>{% endfor %}</tr>
   </tbody>
 </table>
 </div>
-<p class="small muted">p95 latency per statement, measured by the client. {{ cmp.data.low_sample_note }}</p>
+<p class="small muted">p95 latency per statement, measured by the client. {{ cmp.data.low_sample_note }}{% if cmp.data.get('lock_wait_note') %} {{ cmp.data.lock_wait_note }}{% endif %}</p>
 {%- endmacro %}

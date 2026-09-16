@@ -4,6 +4,7 @@
 {% block content %}
 <div class="crumbs"><a href="/lab">Lab</a> / <span class="mono">{{ file_name }}</span></div>
 {% set sid = cmp.data.get('scenario_id') %}
+{% set pg = (cmp.data.engine or '').startswith('PostgreSQL') %}
 <h1>{% if sid %}Lab run for {{ sid }}{% else %}Lab run{% endif %}</h1>
 <div class="meta">
   <span>{{ cmp.data.engine }}</span>
@@ -49,6 +50,19 @@
     </section>
     <section>
       <h3>Server counters</h3>
+      {% if pg %}
+      {% set sc = lat.server_counters %}
+      <dl class="facts-list">
+        <dt>Transactions/s</dt><dd>{{ sc.transactions_per_s }}</dd>
+        <dt>Waiting on locks</dt><dd>{{ sc.lock_wait_session_seconds }} session-seconds (at most {{ sc.max_sessions_waiting_on_locks }} at once)</dd>
+        <dt>Lock timeouts</dt><dd>{{ sc.lock_timeouts }}</dd>
+        <dt>Deadlocks</dt><dd>{{ sc.deadlocks }}</dd>
+        <dt>Buffer blocks</dt><dd>{{ sc.blks_hit }} from cache, {{ sc.blks_read }} read</dd>
+        <dt>Temp files</dt><dd>{{ sc.temp_files }}</dd>
+        <dt>Active sessions</dt><dd>max {{ lat.active_sessions.max }}, mean {{ lat.active_sessions.mean }}</dd>
+        <dt>Batch job</dt><dd>{% if lat.batch_job.running %}running ({{ lat.batch_job.chunks_committed }} chunks committed){% else %}not running{% endif %}</dd>
+      </dl>
+      {% else %}
       <dl class="facts-list">
         <dt>Statements/s</dt><dd>{{ lat.server_counters.questions_per_s }}</dd>
         <dt>Row-lock waits</dt><dd>{{ lat.server_counters.Innodb_row_lock_waits }} (avg {{ lat.server_counters.avg_row_lock_wait_ms }} ms)</dd>
@@ -57,17 +71,26 @@
         <dt>Threads running</dt><dd>max {{ lat.threads_running.max }}, mean {{ lat.threads_running.mean }}</dd>
         <dt>Batch job</dt><dd>{% if lat.batch_job.running %}running ({{ lat.batch_job.chunks_committed }} chunks committed){% else %}not running{% endif %}</dd>
       </dl>
+      {% endif %}
     </section>
   </div>
   {% endif %}
   {% if digests.get(p.name) %}
-  <h3>Statement digests</h3>
+  <h3>Statement {{ 'statistics' if pg else 'digests' }} <span class="muted small">{{ 'pg_stat_statements' if pg else 'performance_schema' }}</span></h3>
   <div class="table-wrap"><table>
+    {% if pg %}
+    <thead><tr><th>Statement</th><th class="num">Calls</th><th class="num">Share of DB time</th><th class="num">Avg ms</th><th class="num">Buffer blocks / call</th><th class="num">Blocks read from disk</th></tr></thead>
+    <tbody>
+    {% for f in digests[p.name] %}
+      <tr><td class="mono">{{ f.fingerprint_id }}</td><td class="num">{{ f.calls }}</td><td class="num">{{ f.share_of_db_time_pct }}%</td><td class="num">{{ f.avg_latency_ms }}</td><td class="num">{{ f.avg_shared_blocks }}</td><td class="num">{{ f.shared_blocks_read_from_disk }}</td></tr>
+    {% endfor %}
+    {% else %}
     <thead><tr><th>Statement</th><th class="num">Calls</th><th class="num">Share of DB time</th><th class="num">Avg ms</th><th class="num">Rows examined / call</th><th class="num">Lock wait ms / call</th></tr></thead>
     <tbody>
     {% for f in digests[p.name] %}
       <tr><td class="mono">{{ f.fingerprint_id }}</td><td class="num">{{ f.calls }}</td><td class="num">{{ f.share_of_db_time_pct }}%</td><td class="num">{{ f.avg_latency_ms }}</td><td class="num">{{ f.avg_rows_examined }}</td><td class="num">{{ f.avg_lock_wait_ms }}</td></tr>
     {% endfor %}
+    {% endif %}
     </tbody>
   </table></div>
   {% endif %}
@@ -99,7 +122,12 @@
   {% endif %}
   {% for plan in plans.get(p.name, []) %}
   <h3>Plan for <span class="mono">{{ plan.data.fingerprint_id }}</span> <span class="muted small">{{ plan.data.total_latency_ms }} ms</span></h3>
+  {% if plan.data.get('raw_text') %}
   <pre class="log plan">{{ plan.data.raw_text }}</pre>
+  {% else %}
+  <pre class="log plan">{% for s in plan.data.steps %}{{ '   ' * s.depth }}-> {{ s.operation }}{% if s.table %} on {{ s.table }}{% endif %}{% if s.index %} using {{ s.index }}{% endif %}  (rows est {{ s.estimated_rows|int if s.estimated_rows is not none else '?' }}, actual {{ s.actual_rows|int if s.actual_rows is not none else '?' }} x {{ s.loops }} loops, {{ s.actual_time_ms }} ms, {{ s.shared_blocks }} blocks)
+{% endfor %}</pre>
+  {% endif %}
   {% endfor %}
 </details>
 {% endfor %}

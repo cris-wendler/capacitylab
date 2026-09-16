@@ -1,8 +1,9 @@
-"""Concurrent, open-loop workload driver for the MySQL lab.
+"""Concurrent, open-loop workload driver for the MySQL and PostgreSQL labs.
 
 Arrivals follow a seeded Poisson schedule derived from the scenario's statement mix. Workers execute
 statements on their own connections; latency is measured per call, and queueing delay is recorded
-separately so saturation shows up as delay rather than being hidden.
+separately so saturation shows up as delay rather than being hidden. The statements are the same on both
+engines; only session settings, sampling queries and error types differ.
 """
 
 from __future__ import annotations
@@ -13,8 +14,6 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field
-
-import pymysql
 
 from capacitylab.diagnostics import fixture_db as fx
 from capacitylab.diagnostics.sandbox import _mysql_params
@@ -31,6 +30,7 @@ BATCH_UPDATE = (
     "WHERE o.tenant_id = c.tenant_id AND o.customer_id = c.customer_id AND o.order_state = 'paid') "
     "WHERE c.tenant_id = %(tenant)s AND c.customer_id BETWEEN %(lo)s AND %(hi)s"
 )
+BATCH_UPDATE_POSTGRES = BATCH_UPDATE.replace(" DIV 100", " / 100")  # integer division on integer columns
 
 SUPPORTED_FINGERPRINTS = {"QF-ORDER-HISTORY", "QF-AUDIENCE", "QF-CHECKOUT-WRITE", "QF-OTHER"}
 
@@ -54,10 +54,53 @@ class ConnectionInfo:
     user: str
     password: str
     database: str
+    engine: str = "mysql"  # mysql | postgres
 
     def connect(self):
+        if self.engine == "postgres":
+            import psycopg
+
+            # Client-side binding, like pymysql, so the same %(name)s statements and EXPLAIN work unchanged.
+            return psycopg.connect(host=self.host, port=self.port, user=self.user, password=self.password,
+                                   dbname=self.database, autocommit=True, cursor_factory=psycopg.ClientCursor)
+        import pymysql
+
         return pymysql.connect(host=self.host, port=self.port, user=self.user, password=self.password,
                                database=self.database, autocommit=True)
+
+    @property
+    def errors(self) -> tuple[type[BaseException], ...]:
+        if self.engine == "postgres":
+            import psycopg
+
+            return (psycopg.Error,)
+        import pymysql
+
+        return (pymysql.MySQLError,)
+
+    def error_code(self, exc: BaseException) -> str:
+        code = getattr(exc, "sqlstate", None) if self.engine == "postgres" else (exc.args[0] if exc.args else "")
+        return f"{type(exc).__name__}({code or ''})"
+
+    def set_lock_timeout(self, cur, seconds: int) -> None:
+        if self.engine == "postgres":
+            cur.execute(f"SET lock_timeout = '{int(seconds)}s'")
+        else:
+            cur.execute("SET SESSION innodb_lock_wait_timeout = %s", (seconds,))
+
+    def sample(self, cur) -> tuple[int, int]:
+        """(sessions running a statement, sessions waiting on a lock). MySQL reports only the first here."""
+        if self.engine == "postgres":
+            cur.execute("SELECT count(*) FILTER (WHERE state = 'active'), count(*) FILTER (WHERE wait_event_type = 'Lock') "
+                        "FROM pg_stat_activity WHERE datname = current_database()")
+            running, waiting = cur.fetchone()
+            return int(running), int(waiting)
+        cur.execute("SHOW GLOBAL STATUS LIKE 'Threads_running'")
+        return int(cur.fetchone()[1]), 0
+
+    @property
+    def batch_update(self) -> str:
+        return BATCH_UPDATE_POSTGRES if self.engine == "postgres" else BATCH_UPDATE
 
 
 @dataclass
@@ -74,6 +117,7 @@ class Call:
 class PhaseRun:
     calls: list[Call] = field(default_factory=list)
     threads_running_samples: list[int] = field(default_factory=list)
+    lock_waiting_samples: list[int] = field(default_factory=list)
     batch_chunks: int = 0
     batch_errors: int = 0
     wall_s: float = 0.0
@@ -131,7 +175,8 @@ def _execute(cur, fid: str, tenant: str, rng: random.Random, order_ids) -> None:
 
 
 def run_phase(conn_info: ConnectionInfo, schedule: list[tuple[float, str, str]], duration_s: float, workers: int,
-              batch: bool, seed: str, batch_hold_s: float = 0.25, lock_wait_timeout_s: int = 5) -> PhaseRun:
+              batch: bool, seed: str, batch_hold_s: float = 0.25, lock_wait_timeout_s: int = 5,
+              sample_interval_s: float = 0.5) -> PhaseRun:
     result = PhaseRun()
     work: queue.Queue = queue.Queue()
     lock = threading.Lock()
@@ -144,7 +189,7 @@ def run_phase(conn_info: ConnectionInfo, schedule: list[tuple[float, str, str]],
         rng = random.Random(f"{seed}:worker:{n}")
         try:
             with conn.cursor() as cur:
-                cur.execute("SET SESSION innodb_lock_wait_timeout = %s", (lock_wait_timeout_s,))
+                conn_info.set_lock_timeout(cur, lock_wait_timeout_s)
                 while True:
                     item = work.get()
                     if item is None:
@@ -160,8 +205,8 @@ def run_phase(conn_info: ConnectionInfo, schedule: list[tuple[float, str, str]],
                         with lock:
                             ids = order_ids
                         _execute(cur, fid, tenant, rng, ids)
-                    except pymysql.MySQLError as exc:
-                        call.error = type(exc).__name__ + f"({exc.args[0] if exc.args else ''})"
+                    except conn_info.errors as exc:
+                        call.error = conn_info.error_code(exc)
                     call.latency_ms = (time.perf_counter() - t0) * 1000
                     with lock:
                         result.calls.append(call)
@@ -172,7 +217,7 @@ def run_phase(conn_info: ConnectionInfo, schedule: list[tuple[float, str, str]],
         conn = conn_info.connect()
         try:
             with conn.cursor() as cur:
-                cur.execute("SET SESSION innodb_lock_wait_timeout = %s", (lock_wait_timeout_s,))
+                conn_info.set_lock_timeout(cur, lock_wait_timeout_s)
                 while not stop.is_set():
                     for tenant_id, customers in fx.CUSTOMERS_PER_TENANT.items():
                         for lo in range(1, customers + 1, 200):
@@ -180,11 +225,11 @@ def run_phase(conn_info: ConnectionInfo, schedule: list[tuple[float, str, str]],
                                 return
                             try:
                                 cur.execute("START TRANSACTION")
-                                cur.execute(BATCH_UPDATE, {"tenant": tenant_id, "lo": lo, "hi": lo + 199})
+                                cur.execute(conn_info.batch_update, {"tenant": tenant_id, "lo": lo, "hi": lo + 199})
                                 time.sleep(batch_hold_s)  # holds row locks like a long recalculation transaction
                                 cur.execute("COMMIT")
                                 result.batch_chunks += 1
-                            except pymysql.MySQLError:
+                            except conn_info.errors:
                                 cur.execute("ROLLBACK")
                                 result.batch_errors += 1
         finally:
@@ -195,9 +240,10 @@ def run_phase(conn_info: ConnectionInfo, schedule: list[tuple[float, str, str]],
         try:
             with conn.cursor() as cur:
                 while not stop.is_set():
-                    cur.execute("SHOW GLOBAL STATUS LIKE 'Threads_running'")
-                    result.threads_running_samples.append(int(cur.fetchone()[1]))
-                    time.sleep(0.5)
+                    running, waiting = conn_info.sample(cur)
+                    result.threads_running_samples.append(running)
+                    result.lock_waiting_samples.append(waiting)
+                    time.sleep(sample_interval_s)
         finally:
             conn.close()
 

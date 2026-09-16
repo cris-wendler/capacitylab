@@ -353,13 +353,17 @@ def spread_item(comparisons: list[dict], phases: list[PhaseSpec], config: LabCon
                  for key in ("lock_waits", "deadlocks", "db_load_average_active_sessions")},
               "note": "A difference between phases only means something if it is larger than the range within a phase.",
               "engine": comparisons[0].get("engine"), "config": config.model_dump()},
-        caveats=[LAB_CAVEAT])
+        caveats=[comparisons[0].get("caveat") or LAB_CAVEAT])
 
 
-def run_lab_repeats(scenario: Scenario, mysql: MySQLSettings, config: LabConfig | None = None,
+def run_lab_repeats(scenario: Scenario, mysql, config: LabConfig | None = None,
                     phases: list[PhaseSpec] | None = None,
-                    progress: Callable[[str], None] = lambda m: None) -> list[EvidenceItem]:
-    """Run the phase set `config.repeats` times. Detailed evidence comes from the first pass, plus a spread item."""
+                    progress: Callable[[str], None] = lambda m: None,
+                    runner: Callable[..., list[EvidenceItem]] | None = None) -> list[EvidenceItem]:
+    """Run the phase set `config.repeats` times. Detailed evidence comes from the first pass, plus a spread item.
+
+    `mysql` is the connection settings for whichever engine `runner` drives (MySQL by default)."""
+    runner = runner or run_lab
     config = config or LabConfig()
     phases = phases or default_phases(scenario)
     passes = max(1, config.repeats)
@@ -371,7 +375,7 @@ def run_lab_repeats(scenario: Scenario, mysql: MySQLSettings, config: LabConfig 
         # Percona tools run on the first pass only: they describe the schema and server, not the workload sample.
         pass_config = config.model_copy(update={"seed": config.seed if rep == 0 else f"{config.seed}:r{rep}",
                                                 "percona": config.percona and rep == 0})
-        pass_items = run_lab(scenario, mysql, pass_config, phases, progress)
+        pass_items = runner(scenario, mysql, pass_config, phases, progress)
         comparisons.append(next(i for i in pass_items if i.id == "EV-LAB-CMP").data)
         if rep == 0:
             items = pass_items

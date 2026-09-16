@@ -185,8 +185,6 @@ def cmd_evaluate(args, settings) -> int:
 
 
 def cmd_lab(args, settings) -> int:
-    import pymysql
-
     from capacitylab.lab.runner import LabConfig, run_lab_repeats, write_evidence
     from capacitylab.scenarios.loader import load_scenario
 
@@ -195,8 +193,29 @@ def cmd_lab(args, settings) -> int:
 
     config = LabConfig(duration_s=args.duration, total_qps=args.qps, workers=args.workers, percona=args.percona,
                        repeats=args.repeats)
+    progress = lambda m: print(f"  … {m}", flush=True)  # noqa: E731
+    if getattr(args, "engine", "mysql") == "postgres":
+        if args.percona:
+            print("error: --percona uses MySQL tools; it does not apply to --engine postgres", file=sys.stderr)
+            return 2
+        try:
+            import psycopg
+
+            from capacitylab.lab.pg_runner import run_lab_postgres
+        except ImportError:
+            print("error: the PostgreSQL lab needs psycopg: pip install -e '.[postgres]'", file=sys.stderr)
+            return 4
+        try:
+            items = run_lab_repeats(scenario, settings.postgres, config, progress=progress, runner=run_lab_postgres)
+        except psycopg.OperationalError as exc:
+            print(f"error: PostgreSQL lab not reachable ({str(exc).splitlines()[0]}). "
+                  "Start it: docker compose up -d --wait sandbox-postgres", file=sys.stderr)
+            return 4
+        return _print_lab(items, scenario, config, args, settings, write_evidence)
+    import pymysql
+
     try:
-        items = run_lab_repeats(scenario, settings.mysql, config, progress=lambda m: print(f"  … {m}", flush=True))
+        items = run_lab_repeats(scenario, settings.mysql, config, progress=progress)
     except pymysql.err.OperationalError as exc:
         print(f"error: MySQL lab not reachable ({exc.args[0]}). Start it: docker compose up -d --wait sandbox-mysql",
               file=sys.stderr)
@@ -205,6 +224,10 @@ def cmd_lab(args, settings) -> int:
         print(f"error: {exc}\nCheck that docker is running, the lab is up, and the image is present: docker pull {DEFAULT_IMAGE}",
               file=sys.stderr)
         return 4
+    return _print_lab(items, scenario, config, args, settings, write_evidence)
+
+
+def _print_lab(items, scenario, config, args, settings, write_evidence) -> int:
     out = Path(args.out) if args.out else settings.runs_dir / "lab" / f"{scenario.id}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.yaml"
     write_evidence(items, out)
     cmp = next(i for i in items if i.id == "EV-LAB-CMP").data
@@ -225,6 +248,8 @@ def cmd_lab(args, settings) -> int:
     print()
     for key in ("lock_waits", "avg_row_lock_wait_ms", "deadlocks", "db_load_average_active_sessions", "threads_running_max"):
         print(f"{key:34s}" + "   ".join(f"{n}={cmp[key][n]}" for n in names))
+    if cmp.get("lock_wait_note"):
+        print(cmp["lock_wait_note"])
     print(cmp["low_sample_note"])
     spread = next((i.data for i in items if i.id == "EV-LAB-SPREAD"), None)
     if spread:
@@ -400,10 +425,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out")
     p.set_defaults(func=cmd_evaluate)
 
-    lab = sub.add_parser("lab", help="drive a real workload on the local MySQL lab and collect evidence")
+    lab = sub.add_parser("lab", help="drive a real workload on the local MySQL or PostgreSQL lab and collect evidence")
     lab_sub = lab.add_subparsers(dest="lab_command", required=True)
     p = lab_sub.add_parser("run", help="run baseline, event, and event+index phases for a scenario")
     p.add_argument("scenario")
+    p.add_argument("--engine", choices=["mysql", "postgres"], default="mysql",
+                   help="mysql (default, port 3307) or postgres (PostgreSQL 17, port 5433)")
     p.add_argument("--duration", type=float, default=30.0, help="seconds per phase (default 30)")
     p.add_argument("--qps", type=float, default=150.0, help="baseline statements per second (default 150)")
     p.add_argument("--workers", type=int, default=16)

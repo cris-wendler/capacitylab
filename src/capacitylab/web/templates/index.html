@@ -13,7 +13,7 @@
   <div class="step">
     <span class="step-num">1</span>
     <h3>Evidence</h3>
-    <p>Scenario data, measurements from the local MySQL lab, or exports from your own database. Every item says where it
+    <p>Scenario data, measurements from the local MySQL or PostgreSQL lab, or exports from your own database. Every item says where it
     came from.</p>
   </div>
   <div class="step">
@@ -46,9 +46,9 @@
 {% endfor %}
   <a class="card card-lab" href="/lab">
     <div class="card-kicker"><span class="dot {{ 'dot-ok' if lab.ok else 'dot-off' }}"></span>{{ 'Lab ready' if lab.ok else 'Lab not running' }}</div>
-    <h3>Local MySQL lab</h3>
-    <p>Run a real concurrent workload against a local MySQL 8.0 container and collect latency, lock waits, and plans to
-    attach to a review.</p>
+    <h3>Local database lab</h3>
+    <p>Run a real concurrent workload against a local MySQL 8.0 or PostgreSQL 17 container and collect latency, lock
+    waits, and plans to attach to a review.</p>
     <div class="facts"><span>{{ lab_runs|length }} recent lab run{{ '' if lab_runs|length == 1 else 's' }}</span><span>{{ lab.detail }}</span></div>
   </a>
 </div>

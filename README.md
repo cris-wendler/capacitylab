@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/Pydantic-2-E92063?logo=pydantic&logoColor=white" alt="Pydantic 2">
   <img src="https://img.shields.io/badge/FastAPI-Jinja-009688?logo=fastapi&logoColor=white" alt="FastAPI and Jinja">
   <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white" alt="MySQL 8.0">
+  <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7-1c5cab" alt="Percona Toolkit 3.7">
   <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
@@ -53,7 +54,7 @@ experiments are deterministic Python, and every number an agent states is checke
 |---|---|---|
 | [Tech stack](#tech-stack) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
 | [The five agents](#the-five-agents) | [Using Claude for the agents](#using-claude-for-the-agents) | [Project layout](#project-layout) |
-| [What you get](#what-you-get) | [The local MySQL lab](#the-local-mysql-lab) | [Status and limitations](#status-and-limitations) |
+| [What you get](#what-you-get) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
 | [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
 | [Quick start](#quick-start) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
 
@@ -68,9 +69,9 @@ experiments are deterministic Python, and every number an agent states is checke
 | ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to the role, every number must appear in the cited evidence, requested checks must be allowed for the role, spend must fit the limits. |
 | ![](https://img.shields.io/badge/capacity%20planning-2d6cdf?style=flat-square) | M/M/c queueing model | CPU utilisation per 15 or 60 minute slot, SLO breach slots, instance options scored against each other. |
 | ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model and tenant entitlements | Option costs from the scenario's rate card, spend limits for the model itself, each tenant's CPU share against what its plan guarantees. |
-| ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` digests, `EXPLAIN ANALYZE`, index and rewrite experiments, `pt-query-digest` and friends. |
+| ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 and PostgreSQL 17 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE` and `EXPLAIN (ANALYZE, BUFFERS)`, index and rewrite experiments, `pt-query-digest` and friends. |
 | ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI for scenarios, runs, lab results and comparisons; the same features on the command line. |
-| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests, a MySQL job in CI, replay of a full run, and a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests, MySQL and PostgreSQL jobs in CI, replay of a full run, and a scan for leftover identifiers. |
 
 ## The five agents
 
@@ -99,7 +100,7 @@ run from scripted rules, which is free, offline and repeatable.
 |---|---|
 | 📝 **A decision record** | What each agent recommends and why, open disagreements, unanswered challenges, evidence nobody has, and checks that were requested but never ran. |
 | 🩺 **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates. `capacitylab findings <scenario>` or the scenario page. |
-| 🧪 **Measurements from a real engine** | A local MySQL 8.0 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
+| 🧪 **Measurements from a real engine** | A local MySQL 8.0 or PostgreSQL 17 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
 | 💸 **Costs next to the risk** | Every option priced from the scenario's rate card, and each tenant's share of the cluster compared with what it pays for. |
 | 📥 **Your own data** | Import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch metrics and Percona Toolkit reports. |
 | 🔁 **Replay** | Every item is labelled observed, forecast, assumption, modeled or measured. Every run is a log you can replay to re-check each result. |
@@ -245,6 +246,46 @@ xychart-beta
 > single-pass runs seemed to show the index making checkout worse; repeating the passes showed that was noise. This is
 > why one run per phase is not enough, and why `--repeats` exists.
 
+#### The same phases on PostgreSQL 17
+
+`capacitylab lab run campaign-overlap --engine postgres --repeats 3` on PostgreSQL 17.11: the same dataset, seeds,
+connections and phase length.
+
+| p95 latency | Baseline | Event with batch job | Event, batch job, index | Event, batch job moved |
+|---|---:|---:|---:|---:|
+| Checkout write | 5.37 ms ±23% | 12.59 ms ±132% | 36.97 ms ±134% | **5.25 ms ±9%** |
+| Campaign audience query | too few calls | 5.70 ms ±26% | **2.90 ms ±39%** | 3.69 ms ±24% |
+| Order history | 1.77 ms ±9% | 1.63 ms ±32% | 1.73 ms ±9% | 1.64 ms ±12% |
+| Lock waits (session-seconds) | 0 | 2.3 | 2.6 | **0** |
+| Database load (active sessions) | 0.002 | 0.101 | 0.098 | 0.004 |
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Where the engines agree.** Moving the batch job clears lock waits in every pass on both engines, and checkout
+p95 returns to baseline (5.25 ms, ±9%). Database load drops from about 0.1 active sessions to 0.004.
+
+</td>
+<td width="50%" valign="top">
+
+**Where they differ.** PostgreSQL recorded no deadlocks; MySQL did. With the batch job running, PostgreSQL checkout p95
+varies even more (±132%, ±134%), so the index's effect on writes stays unanswered here too.
+
+</td>
+</tr>
+</table>
+
+> [!NOTE]
+> On PostgreSQL the index also speeds up the audience query while the batch job runs: the slowest indexed pass
+> (3.58 ms) beats the fastest unindexed one (5.31 ms). But with the batch job moved and no index, the query already
+> runs at 3.22–4.10 ms. With 7–9 calls per phase, the lab cannot yet separate the index's benefit from the batch job's
+> cost.
+
+> [!IMPORTANT]
+> PostgreSQL keeps no cumulative lock-wait counter. Lock waits here come from sampling `pg_stat_activity` every
+> 0.1 s, so they are session-seconds rather than a count of waits, and they are not comparable with the MySQL row.
+
 ![Lab results page](docs/media/lab.png)
 
 ### What the agents concluded
@@ -312,7 +353,7 @@ reader; the cost analyst holds out for a smaller one.
 flowchart LR
   subgraph Evidence
     FILES["Scenario files"] --> BUNDLE
-    LAB["Local MySQL lab<br/>real concurrent workload"] --> BUNDLE
+    LAB["Local MySQL or PostgreSQL lab<br/>real concurrent workload"] --> BUNDLE
     IMPORTS["Your exports<br/>slow log · digests · plans · metrics"] --> BUNDLE
     BUNDLE[("Evidence<br/>each item labeled by source")]
   end
@@ -388,7 +429,7 @@ sequenceDiagram
 Each item also records where it came from: scenario data, the local lab, or an imported file.
 
 > [!CAUTION]
-> The experiment database and the lab only connect to `localhost` and only to databases named
+> The experiment database and both labs only connect to `localhost` and only to databases named
 > `capacitylab_sandbox…`. Percona Toolkit only attaches to containers named `capacitylab-*`. Nothing in CapacityLab
 > connects to a cloud account.
 
@@ -396,7 +437,7 @@ Each item also records where it came from: scenario data, the local lab, or an i
 
 ## Quick start
 
-Requires Python 3.11+. Docker is only needed for the MySQL lab.
+Requires Python 3.11+. Docker is only needed for the labs.
 
 ```bash
 python3.11 -m venv .venv && source .venv/bin/activate
@@ -462,13 +503,17 @@ ruff check src tests scripts
 
 docker compose up -d --wait sandbox-mysql
 CAPACITYLAB_TEST_MYSQL=1 python -m pytest -m mysql
+
+pip install -e ".[postgres]"
+docker compose up -d --wait sandbox-postgres
+CAPACITYLAB_TEST_POSTGRES=1 python -m pytest -m postgres
 ```
 
 </details>
 
 ---
 
-## The local MySQL lab
+## The local database lab
 
 ```bash
 docker compose up -d --wait sandbox-mysql
@@ -476,7 +521,7 @@ capacitylab lab run campaign-overlap --duration 60 --qps 300 --out runs/lab/camp
 capacitylab run campaign-overlap --evidence runs/lab/campaign.yaml --sandbox mysql
 ```
 
-Or use the **Lab** page in the web UI. Each run loads the synthetic retail dataset (122,675 orders, 4,000 customers
+Or use the **Lab** page in the web UI, which also picks the engine. Each run loads the synthetic retail dataset (122,675 orders, 4,000 customers
 across five tenants) into a disposable database and replays the same seeded Poisson arrivals through four phases:
 
 ```mermaid
@@ -494,13 +539,22 @@ flowchart LR
   class N moved
 ```
 
-| Collected per phase | From |
-|---|---|
-| Client latency p50 / p95 / p99 and queueing delay | the workload driver, per call |
-| Statement digests mapped to scenario statements | `performance_schema` |
-| Row-lock waits, deadlocks, rows read, temporary tables | `SHOW GLOBAL STATUS`, `INNODB_METRICS` |
-| Threads running and database load | sampled during the phase |
-| Plans with estimated and actual rows | `EXPLAIN ANALYZE` |
+| Collected per phase | MySQL 8.0 | PostgreSQL 17 (`--engine postgres`) |
+|---|---|---|
+| Client latency p50 / p95 / p99 and queueing delay | the workload driver, per call | the same driver |
+| Statement statistics mapped to scenario statements | `performance_schema` digests: rows examined, temporary tables | `pg_stat_statements`: buffer blocks, blocks read from disk |
+| Lock waits and deadlocks | `SHOW GLOBAL STATUS`, `INNODB_METRICS` | sampled `pg_stat_activity`, `pg_stat_database` |
+| Running sessions and database load | `Threads_running`, sampled | active sessions, sampled |
+| Plans with estimated and actual rows | `EXPLAIN ANALYZE` | `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, with blocks per step |
+
+```bash
+pip install -e ".[postgres]"
+docker compose up -d --wait sandbox-postgres
+capacitylab lab run campaign-overlap --engine postgres --repeats 3 --out runs/lab/campaign-pg.yaml
+```
+
+Both engines produce the same evidence ids, so a review can use either file. Percona Toolkit checks apply to the MySQL
+lab only.
 
 Percentiles based on fewer than 20 calls are marked *low sample*. With `--sandbox mysql`, roles can also request a
 two-phase `lab_load_test` during a review.
@@ -723,6 +777,7 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 | `CAPACITYLAB_MAX_ROUNDS` / `CAPACITYLAB_MAX_TOOL_CALLS` | `3` / `40` | Run limits (a scenario may set lower ones) |
 | `CAPACITYLAB_SANDBOX` | `sqlite` | Experiment database: `sqlite` or `mysql` |
 | `CAPACITYLAB_MYSQL_*` | `127.0.0.1:3307` | Local MySQL container (placeholder password) |
+| `CAPACITYLAB_POSTGRES_*` | `127.0.0.1:5433` | Local PostgreSQL container (placeholder password) |
 | `CAPACITYLAB_PERCONA_IMAGE` / `CAPACITYLAB_LAB_CONTAINER` | `percona/percona-toolkit:latest` / `capacitylab-sandbox-mysql` | Percona Toolkit image and the lab container it attaches to (must be named `capacitylab-*`) |
 | `CAPACITYLAB_RUNS_DIR` | `runs` | Run logs, lab results, imports, spend ledger |
 
@@ -740,14 +795,16 @@ src/capacitylab/
   workload/        seeded traffic generator for forecasts
   capacity/        instance catalog, queueing model, option evaluation, cost
   diagnostics/     experiment databases, retail dataset, index and rewrite experiments, evidence analysis
-  lab/             MySQL lab: workload driver, performance_schema collector, EXPLAIN ANALYZE parser, Percona Toolkit
+  lab/             labs: workload driver for both engines, performance_schema and pg_stat_statements collectors,
+                   EXPLAIN ANALYZE and JSON plan parsers, Percona Toolkit
   simulation/      roles, turn format, checks, turn validation, scripted and Claude answers, rounds, decision record
   evaluation/      replay and comparison
   importers.py     slow log, digest, plan, CloudWatch, and Percona Toolkit importers
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             111 run by default; 6 need the MySQL container (2 also the Percona image); 1 calls a real model and is opt-in
+tests/             136 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+                   container; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture
 docs/              provenance and release checklist, evaluation method, screenshots
@@ -762,10 +819,10 @@ docs/              provenance and release checklist, evaluation method, screensh
 | Area | Status |
 |---|---|
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Lab runs and reviews that use them, with and without Percona Toolkit 3.7.1 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
+| Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Importers, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Five-agent review with Claude (Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
-| CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
+| CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**
 
@@ -788,13 +845,13 @@ docs/              provenance and release checklist, evaluation method, screensh
 |---|---|
 | **Lab spread in the agents' reasoning** | Let scripted roles weigh the spread across lab passes against the capacity model. |
 | **Smaller model context** | Trim what each role receives in later rounds so a full three-round review fits a small budget. |
-| **A PostgreSQL lab** | `pg_stat_statements` or `pg_stat_monitor`, `EXPLAIN (ANALYZE, BUFFERS)` parsing, and `pt-pg-summary`. |
+| **PostgreSQL in reviews** | Index and rewrite experiments on PostgreSQL during a review (today they run on SQLite or MySQL), `pg_stat_monitor`, and importers for `auto_explain` and `pg_stat_statements` exports. |
 | **`pt-index-usage`** | It runs against the lab but reported nothing useful yet, so it is not wired in. |
 
 ## License
 
-[Apache License 2.0](LICENSE). Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) run
-from their own Docker images as separate programs and are not included or modified here. The files under
+[Apache License 2.0](LICENSE). Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and
+PostgreSQL (PostgreSQL License) run from their own Docker images as separate programs and are not included or modified here. The files under
 `tests/data/percona/` are Percona Toolkit output captured from the synthetic lab dataset.
 
 ---
