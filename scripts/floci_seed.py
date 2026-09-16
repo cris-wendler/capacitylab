@@ -45,7 +45,8 @@ def wait_available(rds, identifier: str, timeout_s: float = 300) -> None:
     raise TimeoutError(f"{identifier} did not become available in {timeout_s:.0f}s")
 
 
-def ensure_instances(rds) -> None:
+def ensure_instances(rds) -> list[str]:
+    """Create the writer and, where the emulator supports it, a read replica. Returns the instances created."""
     existing = {i["DBInstanceIdentifier"] for i in rds.describe_db_instances()["DBInstances"]}
     if WRITER not in existing:
         rds.create_db_instance(DBInstanceIdentifier=WRITER, DBInstanceClass=INSTANCE_CLASS, Engine="mysql",
@@ -53,16 +54,24 @@ def ensure_instances(rds) -> None:
                                AllocatedStorage=500, StorageType="gp3")
     wait_available(rds, WRITER)
     if READER not in existing:
-        rds.create_db_instance_read_replica(DBInstanceIdentifier=READER, SourceDBInstanceIdentifier=WRITER,
-                                            DBInstanceClass=INSTANCE_CLASS)
+        try:
+            rds.create_db_instance_read_replica(DBInstanceIdentifier=READER, SourceDBInstanceIdentifier=WRITER,
+                                                DBInstanceClass=INSTANCE_CLASS)
+        except rds.exceptions.ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") != "UnsupportedOperation":
+                raise
+            print("read replicas are not supported by this emulator version; seeding the writer only")
+            return [WRITER]
     wait_available(rds, READER)
+    return [WRITER, READER]
 
 
-def put_metrics(cloudwatch, now: datetime) -> int:
+def put_metrics(cloudwatch, now: datetime, instances: list[str]) -> int:
     rng = random.Random(7)
     start = (now - timedelta(hours=24)).replace(minute=0, second=0, microsecond=0)
     sent = 0
-    for identifier, reader in ((WRITER, False), (READER, True)):
+    for identifier in instances:
+        reader = identifier != WRITER
         batch = []
         ts = start
         while ts < now:
@@ -87,9 +96,9 @@ def put_metrics(cloudwatch, now: datetime) -> int:
 def main() -> int:
     target = AwsTarget(endpoint_url=sys.argv[1] if len(sys.argv) > 1 else EMULATOR_ENDPOINT)  # refuses non-local
     print(f"seeding {target.endpoint_url}")
-    ensure_instances(target.client("rds"))
-    print(f"instances available: {WRITER}, {READER} ({INSTANCE_CLASS})")
-    sent = put_metrics(target.client("cloudwatch"), datetime.now(UTC))
+    instances = ensure_instances(target.client("rds"))
+    print(f"instances available: {', '.join(instances)} ({INSTANCE_CLASS})")
+    sent = put_metrics(target.client("cloudwatch"), datetime.now(UTC), instances)
     print(f"{sent} metric datapoints loaded for the last 24 h")
     return 0
 
