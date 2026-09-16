@@ -24,21 +24,42 @@
 {% for w in run.warnings %}<div class="warn">{{ w }}</div>{% endfor %}
 
 {% if run.decision %}{% set d = run.decision %}
+{% set decided = d.final_positions|rejectattr('position', 'equalto', 'undecided')|list %}
+{% set counts = {} %}
+{% for p in decided %}{% if counts.update({p.position: counts.get(p.position, 0) + 1}) %}{% endif %}{% endfor %}
+{% set top_count = counts.values()|max if counts else 0 %}
+{% set tied = counts|dictsort(by='value')|selectattr('1', 'equalto', top_count)|list %}
+{% set leading = tied[0][0] if tied|length == 1 else none %}
+{% set unanimous = counts|length == 1 and decided|length == d.final_positions|length %}
 <section id="decision">
+  <div class="outcome outcome-{{ 'agreed' if unanimous else 'split' }}">
+    <div class="outcome-headline">
+      {% if unanimous %}All {{ decided|length }} roles: {{ labels.get(leading, leading) }}
+      {% elif leading %}{{ counts[leading] }} of {{ d.final_positions|length }} roles: {{ labels.get(leading, leading) }}
+      {% elif tied|length > 1 %}Tied {{ tied|map(attribute='1')|join('–') }}: {{ tied|map(attribute='0')|map('replace', 'OPT-', '')|join(' vs ') }}
+      {% else %}No role took a position{% endif %}
+    </div>
+    <div class="outcome-sub">
+      {% if unanimous %}Agreement is not proof. {{ d.missing_evidence|length }} thing{{ '' if d.missing_evidence|length == 1 else 's' }} nobody has measured.
+      {% else %}{{ counts|length }} different positions{% if d.disagreements %}, {{ d.disagreements|length }} open disagreement{{ '' if d.disagreements|length == 1 else 's' }}{% endif %}.
+        {{ d.missing_evidence|length }} thing{{ '' if d.missing_evidence|length == 1 else 's' }} nobody has measured.{% endif %}
+    </div>
+  </div>
+
   <h2>Where each role landed</h2>
   <div class="role-cards">
   {% for p in d.final_positions %}
-    <article class="role-card{% if p.position == 'undecided' %} role-card-open{% endif %}">
+    <article class="role-card{% if p.position == 'undecided' %} role-card-open{% elif p.position == leading %} role-card-with{% else %} role-card-against{% endif %}">
       <div class="role-name">{{ role_titles.get(p.role, p.role) }}</div>
       <div class="role-position">{{ labels.get(p.position, p.position) }}</div>
-      <div class="muted small"><span class="mono">{{ p.position }}</span> · {{ p.confidence }} confidence{% if revised_in.get(p.role) %} · changed in round {{ revised_in[p.role] }}{% endif %}</div>
+      <div class="muted small"><span class="mono">{{ p.position }}</span> · {{ p.confidence }} confidence{% if revised_in.get(p.role) %} · {{ 'decided' if first_position.get(p.role) == 'undecided' else 'changed' }} in round {{ revised_in[p.role] }}{% endif %}</div>
       <p class="small">{{ p.rationale }}</p>
     </article>
   {% endfor %}
   </div>
 
   <div class="split">
-    <section>
+    <section class="callout callout-disputed">
       <h3>Still disputed</h3>
       {% set position_splits = d.disagreements|selectattr('kind', 'equalto', 'positions')|list %}
       {% set challenges = d.disagreements|selectattr('kind', 'equalto', 'open_challenge')|list %}
@@ -61,7 +82,7 @@
       </details>
       {% endif %}
     </section>
-    <section>
+    <section class="callout callout-gap">
       <h3>Not measured yet</h3>
       <ul class="plain">
       {% for m in d.missing_evidence %}

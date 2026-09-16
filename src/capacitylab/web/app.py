@@ -308,9 +308,12 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         lab = next((e for e in run.extra_evidence_items if e.id == "EV-LAB-CMP"), None)
         revised_in = {role: next((t.round for t in run.turns if t.role == role and t.draft.revised_from_previous and t.round > 1),
                                  None) for role in roles}
+        # A role that starts undecided and then picks an option has decided, not changed its mind.
+        first_position = {role: next((t.draft.position for t in run.turns if t.role == role), "undecided") for role in roles}
         return page(request, "run.html", run=run, scenario=scenario, roles=roles, matrix=matrix,
                     rounds=list(range(1, run.rounds_completed + 1)), panels=panels(scenario, outcomes) if outcomes else [],
                     evidence_titles=evidence_titles, labels=option_labels(scenario), lab=lab, revised_in=revised_in,
+                    first_position=first_position,
                     gaps={g.id: g for g in scenario.missing_evidence},
                     checks_run=sum(1 for c in run.tool_calls if c.status == "ok"))
 
