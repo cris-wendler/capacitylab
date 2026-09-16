@@ -287,3 +287,117 @@ class MySQLSandbox(Sandbox):
 
     def close(self) -> None:
         self.conn.close()
+
+
+def _walk_pg_plan(node: Any, visit) -> None:
+    if isinstance(node, dict):
+        if "Node Type" in node:
+            visit(node)
+        for value in node.values():
+            _walk_pg_plan(value, visit)
+    elif isinstance(node, list):
+        for value in node:
+            _walk_pg_plan(value, visit)
+
+
+class PostgresSandbox(Sandbox):
+    """A disposable database in a local PostgreSQL container. Work is measured in shared buffer blocks touched."""
+
+    backend = "postgres"
+
+    def __init__(self, host: str, port: int, user: str, password: str, database: str):
+        if host not in _LOCAL_HOSTS:
+            raise UnsafeSandboxTarget(f"refusing non-local PostgreSQL host {host!r}; sandboxes must be local")
+        if not database.startswith(SANDBOX_DB_PREFIX):
+            raise UnsafeSandboxTarget(f"refusing database {database!r}; name must start with {SANDBOX_DB_PREFIX}")
+        import psycopg  # optional dependency
+
+        self.database = database
+        admin = psycopg.connect(host=host, port=port, user=user, password=password, dbname="postgres", autocommit=True)
+        try:
+            admin.execute(f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)')
+            admin.execute(f'CREATE DATABASE "{database}"')
+        finally:
+            admin.close()
+        self.conn = psycopg.connect(host=host, port=port, user=user, password=password, dbname=database,
+                                    autocommit=True, cursor_factory=psycopg.ClientCursor)
+        self.conn.execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
+
+    def execute(self, sql: str, params: dict[str, Any] | None = None) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(_mysql_params(sql), params or None)
+
+    def executemany(self, sql: str, rows: list[dict[str, Any]]) -> None:
+        with self.conn.transaction(), self.conn.cursor() as cur:
+            cur.executemany(_mysql_params(sql), rows)
+
+    def fetchall(self, sql: str, params: dict[str, Any] | None = None) -> list[tuple]:
+        with self.conn.cursor() as cur:
+            cur.execute(_mysql_params(sql), params or None)
+            return [tuple(r) for r in cur.fetchall()]
+
+    def _explain(self, options: str, sql: str, params: dict[str, Any] | None) -> dict:
+        with self.conn.cursor() as cur:
+            cur.execute(f"EXPLAIN ({options}, FORMAT JSON) " + _mysql_params(sql), params or None)
+            doc = cur.fetchone()[0]
+        doc = json.loads(doc) if isinstance(doc, str) else doc
+        return doc[0]
+
+    def measure(self, sql: str, params: dict[str, Any] | None = None) -> WorkMeasure:
+        root = self._explain("ANALYZE, BUFFERS", sql, params)["Plan"]
+        rows = int(root.get("Actual Rows", 0) * max(1, root.get("Actual Loops", 1)))
+        blocks = int(root.get("Shared Hit Blocks", 0) + root.get("Shared Read Blocks", 0))
+        return WorkMeasure(rows_returned=rows, work_units=blocks, unit="postgres_shared_blocks")
+
+    def plan(self, sql: str, params: dict[str, Any] | None = None) -> PlanSummary:
+        doc = self._explain("COSTS", sql, params)
+        summary = PlanSummary(backend=self.backend, raw=[json.dumps(doc, sort_keys=True)])
+
+        def visit(node: dict) -> None:
+            if node["Node Type"] == "Seq Scan" and node.get("Relation Name"):
+                summary.full_scans.append(node["Relation Name"])
+            if node.get("Index Name"):
+                summary.indexes_used.append(node["Index Name"])
+            if node["Node Type"] in ("Sort", "Incremental Sort", "Hash", "Materialize"):
+                summary.uses_temporary_or_sort = True
+
+        _walk_pg_plan(doc, visit)
+        return summary
+
+    def create_index(self, name: str, table: str, columns: list[str]) -> int:
+        with self.conn.cursor() as cur:
+            cur.execute(f"CREATE INDEX {name} ON {table} ({', '.join(columns)})")
+            cur.execute(f"ANALYZE {table}")
+            cur.execute("SELECT pg_relation_size(%s::regclass)", (name,))
+            return int(cur.fetchone()[0])
+
+    def drop_index(self, name: str, table: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(f"DROP INDEX IF EXISTS {name}")
+
+    def write_overhead(self, sql: str, rows: list[dict[str, Any]], repeats: int = 5) -> WorkMeasure:
+        """Median elapsed time of rolled-back batches. Timing-based, so noisy; excluded from replay digests."""
+        samples = []
+        with self.conn.cursor() as cur:
+            for _ in range(repeats):
+                cur.execute("START TRANSACTION")
+                started = time.perf_counter()
+                cur.executemany(_mysql_params(sql), rows)
+                samples.append(int((time.perf_counter() - started) * 1_000_000))
+                cur.execute("ROLLBACK")
+        samples.sort()
+        return WorkMeasure(rows_returned=0, work_units=samples[len(samples) // 2],
+                           unit="postgres_median_elapsed_microseconds (noisy)")
+
+    def analyze(self) -> None:
+        with self.conn.cursor() as cur:
+            for table in ("customers", "orders", "suppressions", "audit_events", "tenants"):
+                cur.execute(f"ANALYZE {table}")
+
+    def engine_version(self) -> str:
+        with self.conn.cursor() as cur:
+            cur.execute("SHOW server_version")
+            return f"PostgreSQL {cur.fetchone()[0].split()[0]}"
+
+    def close(self) -> None:
+        self.conn.close()

@@ -71,3 +71,29 @@ jobs:
         run: pytest -m mysql tests/test_mysql_sandbox.py tests/test_lab_mysql.py
       - name: Short lab run
         run: capacitylab lab run campaign-overlap --duration 5 --qps 100 --out runs/ci-lab.yaml
+
+  postgres-lab:
+    name: PostgreSQL 17 lab
+    runs-on: ubuntu-latest
+    env:
+      CAPACITYLAB_TEST_POSTGRES: "1"
+      CAPACITYLAB_POSTGRES_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # Started with docker run rather than as a service: pg_stat_statements must be preloaded at server start.
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name capacitylab-sandbox-postgres -p 127.0.0.1:5433:5432 \
+            -e POSTGRES_PASSWORD=ci-only-password -e POSTGRES_DB=capacitylab_sandbox postgres:17-alpine \
+            postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all
+          for i in $(seq 1 40); do docker exec capacitylab-sandbox-postgres pg_isready -U postgres && break; sleep 2; done
+      - name: Install
+        run: pip install -e ".[dev,postgres]"
+      - name: PostgreSQL lab tests
+        run: pytest -m postgres tests/test_postgres_lab.py
+      - name: Short lab run
+        run: capacitylab lab run campaign-overlap --engine postgres --duration 5 --qps 100 --out runs/ci-pg-lab.yaml

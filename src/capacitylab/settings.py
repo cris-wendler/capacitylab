@@ -39,6 +39,15 @@ class MySQLSettings:
 
 
 @dataclass(frozen=True)
+class PostgresSettings:
+    host: str = "127.0.0.1"
+    port: int = 5433
+    user: str = "postgres"
+    password: str = "change-me-local-only"
+    database: str = "capacitylab_sandbox"
+
+
+@dataclass(frozen=True)
 class Settings:
     provider: str = "mock"
     model: str = "claude-opus-5"
@@ -53,6 +62,7 @@ class Settings:
     max_tool_calls: int = 40
     sandbox: str = "sqlite"
     mysql: MySQLSettings | None = None
+    postgres: PostgresSettings = PostgresSettings()
     runs_dir: Path = Path("runs")
 
     @classmethod
@@ -80,6 +90,14 @@ class Settings:
             max_tool_calls=int(env.get("CAPACITYLAB_MAX_TOOL_CALLS", "40")),
             sandbox=env.get("CAPACITYLAB_SANDBOX", "sqlite"),
             mysql=mysql,
+            postgres=PostgresSettings(
+                host=env.get("CAPACITYLAB_POSTGRES_HOST", "127.0.0.1"),
+                port=int(env.get("CAPACITYLAB_POSTGRES_PORT", "5433")),
+                user=env.get("CAPACITYLAB_POSTGRES_USER", "postgres"),
+                # Matches the docker-compose default; a local-only placeholder, never a real credential.
+                password=env.get("CAPACITYLAB_POSTGRES_PASSWORD", "change-me-local-only"),
+                database=env.get("CAPACITYLAB_POSTGRES_DATABASE", "capacitylab_sandbox"),
+            ),
             runs_dir=Path(env.get("CAPACITYLAB_RUNS_DIR", "runs")),
         )
 

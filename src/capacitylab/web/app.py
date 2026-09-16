@@ -171,7 +171,22 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
                          "created_at": run.created_at.strftime("%Y-%m-%d %H:%M UTC"), "file": path.stem})
         return rows
 
-    def lab_status() -> dict:
+    def lab_status(engine: str = "mysql") -> dict:
+        if engine == "postgres":
+            pg = settings.postgres
+            if pg.host not in LOCAL_HOSTS:
+                return {"ok": False, "detail": f"Refusing non-local host {pg.host}; the lab only runs against a local container."}
+            try:
+                import psycopg
+
+                with psycopg.connect(host=pg.host, port=pg.port, user=pg.user, password=pg.password,
+                                     dbname="postgres", connect_timeout=1) as conn:
+                    version = conn.execute("SHOW server_version").fetchone()[0].split()[0]
+                return {"ok": True, "detail": f"PostgreSQL {version} at {pg.host}:{pg.port}"}
+            except ImportError:
+                return {"ok": False, "detail": "psycopg is not installed (pip install -e '.[postgres]')."}
+            except Exception as exc:
+                return {"ok": False, "detail": f"Not reachable at {pg.host}:{pg.port} ({type(exc).__name__})."}
         m = settings.mysql
         if m is None:
             return {"ok": False, "detail": "No MySQL settings configured."}
@@ -364,25 +379,35 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         for sid in list_scenarios():
             scenario, _ = load_scenario(sid)
             scenarios.append({"id": sid, "title": scenario.title, "compatible": lab_compatible(scenario)})
-        return page(request, "lab.html", status=lab_status(), files=lab_files(), scenarios=scenarios)
+        return page(request, "lab.html", status=lab_status(), pg_status=lab_status("postgres"), files=lab_files(),
+                    scenarios=scenarios)
 
     @app.post("/lab/run")
     def start_lab(scenario_id: str = Form(...), duration: float = Form(30), qps: float = Form(150), workers: int = Form(16),
-                  percona: bool = Form(False)):
+                  percona: bool = Form(False), engine: str = Form("mysql")):
         if not (5 <= duration <= 120 and 20 <= qps <= 1000 and 2 <= workers <= 64):
             raise HTTPException(400, "duration 5-120 s, qps 20-1000, workers 2-64")
+        if engine not in ("mysql", "postgres"):
+            raise HTTPException(400, "engine must be mysql or postgres")
+        if engine == "postgres" and percona:
+            raise HTTPException(400, "Percona Toolkit checks apply to the MySQL lab only")
         scenario, _ = scenario_or_404(scenario_id)
         if not lab_compatible(scenario):
             raise HTTPException(400, "this scenario uses statements the lab fixture cannot run")
-        if not lab_status()["ok"]:
-            raise HTTPException(400, "the MySQL lab is not reachable; start it with docker compose up -d --wait sandbox-mysql")
+        if not lab_status(engine)["ok"]:
+            raise HTTPException(400, f"the {engine} lab is not reachable; start it with "
+                                     f"docker compose up -d --wait sandbox-{engine}")
 
         def work(job: Job) -> None:
             from capacitylab.lab.runner import LabConfig, run_lab, write_evidence
 
-            items = run_lab(scenario, settings.mysql,
-                            LabConfig(duration_s=duration, total_qps=qps, workers=workers, percona=percona),
-                            progress=job.messages.append)
+            config = LabConfig(duration_s=duration, total_qps=qps, workers=workers, percona=percona)
+            if engine == "postgres":
+                from capacitylab.lab.pg_runner import run_lab_postgres
+
+                items = run_lab_postgres(scenario, settings.postgres, config, progress=job.messages.append)
+            else:
+                items = run_lab(scenario, settings.mysql, config, progress=job.messages.append)
             name = f"{scenario.id}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.yaml"
             write_evidence(items, lab_dir / name)
             job.target = f"/lab/{name}"

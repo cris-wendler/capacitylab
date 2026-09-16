@@ -18,3 +18,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 40
+
+  # Isolated, disposable PostgreSQL 17 sandbox with pg_stat_statements. Same rules: localhost only, tmpfs data.
+  sandbox-postgres:
+    image: postgres:17-alpine
+    container_name: capacitylab-sandbox-postgres
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=all",
+              "-c", "track_io_timing=on"]
+    environment:
+      POSTGRES_PASSWORD: ${CAPACITYLAB_POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: capacitylab_sandbox
+    ports:
+      - "127.0.0.1:5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d capacitylab_sandbox"]
+      interval: 3s
+      timeout: 3s
+      retries: 40

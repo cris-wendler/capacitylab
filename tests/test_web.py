@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from capacitylab.evidence.models import EvidenceItem, EvidenceKind, Provenance
 from capacitylab.lab.runner import write_evidence
-from capacitylab.settings import MySQLSettings, Settings
+from capacitylab.settings import MySQLSettings, PostgresSettings, Settings
 from capacitylab.web.app import create_app
 
 LAB_ITEM = EvidenceItem(
@@ -40,18 +40,47 @@ PERCONA_ITEMS = [
                        "advice": [{"level": "WARN", "variable": "innodb_buffer_pool_size", "message": "The InnoDB buffer pool size is unconfigured."}]}),
 ]
 
+PG_ITEMS = [
+    EvidenceItem(id="EV-LAB-CMP", kind=EvidenceKind.EXPERIMENT_RESULT, title="Lab phase comparison", provenance=Provenance.MEASURED,
+                 environment="lab", source="lab:runner",
+                 data={**LAB_ITEM.data, "engine": "PostgreSQL 17.11", "percona_toolkit": None,
+                       "avg_row_lock_wait_ms": {"EVENT": None, "EVENTNB": None},
+                       "lock_wait_note": "PostgreSQL keeps no cumulative lock-wait counter."}),
+    EvidenceItem(id="EV-LAB-EVENT-LAT", kind=EvidenceKind.METRIC_SUMMARY, title="latency", provenance=Provenance.OBSERVED,
+                 environment="lab", source="lab:client+pg_stat_database",
+                 data={"phase": "EVENT", "client_latency": {}, "active_sessions": {"max": 5, "mean": 1.2},
+                       "batch_job": {"running": True, "chunks_committed": 30, "errors": 0},
+                       "server_counters": {"transactions_per_s": 210.5, "lock_wait_session_seconds": 3.4,
+                                           "max_sessions_waiting_on_locks": 4, "lock_timeouts": 0, "deadlocks": 0,
+                                           "blks_hit": 91000, "blks_read": 12, "temp_files": 0}}),
+    EvidenceItem(id="EV-LAB-EVENT-DIG", kind=EvidenceKind.QUERY_DIGEST, title="statements", provenance=Provenance.OBSERVED,
+                 environment="lab", source="lab:pg_stat_statements",
+                 data={"phase": "EVENT", "fingerprints": [{"fingerprint_id": "QF-AUDIENCE", "calls": 9, "share_of_db_time_pct": 4.1,
+                                                          "avg_latency_ms": 2.6, "avg_shared_blocks": 3192.0,
+                                                          "shared_blocks_read_from_disk": 0}]}),
+    EvidenceItem(id="EV-LAB-EVENT-PLAN-AUD", kind=EvidenceKind.QUERY_PLAN, title="plan", provenance=Provenance.OBSERVED,
+                 environment="lab", source="lab:EXPLAIN",
+                 data={"fingerprint_id": "QF-AUDIENCE", "total_latency_ms": 2.6, "steps": [
+                     {"depth": 0, "operation": "Nested Loop Semi", "table": None, "index": None, "estimated_rows": 10.0,
+                      "actual_rows": 12.0, "loops": 1, "actual_time_ms": 2.5, "shared_blocks": 3194},
+                     {"depth": 1, "operation": "Index Scan", "table": "orders", "index": "idx_orders_tenant_customer",
+                      "estimated_rows": 3.0, "actual_rows": 1.0, "loops": 800, "actual_time_ms": 0.01, "shared_blocks": 3146}]}),
+]
+
 
 @pytest.fixture(scope="module")
 def runs_dir(tmp_path_factory):
     path = tmp_path_factory.mktemp("runs")
     write_evidence([LAB_ITEM, *PERCONA_ITEMS], path / "lab" / "campaign-overlap-test.yaml")
+    write_evidence(PG_ITEMS, path / "lab" / "campaign-overlap-pg.yaml")
     return path
 
 
 @pytest.fixture(scope="module")
 def client(runs_dir):
-    # A non-local MySQL host keeps the lab status check offline and exercises the refusal path.
-    settings = Settings(runs_dir=runs_dir, mysql=MySQLSettings("db.example.invalid", 3306, "u", "p", "capacitylab_sandbox"))
+    # Non-local hosts keep the lab status checks offline and exercise the refusal path.
+    settings = Settings(runs_dir=runs_dir, mysql=MySQLSettings("db.example.invalid", 3306, "u", "p", "capacitylab_sandbox"),
+                        postgres=PostgresSettings(host="db.example.invalid"))
     with TestClient(create_app(settings, inline_jobs=True)) as c:
         yield c
 
@@ -59,7 +88,7 @@ def client(runs_dir):
 def test_home_and_scenario_pages(client):
     home = client.get("/")
     assert home.status_code == 200 and "Flash sale overlapping evening traffic" in home.text and "Decision record" in home.text
-    assert "Model budget" in home.text and "Local MySQL lab" in home.text
+    assert "Model budget" in home.text and "Local database lab" in home.text
     page = client.get("/scenarios/campaign-overlap")
     assert page.status_code == 200
     assert "EV-DIG-001" in page.text and "<svg class=\"viz\"" in page.text and "GAP-FAILOVER-DURATION" in page.text
@@ -106,6 +135,19 @@ def test_lab_pages(client):
     assert "2026-09-15T15:02:11" in detail.text and "Run Percona Toolkit too" in lab.text
     assert client.post("/lab/run", data={"scenario_id": "campaign-overlap", "duration": 1}).status_code == 400
     assert client.post("/lab/run", data={"scenario_id": "campaign-overlap", "duration": 10}).status_code == 400  # lab not reachable
+    assert "PostgreSQL 17" in lab.text
+
+
+def test_postgres_lab_page(client):
+    detail = client.get("/lab/campaign-overlap-pg.yaml")
+    assert detail.status_code == 200 and "PostgreSQL 17.11" in detail.text
+    assert "pg_stat_statements" in detail.text and "3192.0" in detail.text and "Buffer blocks / call" in detail.text
+    assert "3.4 session-seconds" in detail.text and "Sessions seen waiting on locks" in detail.text
+    assert "using idx_orders_tenant_customer" in detail.text and "x 800 loops" in detail.text
+    assert "Average lock wait" not in detail.text and "Row-lock waits" not in detail.text
+    started = client.post("/lab/run", data={"scenario_id": "campaign-overlap", "engine": "postgres", "percona": "true"})
+    assert started.status_code == 400
+    assert client.post("/lab/run", data={"scenario_id": "campaign-overlap", "engine": "oracle"}).status_code == 400
 
 
 def test_comparison_page(client):
