@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status %}
+{% block content %}
+<section class="hero">
+  <h1>Review database capacity decisions with the evidence in front of everyone</h1>
+  <p class="lead">A database engineer, an application owner, a reliability engineer, a cost (FinOps) analyst, and a
+  representative of the affected tenant look at the same decision. Each sees the evidence their job gives them, asks
+  for checks, and takes a position. The result is a written record of what each role recommends, what is still
+  disputed, and what nobody has measured yet.</p>
+</section>
+
+<section class="steps" aria-label="How it works">
+  <div class="step">
+    <span class="step-num">1</span>
+    <h3>Evidence</h3>
+    <p>Scenario data, measurements from the local MySQL lab, or exports from your own database. Every item says where it
+    came from.</p>
+  </div>
+  <div class="step">
+    <span class="step-num">2</span>
+    <h3>Review rounds</h3>
+    <p>Roles cite evidence, request checks (capacity model, cost, index tests, rewrite checks, lab load tests), and
+    challenge each other. Numbers they state must appear in what they cite.</p>
+  </div>
+  <div class="step">
+    <span class="step-num">3</span>
+    <h3>Decision record</h3>
+    <p>Final positions, open disagreements, missing evidence, and a log you can replay to verify every check.</p>
+  </div>
+</section>
+
+<h2>Scenarios</h2>
+<div class="cards">
+{% for c in cards %}
+  <a class="card" href="/scenarios/{{ c.scenario.id }}">
+    <div class="card-kicker">{{ c.scenario.cluster.id }} · {{ c.scenario.horizon.date }}</div>
+    <h3>{{ c.scenario.title }}</h3>
+    <p>{{ c.scenario.summary }}</p>
+    <div class="facts">
+      <span>{{ c.evidence }} evidence items</span><span>{{ c.scenario.options|length }} options</span><span>{{ c.gaps }} known gaps</span>
+    </div>
+  </a>
+{% endfor %}
+  <a class="card card-lab" href="/lab">
+    <div class="card-kicker"><span class="dot {{ 'dot-ok' if lab.ok else 'dot-off' }}"></span>{{ 'Lab ready' if lab.ok else 'Lab not running' }}</div>
+    <h3>Local MySQL lab</h3>
+    <p>Run a real concurrent workload against a local MySQL 8.0 container and collect latency, lock waits, and plans to
+    attach to a review.</p>
+    <div class="facts"><span>{{ lab_runs|length }} recent lab run{{ '' if lab_runs|length == 1 else 's' }}</span><span>{{ lab.detail }}</span></div>
+  </a>
+</div>
+
+<h2>Recent runs</h2>
+{% if runs %}
+{% include "_runs_table.html" %}
+{% else %}
+<div class="empty">No runs yet. Open a scenario and start a review.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "_macros.html" import prov, status, chip, ev, options_table, lab_table %}
+{% block title %}{{ scenario.title }} · run · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/">Scenarios</a> / <a href="/scenarios/{{ scenario.id }}">{{ scenario.id }}</a> / run <span class="mono">{{ run.run_id }}</span></div>
+{% if run.mocked %}
+<div class="banner">Scripted run: every role's answers come from fixed rules written in code, not from a language model.</div>
+{% endif %}
+<h1>{{ scenario.title }}</h1>
+<div class="meta">
+  {{ status(run.state.status.value) }}
+  <span>{% if run.mocked %}Scripted roles{% else %}{{ run.model }}{% endif %}</span>
+  <span>{{ run.rounds_completed }} rounds</span>
+  <span>{{ checks_run }} checks run</span>
+  {% if not run.mocked %}<span>${{ '%.4f' % run.spend_usd }} model spend</span>{% endif %}
+  <span>experiments on {{ run.sandbox_engine or 'no database' }}</span>
+  {% if run.extra_evidence_items %}<span>{{ run.extra_evidence_items|length }} attached evidence items</span>{% endif %}
+</div>
+<div class="actions">
+  <a class="btn-secondary" href="/runs/{{ run.run_id }}/replay">Verify by replay</a>
+  <a class="btn-secondary" href="/runs/{{ run.run_id }}/report.md">Markdown report</a>
+  <a class="btn-secondary" href="/runs/{{ run.run_id }}/ledger.json">Run log (JSON)</a>
+</div>
+{% for w in run.warnings %}<div class="warn">{{ w }}</div>{% endfor %}
+
+{% if run.decision %}{% set d = run.decision %}
+<section id="decision">
+  <h2>Where each role landed</h2>
+  <div class="role-cards">
+  {% for p in d.final_positions %}
+    <article class="role-card{% if p.position == 'undecided' %} role-card-open{% endif %}">
+      <div class="role-name">{{ role_titles.get(p.role, p.role) }}</div>
+      <div class="role-position">{{ labels.get(p.position, p.position) }}</div>
+      <div class="muted small"><span class="mono">{{ p.position }}</span> · {{ p.confidence }} confidence{% if revised_in.get(p.role) %} · changed in round {{ revised_in[p.role] }}{% endif %}</div>
+      <p class="small">{{ p.rationale }}</p>
+    </article>
+  {% endfor %}
+  </div>
+
+  <div class="split">
+    <section>
+      <h3>Still disputed</h3>
+      {% set position_splits = d.disagreements|selectattr('kind', 'equalto', 'positions')|list %}
+      {% set challenges = d.disagreements|selectattr('kind', 'equalto', 'open_challenge')|list %}
+      {% if not d.disagreements %}
+      <p>Every role ended on the same option. That is not proof the option is right.</p>
+      {% endif %}
+      {% if position_splits %}
+      <ul class="plain">
+      {% for opt, roles_for in d.support.items() if opt != 'undecided' %}
+        <li><strong>{{ labels.get(opt, opt) }}</strong> <span class="muted small">{{ roles_for|map('role')|join(', ') }}</span></li>
+      {% endfor %}
+      </ul>
+      {% endif %}
+      {% if challenges %}
+      <details class="inline-details">
+        <summary>{{ challenges|length }} unanswered challenge{{ '' if challenges|length == 1 else 's' }}</summary>
+        <ul class="plain">
+        {% for x in challenges %}<li class="small">{{ x.summary }} {% for e in x.evidence_ids %}{{ ev(run, e) }} {% endfor %}</li>{% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </section>
+    <section>
+      <h3>Not measured yet</h3>
+      <ul class="plain">
+      {% for m in d.missing_evidence %}
+        <li>{% if gaps.get(m.item) %}<strong>{{ gaps[m.item].description }}</strong> <span class="mono small muted">{{ m.item }}</span>{% else %}{{ m.item }}{% endif %}
+          <div class="muted small">raised by {{ m.raised_by|map('role')|join(', ') }}</div></li>
+      {% else %}<li class="muted">Nothing raised.</li>{% endfor %}
+      </ul>
+      {% if d.open_tool_requests %}
+      <p class="small muted">{{ d.open_tool_requests|length }} requested check{{ '' if d.open_tool_requests|length == 1 else 's' }} did not run (limit or final round).</p>
+      {% endif %}
+      <p class="small muted">Citation and number checks: {{ d.validation.errors }} errors, {{ d.validation.warnings }} warnings across all turns.</p>
+    </section>
+  </div>
+</section>
+{% endif %}
+
+<h2 id="positions">Positions by round</h2>
+<div class="table-wrap">
+<table class="matrix">
+  <thead><tr><th>Role</th>{% for r in rounds %}<th>Round {{ r }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for role in roles %}
+    <tr>
+      <th scope="row">{{ role_titles[role] }}</th>
+      {% for r in rounds %}{% set t = matrix[role].get(r) %}
+      <td>{% if t %}{{ chip(t.draft.position) }}{% if t.draft.revised_from_previous %}<span class="revised" title="{{ t.draft.revision_reason }}">changed</span>{% endif %}<div class="muted small">{{ t.draft.confidence }}{% if t.draft.challenges %} · {{ t.draft.challenges|length }} challenge{{ 's' if t.draft.challenges|length > 1 }}{% endif %}{% if t.draft.tool_requests %} · asked for {{ t.draft.tool_requests|length }} check{{ 's' if t.draft.tool_requests|length > 1 }}{% endif %}</div>{% endif %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if lab %}
+<h2 id="lab-measurements">Lab measurements used <span class="prov-note">{{ prov('measured') }}</span></h2>
+<p class="section-lead">Measured on the local MySQL lab with a synthetic workload ({{ lab.data.engine }}). They show how this workload behaves on a
+real engine at small scale; they are not production numbers.</p>
+{{ lab_table(lab) }}
+{% endif %}
+
+{% if run.decision %}{% set d = run.decision %}
+<h2 id="options">Options <span class="prov-note">{{ prov('modeled') }}</span></h2>
+<p class="section-lead">{{ d.outcome_basis }}</p>
+<div class="multiples">
+{% for p in panels %}
+  <figure class="panel">
+    <figcaption><strong>{{ p.outcome.label }}</strong>
+      <div class="supporters">{% for pos in d.final_positions if pos.position == p.outcome.option_id %}{{ role_titles[pos.role] }}{% if not loop.last %}, {% endif %}{% else %}no role chose this{% endfor %}</div></figcaption>
+    {{ p.svg|safe }}
+  </figure>
+{% endfor %}
+</div>
+{{ options_table(panels|map(attribute='outcome')|list) }}
+
+{% if d.optimization_proposals %}
+<h2>Proposed database changes</h2>
+{% for p in d.optimization_proposals %}
+<article class="proposal">
+  <h3>{{ p.proposed_change }}</h3>
+  <div class="muted small">{{ role_titles[p.role] }} · for <span class="mono">{{ p.target_fingerprint }}</span> · {{ prov('measured' if p.result_status == 'measured_local' else p.result_status) }}</div>
+  <dl class="proposal-grid">
+    <dt>Evidence</dt><dd>{% for e in p.supporting_evidence_ids %}{{ ev(run, e) }} {% endfor %}</dd>
+    <dt>Why</dt><dd>{{ p.hypothesis }}</dd>
+    <dt>Uncertainty</dt><dd>{{ p.uncertainty }}</dd>
+    <dt>Tradeoffs</dt><dd><ul>{% for t in p.tradeoffs %}<li>{{ t }}</li>{% endfor %}</ul></dd>
+    <dt>How to validate</dt><dd>{{ p.validation_method }}</dd>
+    <dt>How to roll back</dt><dd>{{ p.rollback }}</dd>
+    <dt>Result so far</dt><dd>{{ p.result_status.replace('_', ' ') }} {% for e in p.result_evidence_ids %}{{ ev(run, e) }} {% endfor %}</dd>
+  </dl>
+</article>
+{% endfor %}
+{% endif %}
+{% endif %}
+
+<h2>Discussion, round by round</h2>
+{% for r in rounds %}
+<details class="round" {% if loop.last %}open{% endif %}>
+  <summary>Round {{ r }}</summary>
+  {% for t in run.turns if t.round == r %}
+  <article class="turn">
+    <header>
+      <strong>{{ role_titles[t.role] }}</strong> {{ chip(t.draft.position) }} <span class="muted small">{{ t.draft.confidence }} confidence</span>
+      {% if not t.model_call.mocked %}<span class="muted small">{{ t.model_call.input_tokens }} in / {{ t.model_call.output_tokens }} out tokens</span>{% endif %}
+    </header>
+    <p class="rationale">{{ t.draft.position_rationale }}</p>
+    {% if t.draft.revised_from_previous %}<p class="revision">{{ t.draft.revision_reason }}</p>{% endif %}
+    <ul class="claims">
+    {% for c in t.draft.claims %}<li><span class="basis basis-{{ c.basis }}">{{ c.basis }}</span> {{ c.statement }} {% for e in c.evidence_ids %}{{ ev(run, e) }} {% endfor %}</li>{% endfor %}
+    {% for a in t.draft.assumptions %}<li><span class="basis basis-assumption">assumption</span> {{ a }}</li>{% endfor %}
+    </ul>
+    {% for ch in t.draft.challenges %}<div class="challenge"><b>Challenges the {{ role_titles.get(ch.target_role, ch.target_role)|lower }}</b> on “{{ ch.target_statement }}”: {{ ch.reason }} {% for e in ch.evidence_ids %}{{ ev(run, e) }} {% endfor %}</div>{% endfor %}
+    {% if t.draft.tool_requests %}<div class="requests">Asks for: {% for q in t.draft.tool_requests %}<span class="mono">{{ q.tool }}</span><span class="muted small"> ({{ q.purpose }})</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+    {% if t.draft.missing_evidence %}<div class="small muted">Missing: {{ t.draft.missing_evidence|join('; ') }}</div>{% endif %}
+    {% for f in t.findings %}<div class="finding finding-{{ f.severity }}">{{ f.severity }} · {{ f.code.replace('_', ' ') }} at {{ f.location }}: {{ f.detail }}</div>{% endfor %}
+  </article>
+  {% endfor %}
+</details>
+{% endfor %}
+
+<h2>Checks and experiments that ran</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Call</th><th class="num">Round</th><th>Asked by</th><th>Check</th><th>Status</th><th>Result</th></tr></thead>
+  <tbody>
+  {% for c in run.tool_calls %}
+    <tr><td class="mono">{{ c.call_id }}</td><td class="num">{{ c.round }}</td><td class="small">{{ c.requested_by|map('role')|join(', ') }}</td><td class="mono">{{ c.tool }}</td>
+      <td>{{ c.status.replace('_', ' ') }}{% if c.error %}<div class="small muted">{{ c.error }}</div>{% endif %}</td>
+      <td>{% if c.evidence_id %}{{ ev(run, c.evidence_id) }} <span class="small muted">{{ evidence_titles.get(c.evidence_id, '') }}</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if run.decision %}
+<h2>Limits of this result</h2>
+<ul class="plain">{% for c in run.decision.caveats %}<li>{{ c }}</li>{% endfor %}</ul>
+<p class="small muted">Prompt version {{ run.prompt_version }} · CapacityLab {{ run.capacitylab_version }}</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Lab · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/">Home</a> / lab</div>
+<div class="page-head">
+  <div>
+    <h1>Local MySQL lab</h1>
+    <p class="lead">The lab loads the synthetic retail dataset into a disposable MySQL 8.0 container and runs the scenario's
+    statement mix with many concurrent connections. It runs the same arrivals through several phases (baseline, the event
+    with the batch job, the event with a candidate index, the event with the batch job moved) and records what the engine
+    actually did.</p>
+    <ul class="checklist">
+      <li>Client latency per statement (p50, p95, p99) and queueing delay</li>
+      <li>performance_schema statement digests: calls, time, rows examined, temporary tables</li>
+      <li>Row-lock waits and wait time, <span class="mono">Threads_running</span>, database load</li>
+      <li><span class="mono">EXPLAIN ANALYZE</span> plans with estimated and actual rows</li>
+      <li>Optional Percona Toolkit checks: <span class="mono">pt-query-digest</span> on each phase's slow log,
+        <span class="mono">pt-duplicate-key-checker</span> while the candidate index exists, <span class="mono">pt-deadlock-logger</span>,
+        <span class="mono">pt-variable-advisor</span>, and <span class="mono">pt-mysql-summary</span></li>
+    </ul>
+    <p class="small muted">Measurements describe this synthetic workload on one local container. They are useful for comparing phases
+    with each other, not for predicting production performance.</p>
+  </div>
+  <aside class="run-box" aria-label="Start a lab run">
+    <h2>Start a lab run</h2>
+    <p class="lab-status"><span class="dot {{ 'dot-ok' if status.ok else 'dot-off' }}"></span>{{ status.detail }}</p>
+    {% if not status.ok %}
+    <p class="small">Start it from the project folder:</p>
+    <pre class="log">docker compose up -d --wait sandbox-mysql</pre>
+    {% endif %}
+    <form method="post" action="/lab/run">
+      <label class="stack">Scenario
+        <select name="scenario_id">
+        {% for s in scenarios %}<option value="{{ s.id }}" {% if not s.compatible %}disabled{% endif %}>{{ s.title }}{% if not s.compatible %} (not supported by the lab fixture){% endif %}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="form-row">
+        <label class="stack">Seconds per phase <input type="number" name="duration" value="30" min="5" max="120"></label>
+        <label class="stack">Baseline statements/s <input type="number" name="qps" value="150" min="20" max="1000"></label>
+        <label class="stack">Connections <input type="number" name="workers" value="16" min="2" max="64"></label>
+      </div>
+      <label class="option"><input type="checkbox" name="percona" value="true">
+        <span>Run Percona Toolkit too
+          <small class="small muted">Needs <code>docker pull percona/percona-toolkit</code>. Logs every statement, so all phases get slightly slower.</small></span></label>
+      <button type="submit" {% if not status.ok %}disabled{% endif %}>Run lab</button>
+    </form>
+    <p class="small muted">A run takes about four times the phase length plus a few seconds to load data.</p>
+  </aside>
+</div>
+
+<h2>Lab runs</h2>
+{% if files %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Result file</th><th>Scenario</th><th>Engine</th><th>Phases</th><th class="num">Seconds per phase</th><th class="num">Baseline statements/s</th><th>Created</th></tr></thead>
+  <tbody>
+  {% for f in files %}
+    <tr><td><a class="mono" href="/lab/{{ f.name }}">{{ f.name }}</a></td><td>{{ f.scenario_id }}</td><td>{{ f.engine }}</td><td class="mono small">{{ f.phases|join(', ') }}</td>
+      <td class="num">{{ f.duration_s }}</td><td class="num">{{ f.total_qps }}</td><td class="muted">{{ f.modified }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty">No lab runs yet. Start one above, or run <span class="mono">capacitylab lab run campaign-overlap</span>.</div>
+{% endif %}
+{% endblock %}

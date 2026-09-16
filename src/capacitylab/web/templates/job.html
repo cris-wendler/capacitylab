@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Running · CapacityLab{% endblock %}
+{% block content %}
+{% if not job.done %}<meta http-equiv="refresh" content="1">{% endif %}
+<h1>{% if job.error %}Run failed{% else %}Simulation running{% endif %}</h1>
+<p class="muted">{{ job.scenario_id }} with the {{ job.provider }} provider.</p>
+{% if job.error %}<div class="warn">{{ job.error }}</div>{% endif %}
+<pre class="log">{% for m in job.messages[-40:] %}{{ m }}
+{% endfor %}</pre>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% from "_macros.html" import lab_table %}
+{% block title %}{{ file_name }} · lab · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/lab">Lab</a> / <span class="mono">{{ file_name }}</span></div>
+{% set sid = cmp.data.get('scenario_id') %}
+<h1>{% if sid %}Lab run for {{ sid }}{% else %}Lab run{% endif %}</h1>
+<div class="meta">
+  <span>{{ cmp.data.engine }}</span>
+  <span>{{ cmp.data.config.duration_s }} s per phase</span>
+  <span>{{ cmp.data.config.total_qps }} baseline statements/s</span>
+  <span>{{ cmp.data.config.workers }} connections</span>
+  <span class="mono">seed {{ cmp.data.config.seed }}</span>
+  {% if cmp.data.get('percona_toolkit') %}<span>{{ cmp.data.percona_toolkit }}</span>{% endif %}
+</div>
+<div class="actions">
+  {% if sid %}
+  <a class="btn-primary" href="/scenarios/{{ sid }}?evidence={{ rel_path|urlencode }}">Use in a review</a>
+  <span class="small muted">or <span class="mono">capacitylab run {{ sid }} --evidence runs/{{ rel_path }}</span></span>
+  {% else %}
+  <span class="small muted">This file does not record its scenario. Attach it from a scenario page, or with
+    <span class="mono">capacitylab run &lt;scenario&gt; --evidence runs/{{ rel_path }}</span>.</span>
+  {% endif %}
+</div>
+
+<h2>Phases compared</h2>
+<ul class="plain phase-list">
+{% for p in phases %}<li><span class="mono">{{ p.name }}</span> {{ p.label }}{% if p.index_candidate %} <span class="tag">index {{ p.index_candidate }}</span>{% endif %}</li>{% endfor %}
+</ul>
+{{ lab_table(cmp) }}
+
+<h2>Per phase</h2>
+{% for p in phases %}
+<details class="round" {% if loop.index == 2 %}open{% endif %}>
+  <summary>{{ p.name }} · {{ p.label }}</summary>
+  {% set lat = latency.get(p.name) %}
+  {% if lat %}
+  <div class="split">
+    <section>
+      <h3>Client latency</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Statement</th><th class="num">Calls</th><th class="num">p50 ms</th><th class="num">p95 ms</th><th class="num">p99 ms</th><th class="num">Queue p95 ms</th><th class="num">Errors</th></tr></thead>
+        <tbody>
+        {% for fid, s in lat.client_latency.items() %}
+          <tr><td class="mono">{{ fid }}</td><td class="num">{{ s.calls }}</td><td class="num">{{ s.p50_ms }}</td><td class="num">{{ s.p95_ms }}</td><td class="num">{{ s.p99_ms }}</td><td class="num">{{ s.p95_queue_delay_ms }}</td><td class="num">{{ s.errors }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+    <section>
+      <h3>Server counters</h3>
+      <dl class="facts-list">
+        <dt>Statements/s</dt><dd>{{ lat.server_counters.questions_per_s }}</dd>
+        <dt>Row-lock waits</dt><dd>{{ lat.server_counters.Innodb_row_lock_waits }} (avg {{ lat.server_counters.avg_row_lock_wait_ms }} ms)</dd>
+        <dt>Temp tables on disk</dt><dd>{{ lat.server_counters.Created_tmp_disk_tables }}</dd>
+        <dt>Rows read</dt><dd>{{ lat.server_counters.Innodb_rows_read }}</dd>
+        <dt>Threads running</dt><dd>max {{ lat.threads_running.max }}, mean {{ lat.threads_running.mean }}</dd>
+        <dt>Batch job</dt><dd>{% if lat.batch_job.running %}running ({{ lat.batch_job.chunks_committed }} chunks committed){% else %}not running{% endif %}</dd>
+      </dl>
+    </section>
+  </div>
+  {% endif %}
+  {% if digests.get(p.name) %}
+  <h3>Statement digests</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Statement</th><th class="num">Calls</th><th class="num">Share of DB time</th><th class="num">Avg ms</th><th class="num">Rows examined / call</th><th class="num">Lock wait ms / call</th></tr></thead>
+    <tbody>
+    {% for f in digests[p.name] %}
+      <tr><td class="mono">{{ f.fingerprint_id }}</td><td class="num">{{ f.calls }}</td><td class="num">{{ f.share_of_db_time_pct }}%</td><td class="num">{{ f.avg_latency_ms }}</td><td class="num">{{ f.avg_rows_examined }}</td><td class="num">{{ f.avg_lock_wait_ms }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+  {% set ptqd = percona.digests.get(p.name) %}
+  {% if ptqd %}
+  <div id="ptqd-{{ p.name }}">
+  <h3>Slow log digest <span class="muted small">pt-query-digest · {{ ptqd.statements }} statements, {{ ptqd.unique_statements }} distinct</span></h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Statement</th><th class="num">Calls</th><th class="num">Share of query time</th><th class="num">p95 ms</th><th class="num">Rows examined / call</th><th class="num">Lock time s</th></tr></thead>
+    <tbody>
+    {% for c in ptqd.classes %}
+      <tr><td><span class="mono">{{ c.fingerprint_id }}</span><div class="small muted mono clip">{{ c.fingerprint }}</div></td><td class="num">{{ c.calls }}</td><td class="num">{{ c.share_of_query_time_pct }}%</td><td class="num">{{ c.p95_latency_ms }}</td><td class="num">{{ c.avg_rows_examined }}</td><td class="num">{{ c.total_lock_time_s }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  </div>
+  {% endif %}
+  {% set ptdk = percona.duplicates.get(p.name) %}
+  {% if ptdk %}
+  <h3>Redundant indexes <span class="muted small">pt-duplicate-key-checker with {{ ptdk.index_candidate }} present</span></h3>
+  {% if ptdk.findings %}
+  <ul class="plain">
+    {% for f in ptdk.findings %}<li><span class="mono">{{ f.redundant_index }}</span> is a {{ f.relation }} of <span class="mono">{{ f.covered_by }}</span> on <span class="mono">{{ f.table }}</span>{% if f.drop_statement %}<div class="small muted mono">{{ f.drop_statement }}</div>{% endif %}</li>{% endfor %}
+  </ul>
+  <p class="small muted">{{ ptdk.duplicate_index_bytes }} bytes of duplicate index. Check every statement that uses an index before dropping it.</p>
+  {% else %}
+  <p>No duplicate or left-prefix indexes among the {{ ptdk.total_indexes }} indexes checked.</p>
+  {% endif %}
+  {% endif %}
+  {% for plan in plans.get(p.name, []) %}
+  <h3>Plan for <span class="mono">{{ plan.data.fingerprint_id }}</span> <span class="muted small">{{ plan.data.total_latency_ms }} ms</span></h3>
+  <pre class="log plan">{{ plan.data.raw_text }}</pre>
+  {% endfor %}
+</details>
+{% endfor %}
+
+{% if percona.deadlocks or percona.advisor %}
+<h2>Percona Toolkit checks</h2>
+{% if percona.deadlocks %}
+<h3>Deadlocks <span class="muted small">pt-deadlock-logger</span></h3>
+{% if percona.deadlocks.data.deadlocks %}
+{% for d in percona.deadlocks.data.deadlocks %}
+<div class="table-wrap"><table>
+  <caption class="small muted">{{ d.ts }}</caption>
+  <thead><tr><th>Statement</th><th>Table</th><th>Index</th><th>Lock</th><th>Waiting</th><th>Rolled back</th></tr></thead>
+  <tbody>
+  {% for tx in d.transactions %}
+    <tr><td class="mono">{{ tx.statement_id or '-' }}</td><td class="mono">{{ tx.table }}</td><td class="mono">{{ tx.index }}</td><td class="mono">{{ tx.lock_type }} {{ tx.lock_mode }}</td><td>{{ 'yes' if tx.waiting else 'no' }}</td><td>{{ 'yes' if tx.victim else 'no' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endfor %}
+{% else %}
+<p>No deadlock recorded since the run started.</p>
+{% endif %}
+<p class="small muted">Deadlocks per phase (from InnoDB counters):
+  {% for n, v in cmp.data.get('deadlocks', {}).items() %}<span class="mono">{{ n }}</span> {{ v }}{% if not loop.last %} · {% endif %}{% endfor %}.
+  {{ percona.deadlocks.data.note }}</p>
+{% endif %}
+{% if percona.advisor %}
+<h3>Lab server settings <span class="muted small">pt-variable-advisor, pt-mysql-summary</span></h3>
+<p class="small muted">{{ percona.advisor.data.server.get('version', '') }}. {{ percona.advisor.data.note }}</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Level</th><th>Setting</th><th>Advice</th></tr></thead>
+  <tbody>
+  {% for a in percona.advisor.data.advice %}
+    <tr><td>{{ a.level }}</td><td class="mono">{{ a.variable }}</td><td>{{ a.message }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% endif %}
+
+{% if tables %}
+<h2>Tables in the lab database</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Table</th><th class="num">Rows (estimate)</th><th class="num">Data MiB</th><th class="num">Index MiB</th><th>Indexes</th></tr></thead>
+  <tbody>
+  {% for t in tables.data.tables %}
+    <tr><td class="mono">{{ t.table }}</td><td class="num">{{ t.rows_estimate }}</td><td class="num">{{ t.data_mib }}</td><td class="num">{{ t.index_mib }}</td>
+      <td class="small mono">{% for name, cols in t.indexes.items() %}<div>{{ name }} ({{ cols|join(', ') }})</div>{% endfor %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% endblock %}

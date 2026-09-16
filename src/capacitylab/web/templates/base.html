@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CapacityLab{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="/" aria-label="CapacityLab home">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="12" width="4" height="8" rx="1.5"/><rect x="9" y="7" width="4" height="13" rx="1.5"/><rect x="16" y="3" width="4" height="17" rx="1.5"/></svg>
+        CapacityLab
+      </a>
+      <nav>
+        <a href="/">Scenarios</a>
+        <a href="/lab">Lab</a>
+        <a href="/runs">Runs</a>
+      </nav>
+      <span class="budget" title="Language-model spend recorded in the runs directory">
+        Model budget: <strong>${{ '%.2f' % budget.spent }}</strong> of ${{ '%.2f' % budget.total }} used
+      </span>
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>CapacityLab · scenarios, tenants, and lab data are synthetic · modeled and locally measured results are labeled as such</footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

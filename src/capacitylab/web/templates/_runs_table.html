@@ -1,0 +1,20 @@
+{% from "_macros.html" import status %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Run</th><th>Scenario</th><th>Who answered</th><th>Status</th><th class="num">Rounds</th><th class="num">Attached evidence</th><th class="num">Model spend</th><th>Started</th></tr></thead>
+  <tbody>
+  {% for r in runs %}
+  <tr>
+    <td><a href="/runs/{{ r.file }}" class="mono">{{ r.run_id }}</a></td>
+    <td>{{ r.scenario_id }}</td>
+    <td>{% if r.mocked %}Scripted roles{% else %}{{ r.model }}{% endif %}</td>
+    <td>{{ status(r.status) }}</td>
+    <td class="num">{{ r.rounds }}</td>
+    <td class="num">{{ r.extra or '—' }}</td>
+    <td class="num">{% if r.mocked %}<span class="muted">none</span>{% else %}${{ '%.4f' % r.spend }}{% endif %}</td>
+    <td class="muted">{{ r.created_at }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

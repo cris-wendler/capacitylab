@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "_macros.html" import prov, options_table %}
+{% block title %}{{ scenario.title }} · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/">Scenarios</a> / {{ scenario.id }}</div>
+
+<div class="page-head">
+  <div>
+    <h1>{{ scenario.title }} <span class="tag">synthetic</span></h1>
+    <p class="lead">{{ scenario.summary }}</p>
+    <div class="question"><div class="label">Decision to make</div>{{ scenario.decision_question }}</div>
+    <dl class="facts-list">
+      <dt>Cluster</dt><dd>{{ scenario.cluster.id }}: writer {{ scenario.cluster.writer_instance }}{% if scenario.cluster.reader_instances %}, reader {{ scenario.cluster.reader_instances|join(', ') }}{% endif %} <span class="muted">(capacity is modeled for the {{ scenario.cluster.evaluated_node }})</span></dd>
+      <dt>Engine</dt><dd>{{ scenario.cluster.engine_assumption }}</dd>
+      <dt>Tenants</dt><dd>{% for t in scenario.tenants %}{{ t.label }}{% if t.id == scenario.focal_tenant %} <span class="tag">affected</span>{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+      <dt>Tenant isolation</dt><dd>{{ scenario.tenant_isolation.model.replace('_', ' ') }} <span class="muted">(assumption)</span></dd>
+      <dt>Time window</dt><dd>{{ scenario.horizon.date }}, {{ scenario.horizon.start }}–{{ scenario.horizon.end }} in {{ scenario.horizon.slot_minutes }}-minute slots</dd>
+      <dt>Events</dt><dd>{% for e in scenario.events %}<div>{% if e.kind == 'campaign' %}Campaign for {{ e.tenant }}, {{ e.start }}–{{ e.end }}{% elif e.kind == 'batch_job' %}Batch job <span class="mono">{{ e.name }}</span> at {{ e.start }}, must finish by {{ e.deadline_next_day }} next day{% else %}{{ e.name }} at {{ e.start }}{% endif %}</div>{% else %}<span class="muted">none</span>{% endfor %}</dd>
+    </dl>
+  </div>
+
+  <aside class="run-box" aria-label="Start a review">
+    <h2>Start a review</h2>
+    <form method="post" action="/scenarios/{{ scenario.id }}/run">
+      <fieldset>
+        <legend>Who answers for each role</legend>
+        <label class="option"><input type="radio" name="provider" value="mock" checked>
+          <span><strong>Scripted roles</strong><span class="muted small">Fixed rules in code. Offline and free. Good for trying the workflow.</span></span></label>
+        <label class="option"><input type="radio" name="provider" value="anthropic">
+          <span><strong>Anthropic model</strong><span class="muted small">{% if anthropic_ready %}API key found.{% else %}No API key found in the environment.{% endif %} Uses the model budget (${{ '%.2f' % budget.spent }} of ${{ '%.2f' % budget.total }} used).</span></span></label>
+      </fieldset>
+      <fieldset>
+        <legend>Where experiments run</legend>
+        <label class="option"><input type="radio" name="sandbox" value="sqlite" checked>
+          <span><strong>SQLite</strong><span class="muted small">In-process, always available.</span></span></label>
+        <label class="option"><input type="radio" name="sandbox" value="mysql" {% if not lab.ok %}disabled{% endif %}>
+          <span><strong>MySQL 8.0 lab</strong><span class="muted small">{{ lab.detail.rstrip('.') }}.{% if lab.ok and lab_ok %} Also lets roles request lab load tests.{% endif %}</span></span></label>
+      </fieldset>
+      <fieldset>
+        <legend>Attach measured evidence</legend>
+        {% for f in files %}
+        <label class="option"><input type="checkbox" name="evidence" value="{{ f.path }}" {% if preselected == f.path %}checked{% endif %}>
+          <span><strong class="mono">{{ f.name }}</strong><span class="muted small">{{ f.item_count }} items · {{ f.environments|join(', ') }} · {{ f.modified }}</span></span></label>
+        {% else %}
+        <p class="muted small">No lab or imported evidence yet. Create some on the <a href="/lab">Lab</a> page or with <span class="mono">capacitylab import</span>.</p>
+        {% endfor %}
+      </fieldset>
+      <label class="inline">Rounds <input type="number" name="max_rounds" value="{{ scenario.budgets.max_rounds }}" min="1" max="6"></label>
+      <button type="submit">Start review</button>
+    </form>
+    <p class="small muted">Limits: {{ scenario.budgets.max_tool_calls }} checks per run, {{ scenario.budgets.max_tool_calls_per_turn }} per turn.
+      <a href="/scenarios/{{ scenario.id }}/evaluate">Compare with a single reviewer and simple rules →</a></p>
+  </aside>
+</div>
+
+<h2 id="options">Options before any checks <span class="prov-note">{{ prov('modeled') }}</span></h2>
+<p class="section-lead">Modeled CPU use per {{ scenario.horizon.slot_minutes }}-minute slot with the scenario's base assumptions. Index
+options show no benefit here until an index experiment measures one.</p>
+<div class="multiples">
+{% for p in panels %}
+  <figure class="panel">
+    <figcaption><strong>{{ p.outcome.label }}</strong>
+      <div class="supporters mono">{{ p.outcome.option_id }}</div></figcaption>
+    {{ p.svg|safe }}
+  </figure>
+{% endfor %}
+</div>
+{{ options_table(panels|map(attribute='outcome')|list) }}
+
+<div class="split">
+  <section>
+    <h2>Known gaps</h2>
+    <ul class="plain">
+    {% for g in bundle.missing %}<li><span class="mono">{{ g.id }}</span> {{ g.description }} <div class="muted small">{{ g.impact }}</div></li>{% endfor %}
+    </ul>
+    {% if contradictions %}
+    <h2>Sources that disagree</h2>
+    <ul class="plain">
+    {% for c in contradictions %}<li><span class="mono">{{ c.key }}</span>: {% for v in c.values %}{{ v }} <span class="muted">({{ c.evidence_ids[loop.index0] }})</span>{% if not loop.last %} vs {% endif %}{% endfor %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+  <section>
+    <h2>Assumptions</h2>
+    <ul class="plain">
+    {% for a in scenario.assumptions %}<li><span class="mono">{{ a.id }}</span> = <strong>{{ a.value if a.value is not none else 'unknown' }}{{ a.unit or '' }}</strong> <div class="small">{{ a.statement }}</div></li>{% endfor %}
+    </ul>
+  </section>
+</div>
+
+<h2>Evidence</h2>
+{% for kind, items in grouped.items() %}
+<details class="evidence-group" {% if loop.index <= 2 %}open{% endif %}>
+  <summary>{{ kind|capitalize }} <span class="muted small">{{ items|length }}</span></summary>
+  <ul class="plain">
+  {% for item in items %}
+    <li><span class="mono">{{ item.id }}</span> {{ item.title }} {{ prov(item.provenance.value) }}{% if item.tenant_id %} <span class="tag">{{ item.tenant_id }}</span>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</details>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,64 @@
+{% macro prov(value) -%}
+<span class="prov prov-{{ value }}"><i></i>{{ value }}</span>
+{%- endmacro %}
+
+{% macro status(value) -%}
+<span class="status status-{{ value }}">{{ status_labels.get(value, value.replace('_', ' ')) }}</span>
+{%- endmacro %}
+
+{% macro chip(position) -%}
+<span class="chip{% if position == 'undecided' %} chip-muted{% endif %}">{{ position }}</span>
+{%- endmacro %}
+
+{% macro ev(run, evidence_id) -%}
+<a class="ev" href="/runs/{{ run.run_id }}/evidence/{{ evidence_id }}">{{ evidence_id }}</a>
+{%- endmacro %}
+
+{% macro options_table(outcomes) -%}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Option</th><th class="num">Peak CPU</th><th class="num">Slots over threshold</th><th class="num">Saturated slots</th><th class="num">SLO breach slots</th><th class="num">One-off cost</th><th class="num">Monthly cost</th><th>Not measured</th></tr></thead>
+  <tbody>
+  {% for o in outcomes %}
+    <tr>
+      <td><strong>{{ o.label }}</strong><div class="muted small mono">{{ o.option_id }}</div></td>
+      <td class="num">{{ o.peak_utilization_pct }}% <span class="muted">at {{ o.peak_slot }}</span></td>
+      <td class="num">{{ o.slots_over_threshold }}</td>
+      <td class="num">{{ o.saturated_slots }}</td>
+      <td class="num">{{ o.total_slo_breach_slots }}</td>
+      <td class="num">${{ '%.2f' % o.cost_delta_event_usd }}</td>
+      <td class="num">${{ '%.2f' % o.cost_delta_month_usd }}</td>
+      <td class="small">{% for u in o.unknowns %}<div>{{ u }}</div>{% else %}<span class="muted">nothing flagged</span>{% endfor %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{%- endmacro %}
+
+{% macro lab_table(cmp) -%}
+{% set names = cmp.data.phases|map(attribute='name')|list %}
+<div class="table-wrap">
+<table class="lab-table">
+  <thead>
+    <tr><th>Statement</th>{% for p in cmp.data.phases %}<th class="num" title="{{ p.label }}">{{ p.name }}<div class="muted small th-sub">{{ p.label }}</div></th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+  {% for fid, byphase in cmp.data.by_fingerprint.items() %}
+    <tr>
+      <td class="mono">{{ fid }}</td>
+      {% for n in names %}{% set cell = byphase.get(n, {}) %}
+      <td class="num">{% if cell.p95_ms is not none %}<strong>{{ cell.p95_ms }}</strong> ms{% else %}<span class="muted">—</span>{% endif %}
+        <div class="muted small">{{ cell.calls or 0 }} calls{% if cell.errors %} · {{ cell.errors }} error{{ '' if cell.errors == 1 else 's' }}{% endif %}{% if cell.low_sample and cell.calls %} · <span class="flag">low sample</span>{% endif %}</div></td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+    <tr class="sep"><td>Row-lock waits</td>{% for n in names %}<td class="num">{{ cmp.data.lock_waits.get(n) }}</td>{% endfor %}</tr>
+    <tr><td>Average lock wait</td>{% for n in names %}<td class="num">{{ cmp.data.avg_row_lock_wait_ms.get(n) }} ms</td>{% endfor %}</tr>
+    <tr><td>Database load (avg. active sessions)</td>{% for n in names %}<td class="num">{{ cmp.data.db_load_average_active_sessions.get(n) }}</td>{% endfor %}</tr>
+    <tr><td>Threads running (max)</td>{% for n in names %}<td class="num">{{ cmp.data.threads_running_max.get(n) }}</td>{% endfor %}</tr>
+  </tbody>
+</table>
+</div>
+<p class="small muted">p95 latency per statement, measured by the client. {{ cmp.data.low_sample_note }}</p>
+{%- endmacro %}

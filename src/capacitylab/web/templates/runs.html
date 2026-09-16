@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Runs · CapacityLab{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+{% if runs %}{% include "_runs_table.html" %}{% else %}<p class="muted">No runs yet.</p>{% endif %}
+{% endblock %}

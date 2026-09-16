@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Comparison · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/">Scenarios</a> / <a href="/scenarios/{{ scenario.id }}">{{ scenario.id }}</a> / comparison</div>
+<h1>Five-role review, single reviewer, and simple rules</h1>
+<p class="lead">All three approaches get the same evidence. Each recommendation is then scored inside the same capacity model using
+assumptions the roles never saw (for example the real campaign multiplier). That gives a reference point, not real-world truth.</p>
+{% for c in report.caveats %}<div class="{{ 'banner' if loop.first and report.mocked else 'note' }}">{{ c }}</div>{% endfor %}
+<p class="muted small">Hidden reference assumptions: {{ report.reference_assumptions or 'none' }}. Reference best option:
+{% for o in report.approaches[0].reference_best %}<strong>{{ labels.get(o, o) }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Approach</th><th>Recommendation</th><th class="num">Extra SLO breach slots</th><th class="num">Extra cost</th><th>Found the root cause</th><th class="num">Known gaps raised</th><th class="num">Bad citations</th><th class="num">Unsupported numbers</th><th class="num">Checks run</th><th class="num">Open disagreements</th></tr></thead>
+  <tbody>
+  {% for a in report.approaches %}
+  <tr>
+    <td><strong>{{ approach_labels.get(a.approach, a.approach) }}</strong>{% for n in a.notes %}<div class="small muted">{{ n }}</div>{% endfor %}</td>
+    <td>{{ labels.get(a.recommendation, a.recommendation) }}{% if a.distinct_final_positions|length > 1 %}<div class="small muted">roles split across: {% for o in a.distinct_final_positions %}{{ labels.get(o, o) }}{% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}</td>
+    <td class="num">{{ a.breach_slot_regret }}</td>
+    <td class="num">{% if a.cost_regret_usd is not none %}${{ '%.2f' % a.cost_regret_usd }}{% endif %}</td>
+    <td>{{ {True: 'yes', False: 'no'}.get(a.root_cause_identified, 'n/a') }}</td>
+    <td class="num">{{ '%d%%' % (a.gap_recall * 100) if a.gap_recall is not none else 'n/a' }}</td>
+    <td class="num">{{ a.citation_errors }}</td>
+    <td class="num">{{ a.ungrounded_numbers }}</td>
+    <td class="num">{{ a.tool_calls_executed }}</td>
+    <td class="num">{{ a.unresolved_disagreements }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

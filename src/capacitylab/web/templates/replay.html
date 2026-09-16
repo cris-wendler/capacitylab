@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Replay · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/runs/{{ run.run_id }}">Run</a> / replay</div>
+<h1>Replay verification: {% if report.verified %}<span class="ok">verified</span>{% else %}<span class="bad">not verified</span>{% endif %}</h1>
+<p class="muted">Every recorded tool call was executed again on fresh fixtures and compared by result digest. Stakeholder turns come from the ledger; no model is called.</p>
+<dl class="facts-list">
+  <dt>Scenario definition unchanged</dt><dd>{{ 'yes' if report.scenario_match else 'no' }}</dd>
+  <dt>Initial evidence unchanged</dt><dd>{{ 'yes' if report.initial_evidence_match else 'no' }}</dd>
+  <dt>Tool calls replayed</dt><dd>{{ report.identical }} identical of {{ report.tool_calls_replayed }}</dd>
+  <dt>Decision record rebuilt identically</dt><dd>{{ 'yes' if report.decision_match else 'no' }}</dd>
+</dl>
+{% if report.mismatches %}<h2>Mismatches</h2><pre class="json">{{ report.mismatches|tojson(indent=2) }}</pre>{% endif %}
+{% if report.skipped %}<h2>Skipped</h2><pre class="json">{{ report.skipped|tojson(indent=2) }}</pre>{% endif %}
+<ul class="plain">{% for n in report.notes %}<li class="muted">{{ n }}</li>{% endfor %}</ul>
+{% endblock %}
