@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img" aria-labelledby="t d">
+  <title id="t">CapacityLab</title>
+  <desc id="d">Five Claude agents (database engineer, application owner, reliability engineer, FinOps analyst, tenant representative) take turns reviewing shared evidence about a database capacity decision.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101a33"/>
+      <stop offset="1" stop-color="#1d1a3a"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/>
+    </radialGradient>
+    <style>
+      .title { font: 700 44px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #ffffff; }
+      .sub { font: 400 17px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #c3cde3; }
+      .q { font: 600 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #ffd27a; opacity: 0; }
+      .chip { font: 600 12px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e8ecf6; }
+      .role { font: 600 12.5px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #ffffff; text-anchor: middle; }
+      .core-t { font: 700 13px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #ffffff; text-anchor: middle; }
+      .core-s { font: 400 10.5px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #c3cde3; text-anchor: middle; }
+      .link { stroke-width: 2; stroke-dasharray: 4 7; fill: none; opacity: 0.55; animation: flow 1.6s linear infinite; }
+      .glow { opacity: 0.18; animation: turn 10s ease-in-out infinite; }
+      .ring { fill: none; stroke: #ffffff; stroke-width: 1.5; transform-origin: 690px 150px; animation: pulse 2.5s ease-out infinite; }
+      .q1 { animation: rotate 9s infinite; }
+      .q2 { animation: rotate 9s infinite 3s; }
+      .q3 { animation: rotate 9s infinite 6s; }
+      .caret { fill: #ffd27a; animation: blink 1s steps(1) infinite; }
+      .r2 { animation-delay: 2s; } .r3 { animation-delay: 4s; } .r4 { animation-delay: 6s; } .r5 { animation-delay: 8s; }
+      @keyframes flow { to { stroke-dashoffset: -22; } }
+      @keyframes turn { 0%, 22%, 100% { opacity: 0.18; } 6%, 16% { opacity: 1; } }
+      @keyframes pulse { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.7); opacity: 0; } }
+      @keyframes rotate { 0% { opacity: 0; } 4%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
+      @keyframes blink { 50% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) {
+        .link, .glow, .ring, .caret { animation: none; }
+        .q1 { animation: none; opacity: 1; }
+      }
+    </style>
+  </defs>
+
+  <rect width="900" height="300" rx="18" fill="url(#bg)"/>
+
+  <!-- left: name, what it is, the questions it answers -->
+  <text x="40" y="78" class="title">CapacityLab</text>
+  <text x="42" y="110" class="sub">Multi-agent LLM review for database capacity,</text>
+  <text x="42" y="132" class="sub">reliability and FinOps decisions</text>
+
+  <text x="42" y="178" class="q caret" style="opacity:1">&#8250;</text>
+  <text x="60" y="178" class="q q1">Scale up for the flash sale?</text>
+  <text x="60" y="178" class="q q2">Add the index?</text>
+  <text x="60" y="178" class="q q3">Move the batch job?</text>
+
+  <g transform="translate(42 222)">
+    <rect width="92" height="26" rx="13" fill="#d97757"/><text x="46" y="17.5" class="chip" text-anchor="middle">Claude API</text>
+    <rect x="100" width="118" height="26" rx="13" fill="#3a4a7a"/><text x="159" y="17.5" class="chip" text-anchor="middle">queueing model</text>
+    <rect x="226" width="92" height="26" rx="13" fill="#2f6b58"/><text x="272" y="17.5" class="chip" text-anchor="middle">cost model</text>
+    <rect x="326" width="88" height="26" rx="13" fill="#2b5c8a"/><text x="370" y="17.5" class="chip" text-anchor="middle">MySQL lab</text>
+  </g>
+
+  <!-- right: five agents around shared evidence -->
+  <path class="link" stroke="#6ea8ff" d="M690 57 L690 112"/>
+  <path class="link" stroke="#ffc24d" d="M781 120 L726 138"/>
+  <path class="link" stroke="#f0967a" d="M745 225 L712 181"/>
+  <path class="link" stroke="#b69cff" d="M635 225 L668 181"/>
+  <path class="link" stroke="#4fd1a1" d="M599 120 L654 138"/>
+
+  <circle cx="690" cy="150" r="38" class="ring"/>
+  <circle cx="690" cy="150" r="38" fill="url(#core)" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="690" y="148" class="core-t">evidence</text>
+  <text x="690" y="163" class="core-s">cited, checked</text>
+
+  <g>
+    <rect x="626" y="27" width="128" height="30" rx="15" fill="#2d6cdf" class="glow"/>
+    <rect x="626" y="27" width="128" height="30" rx="15" fill="none" stroke="#6ea8ff" stroke-width="1.5"/>
+    <text x="690" y="46.5" class="role">Database engineer</text>
+  </g>
+  <g>
+    <rect x="733" y="101" width="120" height="30" rx="15" fill="#c98a00" class="glow r2"/>
+    <rect x="733" y="101" width="120" height="30" rx="15" fill="none" stroke="#ffc24d" stroke-width="1.5"/>
+    <text x="793" y="120.5" class="role">Reliability (SRE)</text>
+  </g>
+  <g>
+    <rect x="699" y="225" width="112" height="30" rx="15" fill="#c75b3b" class="glow r3"/>
+    <rect x="699" y="225" width="112" height="30" rx="15" fill="none" stroke="#f0967a" stroke-width="1.5"/>
+    <text x="755" y="244.5" class="role">FinOps analyst</text>
+  </g>
+  <g>
+    <rect x="566" y="225" width="120" height="30" rx="15" fill="#7a5ad6" class="glow r4"/>
+    <rect x="566" y="225" width="120" height="30" rx="15" fill="none" stroke="#b69cff" stroke-width="1.5"/>
+    <text x="626" y="244.5" class="role">Tenant rep</text>
+  </g>
+  <g>
+    <rect x="527" y="101" width="126" height="30" rx="15" fill="#1b9b6d" class="glow r5"/>
+    <rect x="527" y="101" width="126" height="30" rx="15" fill="none" stroke="#4fd1a1" stroke-width="1.5"/>
+    <text x="590" y="120.5" class="role">Application owner</text>
+  </g>
+
+  <text x="690" y="286" class="core-s">each agent takes a turn, cites evidence, and can ask for checks</text>
+</svg>
