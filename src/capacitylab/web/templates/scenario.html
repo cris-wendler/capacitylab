@@ -53,6 +53,29 @@
   </aside>
 </div>
 
+<h2 id="findings">What the evidence already says</h2>
+<p class="section-lead">Computed from this scenario's evidence before any review runs: no roles, no model calls. Each
+finding cites what it rests on.</p>
+{% if findings %}
+<div class="findings">
+{% for f in findings %}
+  <article class="finding-card sev-{{ f.severity }}">
+    <div class="finding-head">
+      <span class="sev sev-{{ f.severity }}">{{ {'high': 'Act', 'medium': 'Weigh', 'info': 'Note'}[f.severity] }}</span>
+      <span class="tag">{{ f.area.replace('_', ' ') }}</span>
+      {% if f.basis == 'gap' %}<span class="tag">not measured</span>{% else %}<span class="prov-note">{{ prov(f.basis) }}</span>{% endif %}
+    </div>
+    <h3>{{ f.headline }}</h3>
+    <p>{{ f.detail }}</p>
+    <p class="finding-do"><strong>What to do:</strong> {{ f.recommendation }}</p>
+    <p class="small muted">{% for e in f.evidence_ids %}<span class="ev">{{ e }}</span>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  </article>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty">No findings from this evidence.</div>
+{% endif %}
+
 <h2 id="options">Options before any checks <span class="prov-note">{{ prov('modeled') }}</span></h2>
 <p class="section-lead">Modeled CPU use per {{ scenario.horizon.slot_minutes }}-minute slot with the scenario's base assumptions. Index
 options show no benefit here until an index experiment measures one.</p>

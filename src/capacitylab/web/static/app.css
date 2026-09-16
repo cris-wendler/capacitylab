@@ -85,6 +85,20 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px
 .card-kicker { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
 .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; }
 .empty { background: var(--surface); border: 1px dashed var(--axis); border-radius: 12px; padding: 18px; color: var(--ink-2); }
+
+.findings { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.finding-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--axis); border-radius: 10px; padding: 12px 14px; }
+.finding-card.sev-high { border-left-color: var(--critical); }
+.finding-card.sev-medium { border-left-color: var(--assumption); }
+.finding-card.sev-info { border-left-color: var(--axis); }
+.finding-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+.finding-card h3 { font-size: 14.5px; margin: 0 0 4px; }
+.finding-card p { margin: 4px 0; color: var(--ink-2); }
+.finding-do { color: var(--ink) !important; }
+.sev { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 99px; }
+.sev-high { background: rgba(208, 59, 59, .12); color: var(--critical); }
+.sev-medium { background: rgba(237, 161, 0, .16); color: #8a5d00; }
+.sev-info { background: var(--page); color: var(--muted); }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--axis); margin-right: 6px; }
 .dot-ok { background: var(--good); }
 .dot-off { background: var(--critical); }

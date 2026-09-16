@@ -19,6 +19,7 @@ from capacitylab.capacity.options import build_context, evaluate_all
 from capacitylab.evidence.bundle import EvidenceBundle
 from capacitylab.evidence.models import PROVENANCE_LABELS, EvidenceKind
 from capacitylab.factory import make_provider, make_sandbox_factory
+from capacitylab.findings import review_findings
 from capacitylab.report import render_markdown
 from capacitylab.scenarios.loader import list_scenarios, load_evidence_file, load_scenario
 from capacitylab.scenarios.validate import validate_scenario
@@ -244,6 +245,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         return page(request, "scenario.html", scenario=scenario, bundle=bundle, grouped=grouped,
                     issues=validate_scenario(scenario, bundle), contradictions=bundle.contradictions(),
                     panels=panels(scenario, outcomes), anthropic_ready=Settings.anthropic_credentials_present(),
+                    findings=review_findings(scenario, bundle),
                     files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario))
 
     @app.post("/scenarios/{sid}/run")
