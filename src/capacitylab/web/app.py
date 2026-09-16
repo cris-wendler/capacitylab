@@ -228,7 +228,8 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         cards = []
         for sid in list_scenarios():
             scenario, bundle = load_scenario(sid)
-            cards.append({"scenario": scenario, "evidence": len(bundle), "gaps": len(bundle.missing)})
+            cards.append({"scenario": scenario, "evidence": len(bundle), "gaps": len(bundle.missing),
+                          "findings": review_findings(scenario, bundle)[:2]})
         return page(request, "index.html", cards=cards, runs=recent_runs(), lab=lab_status(), lab_runs=lab_files()[:3])
 
     @app.get("/runs", response_class=HTMLResponse)

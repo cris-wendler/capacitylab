@@ -52,8 +52,12 @@
     <article class="role-card{% if p.position == 'undecided' %} role-card-open{% elif p.position == leading %} role-card-with{% else %} role-card-against{% endif %}">
       <div class="role-name">{{ role_titles.get(p.role, p.role) }}</div>
       <div class="role-position">{{ labels.get(p.position, p.position) }}</div>
-      <div class="muted small"><span class="mono">{{ p.position }}</span> · {{ p.confidence }} confidence{% if revised_in.get(p.role) %} · {{ 'decided' if first_position.get(p.role) == 'undecided' else 'changed' }} in round {{ revised_in[p.role] }}{% endif %}</div>
-      <p class="small">{{ p.rationale }}</p>
+      <div class="role-meta">
+        <span class="conf conf-{{ p.confidence }}">{{ p.confidence }} confidence</span>
+        {% if revised_in.get(p.role) %}<span class="tag">{{ 'decided' if first_position.get(p.role) == 'undecided' else 'changed' }} in round {{ revised_in[p.role] }}</span>{% endif %}
+      </div>
+      <p class="small clamp">{{ p.rationale }}</p>
+      <div class="mono small muted">{{ p.position }}</div>
     </article>
   {% endfor %}
   </div>

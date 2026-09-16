@@ -36,6 +36,9 @@
     <div class="card-kicker">{{ c.scenario.cluster.id }} · {{ c.scenario.horizon.date }}</div>
     <h3>{{ c.scenario.title }}</h3>
     <p>{{ c.scenario.summary }}</p>
+    {% for f in c.findings %}
+    <div class="card-finding"><span class="sev sev-{{ f.severity }}">{{ {'high': 'Act', 'medium': 'Weigh', 'info': 'Note'}[f.severity] }}</span><span>{{ f.headline }}</span></div>
+    {% endfor %}
     <div class="facts">
       <span>{{ c.evidence }} evidence items</span><span>{{ c.scenario.options|length }} options</span><span>{{ c.gaps }} known gaps</span>
     </div>
