@@ -83,7 +83,9 @@ From the scripted run, with the index effect measured in the SQLite experiment d
 | Index and move the batch job | 77.7% | 0 | 0 | $0.01/month storage |
 | Scale up and move the batch job | 47.5% | 0 | 0 | $16.80, plus failovers |
 
-The rate card is illustrative, not provider pricing.
+Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
+the evidence bundle, and a scenario without one fails validation. The numbers shipped here are illustrative and
+labelled as an assumption, so replacing that one evidence item with your provider's rates re-prices every option.
 
 ![Each option's modeled utilization over the evening, with event windows](docs/media/run-options.png)
 

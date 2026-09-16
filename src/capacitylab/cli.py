@@ -292,6 +292,21 @@ def cmd_import(args, settings) -> int:
     return 0
 
 
+def cmd_findings(args, settings) -> int:
+    from capacitylab.findings import review_findings
+
+    scenario, bundle = _load(args)
+    findings = review_findings(scenario, bundle)
+    label = {"high": "ACT  ", "medium": "WEIGH", "info": "NOTE "}
+    for f in findings:
+        print(f"\n{label[f.severity]} [{f.area}] {f.headline}")
+        print(f"      {f.detail}")
+        print(f"      what to do: {f.recommendation}")
+        print(f"      evidence: {', '.join(f.evidence_ids)}")
+    print(f"\n{len(findings)} findings from evidence alone (no review run, no model calls)")
+    return 0
+
+
 def cmd_spend(args, settings) -> int:
     ledger = _ledger(settings)
     spent = ledger.spent_usd()
@@ -348,6 +363,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("scenario")
     p.add_argument("--evidence", action="append", help="extra evidence YAML (from `lab run` or `import`); repeatable")
     p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("findings", help="what the evidence already says: capacity, availability, growth, contention")
+    p.add_argument("scenario")
+    p.add_argument("--evidence", action="append", help="extra evidence YAML (from `lab run` or `import`); repeatable")
+    p.set_defaults(func=cmd_findings)
 
     p = sub.add_parser("run", help="run a stakeholder simulation")
     p.add_argument("scenario")

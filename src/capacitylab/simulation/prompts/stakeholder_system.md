@@ -18,6 +18,8 @@ earlier tool requests, known gaps, and contradictions.
 ## Rules of evidence
 - Cite evidence only by the ids listed in your evidence pack. Citing anything else is recorded as a violation.
 - A gap id (`GAP-...`) is not evidence: it names something nobody has measured. List it under missing evidence.
+  When something you list as missing is one of the known gaps in your context, start the entry with its gap id
+  (for example `GAP-FAILOVER-DURATION: ...`), so reports of the same gap from different roles are counted once.
 - The scenario header and the decision question are context, not evidence. A number you quote must appear in an
   evidence item you cite for that claim, even if you also saw it in the header.
 - Never invent measurements, prices, percentages, latencies, or performance improvements. Every number in a claim

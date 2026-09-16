@@ -13,6 +13,10 @@ from capacitylab.capacity.options import OptimizationEffect, build_context, eval
 from capacitylab.capacity.queueing import StatementLoad, erlang_c, evaluate_slot, wait_percentile_s
 from capacitylab.scenarios.models import OptionSpec
 
+# Test prices only. Real runs read the rate card from scenario evidence (EV-RATE-001), never from code.
+# These double at each class so the arithmetic below is checkable by eye: 10 h x 2 nodes x 1.2 = 24.0,
+# 7 h x (2.4 - 1.2) = 8.4, a month of downsizing = -438.00. Real list prices would obscure that and would
+# make the assertions go stale.
 CARD = RateCard(instance_hourly={"db.r6g.xlarge": 0.6, "db.r6g.2xlarge": 1.2, "db.r6g.4xlarge": 2.4}, storage_gib_month=0.1)
 
 

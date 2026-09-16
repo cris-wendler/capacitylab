@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 
 from pydantic import BaseModel, Field
@@ -17,6 +18,28 @@ CAVEATS = [
     "Option outcomes are modeled with explicit assumptions; local sandbox measurements are not production results.",
     "The scenario, tenants, and evidence are synthetic.",
 ]
+
+
+_GAP_ID = re.compile(r"^\s*(GAP-[A-Z0-9][A-Z0-9-]*)")
+
+
+def group_missing_evidence(reports: list[tuple[str, str]]) -> list[dict]:
+    """Merge reports of the same gap from different roles.
+
+    A report that starts with a gap id counts as that gap, whatever wording follows; each role's distinct wording
+    is kept as a detail. A report that only mentions a gap mid-sentence is a different request and stays separate.
+    """
+    grouped: dict[str, dict] = {}
+    for role, text in reports:
+        match = _GAP_ID.match(text)
+        key = match.group(1) if match else text.strip()
+        entry = grouped.setdefault(key, {"raised_by": set(), "details": []})
+        entry["raised_by"].add(role)
+        detail = text.strip()
+        if detail != key and detail not in entry["details"]:
+            entry["details"].append(detail)
+    return [{"item": key, "raised_by": sorted(e["raised_by"]), "details": e["details"]}
+            for key, e in sorted(grouped.items())]
 
 
 class RolePosition(BaseModel):
@@ -92,10 +115,8 @@ def synthesize(
                 evidence_ids=c.evidence_ids,
             ))
 
-    missing: dict[str, set[str]] = defaultdict(set)
-    for p in finals:
-        for m in by_role[p.role][-1].draft.missing_evidence:
-            missing[m].add(p.role)
+    missing = group_missing_evidence(
+        [(p.role, m) for p in finals for m in by_role[p.role][-1].draft.missing_evidence])
 
     proposals = []
     for p in finals:
@@ -109,7 +130,7 @@ def synthesize(
         support=dict(support),
         distinct_positions=len(decided),
         disagreements=disagreements,
-        missing_evidence=[{"item": k, "raised_by": sorted(v)} for k, v in sorted(missing.items())],
+        missing_evidence=missing,
         open_tool_requests=[{"call_id": r.call_id, "tool": r.tool, "requested_by": r.requested_by, "status": r.status,
                              "purpose": r.purpose} for r in tool_calls if r.status.startswith("skipped")],
         optimization_proposals=proposals,

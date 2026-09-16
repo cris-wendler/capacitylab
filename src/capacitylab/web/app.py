@@ -19,6 +19,7 @@ from capacitylab.capacity.options import build_context, evaluate_all
 from capacitylab.evidence.bundle import EvidenceBundle
 from capacitylab.evidence.models import PROVENANCE_LABELS, EvidenceKind
 from capacitylab.factory import make_provider, make_sandbox_factory
+from capacitylab.findings import review_findings
 from capacitylab.report import render_markdown
 from capacitylab.scenarios.loader import list_scenarios, load_evidence_file, load_scenario
 from capacitylab.scenarios.validate import validate_scenario
@@ -227,7 +228,8 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         cards = []
         for sid in list_scenarios():
             scenario, bundle = load_scenario(sid)
-            cards.append({"scenario": scenario, "evidence": len(bundle), "gaps": len(bundle.missing)})
+            cards.append({"scenario": scenario, "evidence": len(bundle), "gaps": len(bundle.missing),
+                          "findings": review_findings(scenario, bundle)[:2]})
         return page(request, "index.html", cards=cards, runs=recent_runs(), lab=lab_status(), lab_runs=lab_files()[:3])
 
     @app.get("/runs", response_class=HTMLResponse)
@@ -244,6 +246,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         return page(request, "scenario.html", scenario=scenario, bundle=bundle, grouped=grouped,
                     issues=validate_scenario(scenario, bundle), contradictions=bundle.contradictions(),
                     panels=panels(scenario, outcomes), anthropic_ready=Settings.anthropic_credentials_present(),
+                    findings=review_findings(scenario, bundle),
                     files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario))
 
     @app.post("/scenarios/{sid}/run")
@@ -306,9 +309,12 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         lab = next((e for e in run.extra_evidence_items if e.id == "EV-LAB-CMP"), None)
         revised_in = {role: next((t.round for t in run.turns if t.role == role and t.draft.revised_from_previous and t.round > 1),
                                  None) for role in roles}
+        # A role that starts undecided and then picks an option has decided, not changed its mind.
+        first_position = {role: next((t.draft.position for t in run.turns if t.role == role), "undecided") for role in roles}
         return page(request, "run.html", run=run, scenario=scenario, roles=roles, matrix=matrix,
                     rounds=list(range(1, run.rounds_completed + 1)), panels=panels(scenario, outcomes) if outcomes else [],
                     evidence_titles=evidence_titles, labels=option_labels(scenario), lab=lab, revised_in=revised_in,
+                    first_position=first_position,
                     gaps={g.id: g for g in scenario.missing_evidence},
                     checks_run=sum(1 for c in run.tool_calls if c.status == "ok"))
 
