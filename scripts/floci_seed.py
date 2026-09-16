@@ -81,8 +81,8 @@ def put_metrics(cloudwatch, now: datetime, instances: list[str]) -> int:
                           "StatisticValues": {"SampleCount": 5, "Sum": average * 5, "Minimum": average * 0.8,
                                               "Maximum": maximum}})
             batch.append({"MetricName": "DatabaseConnections", "Dimensions": dims, "Timestamp": ts, "Unit": "Count",
-                          "Value": round(40 + average * 3)})
-            if len(batch) >= 100:
+                          "Value": float(round(40 + average * 3))})
+            if len(batch) >= 20:  # the emulator rejects larger PutMetricData requests
                 cloudwatch.put_metric_data(Namespace="AWS/RDS", MetricData=batch)
                 sent += len(batch)
                 batch = []
