@@ -2,14 +2,41 @@
 {% block title %}Replay · CapacityLab{% endblock %}
 {% block content %}
 <div class="crumbs"><a href="/runs/{{ run.run_id }}">Run</a> / replay</div>
-<h1>Replay verification: {% if report.verified %}<span class="ok">verified</span>{% else %}<span class="bad">not verified</span>{% endif %}</h1>
-<p class="muted">Every recorded tool call was executed again on fresh fixtures and compared by result digest. Stakeholder turns come from the ledger; no model is called.</p>
-<dl class="facts-list">
-  <dt>Scenario definition unchanged</dt><dd>{{ 'yes' if report.scenario_match else 'no' }}</dd>
-  <dt>Initial evidence unchanged</dt><dd>{{ 'yes' if report.initial_evidence_match else 'no' }}</dd>
-  <dt>Tool calls replayed</dt><dd>{{ report.identical }} identical of {{ report.tool_calls_replayed }}</dd>
-  <dt>Decision record rebuilt identically</dt><dd>{{ 'yes' if report.decision_match else 'no' }}</dd>
-</dl>
+<h1>Replay verification</h1>
+{% set checks_reproduce = report.identical == report.tool_calls_replayed %}
+{% set scenario_edited = not report.scenario_match or not report.initial_evidence_match %}
+{% if report.verified %}
+<div class="outcome outcome-agreed">
+  <div class="outcome-headline">Verified: this run reproduces</div>
+  <div class="outcome-sub">Every recorded check ran again on fresh fixtures with the same result, and the decision record rebuilds
+    identically. Role turns come from the run log; no model is called.</div>
+</div>
+{% elif checks_reproduce and scenario_edited %}
+<div class="outcome outcome-split">
+  <div class="outcome-headline">The checks reproduce; the scenario has changed since this run</div>
+  <div class="outcome-sub">All {{ report.tool_calls_replayed }} recorded checks give the same result again. The scenario or its
+    evidence was edited after the run, so the rest cannot be compared exactly. Re-run the review to verify it end to end.</div>
+</div>
+{% else %}
+<div class="outcome outcome-failed">
+  <div class="outcome-headline">Not reproduced: a recorded check gives a different result</div>
+  <div class="outcome-sub">See the mismatches below. Role turns come from the run log; no model is called.</div>
+</div>
+{% endif %}
+<div class="checks">
+  {% set rows = [
+    ('Scenario definition', report.scenario_match, none, 'state'),
+    ('Initial evidence', report.initial_evidence_match, none, 'state'),
+    ('Checks replayed identically', checks_reproduce, report.identical ~ ' of ' ~ report.tool_calls_replayed, 'check'),
+    ('Decision record rebuilt', report.decision_match, none, 'state'),
+  ] %}
+  {% for label, ok, extra, kind in rows %}
+  <div class="check-row">
+    {% if kind == 'check' %}<span class="pill {{ 'pill-ok' if ok else 'pill-bad' }}">{{ 'pass' if ok else 'fail' }}</span>
+    {% else %}<span class="pill {{ 'pill-ok' if ok else 'pill-warn' }}">{{ 'same' if ok else 'changed' }}</span>{% endif %}
+    <span>{{ label }}</span>{% if extra %}<span class="muted small">{{ extra }}</span>{% endif %}</div>
+  {% endfor %}
+</div>
 {% if report.mismatches %}<h2>Mismatches</h2><pre class="json">{{ report.mismatches|tojson(indent=2) }}</pre>{% endif %}
 {% if report.skipped %}<h2>Skipped</h2><pre class="json">{{ report.skipped|tojson(indent=2) }}</pre>{% endif %}
 <ul class="plain">{% for n in report.notes %}<li class="muted">{{ n }}</li>{% endfor %}</ul>

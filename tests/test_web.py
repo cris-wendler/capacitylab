@@ -81,7 +81,8 @@ def test_run_flow_with_attached_lab_evidence(client):
     assert client.get(f"{run_path}/evidence/EV-LAB-CMP").status_code == 200
     assert client.get(f"{run_path}/evidence/EV-NOPE-001").status_code == 404
     replay = client.get(f"{run_path}/replay")
-    assert replay.status_code == 200 and "verified" in replay.text and "not verified" not in replay.text
+    assert replay.status_code == 200 and "Verified: this run reproduces" in replay.text
+    assert "Not reproduced" not in replay.text and "scenario has changed" not in replay.text
     assert client.get(f"{run_path}/report.md").status_code == 200
     assert client.get(f"{run_path}/ledger.json").json()["extra_evidence_items"][0]["id"] == "EV-LAB-CMP"
     assert run_path.split("/")[-1] in client.get("/runs").text

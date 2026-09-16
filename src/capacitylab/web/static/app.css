@@ -176,6 +176,21 @@ ul.plain { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .outcome { border-radius: 12px; padding: 14px 18px; margin: 16px 0 20px; border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--accent-wash); }
 .outcome-agreed { border-left-color: var(--measured); background: rgba(27, 175, 122, .10); }
 .outcome-split { border-left-color: var(--assumption); background: rgba(237, 161, 0, .12); }
+.outcome-failed { border-left-color: var(--critical); background: rgba(208, 59, 59, .10); }
+
+.checks { display: grid; gap: 8px; margin: 8px 0 20px; }
+.check-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 650; padding: 1px 8px; border-radius: 99px; font-variant-numeric: tabular-nums; }
+.pill-ok { background: rgba(27, 175, 122, .14); color: #0f6b4d; }
+.pill-warn { background: rgba(237, 161, 0, .16); color: #8a5d00; }
+.pill-bad { background: rgba(208, 59, 59, .12); color: var(--critical); }
+
+.evidence-head { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--observed); border-radius: 12px; padding: 12px 16px; margin: 14px 0; }
+.evidence-head h1 { margin: 6px 0 2px; font-size: 22px; }
+.prov-card-forecast { border-left-color: var(--forecast); }
+.prov-card-assumption { border-left-color: var(--assumption); }
+.prov-card-modeled { border-left-color: var(--modeled); }
+.prov-card-measured { border-left-color: var(--measured); }
 .outcome-headline { font-size: 18px; font-weight: 650; }
 .outcome-sub { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
 
