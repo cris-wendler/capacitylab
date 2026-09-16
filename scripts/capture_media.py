@@ -62,6 +62,21 @@ def main() -> int:
     MEDIA.mkdir(parents=True, exist_ok=True)
     FRAMES.mkdir(parents=True, exist_ok=True)
     runs_dir = tempfile.mkdtemp(prefix="capacitylab-media-")
+    # Run pages are captured from a recorded review with a real model, not a scripted one.
+    live_source = ROOT / "runs" / os.environ.get("CAPTURE_RUN", "live-campaign-overlap-4.json")
+    if not live_source.is_file():
+        raise SystemExit(f"{live_source} not found: record a run with --provider anthropic, or set CAPTURE_RUN")
+    # Derived parts of the decision record are rebuilt with the current code from the run's recorded turns (no model
+    # calls), in the temporary copy only, so screenshots do not show behaviour that has since been fixed.
+    from capacitylab.simulation.decision import group_missing_evidence
+    from capacitylab.simulation.run import SimulationRun
+
+    run = SimulationRun.model_validate_json(live_source.read_text())
+    if run.decision is not None:
+        last = {t.role: t for t in run.turns}
+        run.decision.missing_evidence = group_missing_evidence(
+            [(role, m) for role, t in last.items() for m in t.draft.missing_evidence])
+    (Path(runs_dir) / live_source.name).write_text(run.model_dump_json())
     lab_source = ROOT / "runs" / "lab" / "campaign-overlap-lab.yaml"  # produced by `capacitylab lab run`
     percona_source = ROOT / "runs" / "lab" / "campaign-overlap-lab-percona.yaml"  # produced by `lab run --percona`
     for source in (lab_source, percona_source):
@@ -109,13 +124,12 @@ def main() -> int:
                 page.check("input[name=evidence]")
             page.screenshot(path=str(MEDIA / "scenario.png"))
 
-            page.click("button[type=submit]")
-            page.wait_for_url("**/runs/**", timeout=120_000)
+            page.goto(BASE + f"/runs/{live_source.stem}")
             page.wait_for_selector("table.matrix")
             frame("run-top")
             full = FRAMES / "run-full.png"
             page.screenshot(path=str(full), full_page=True)
-            crop(full, span(page, ".banner", "#decision"), MEDIA / "run-positions.png")
+            crop(full, span(page, ".outcome", "#decision"), MEDIA / "run-positions.png")
             if lab_source.is_file():
                 crop(full, span(page, "#lab-measurements", ".lab-table"), MEDIA / "run-lab.png")
             crop(full, span(page, "#options", ".multiples + .table-wrap"), MEDIA / "run-options.png")
