@@ -116,6 +116,8 @@ jobs:
           for i in $(seq 1 60); do docker logs capacitylab-floci 2>&1 | grep -q "Ready" && break; sleep 2; done
       - name: Install
         run: pip install -e ".[dev,aws]"
+      - name: Probe PutMetricData (temporary)
+        run: python scripts/floci_probe.py
       - name: Seed the emulator
         run: python scripts/floci_seed.py
       - name: AWS import tests
