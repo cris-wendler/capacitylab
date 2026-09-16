@@ -1,4 +1,4 @@
-"""Load a local AWS emulator (Floci) with a synthetic RDS writer, a read replica and a day of CloudWatch metrics.
+"""Load a local AWS emulator (Floci) with a synthetic RDS writer, a read replica where supported, and a day of metrics.
 
     docker compose --profile aws up -d floci
     python scripts/floci_seed.py

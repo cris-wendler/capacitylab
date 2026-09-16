@@ -632,8 +632,15 @@ agents can cite:
 
 By default it talks to [Floci](https://github.com/floci-io/floci), a local AWS emulator, with placeholder
 credentials. Floci runs RDS instances as real MySQL containers, which is why its service needs the Docker socket; it
-only starts with `--profile aws`. Its metrics are whatever the seed script loaded and its prices are a static snapshot,
-so an emulator import shows the collection path working end to end, not how a real database behaves.
+only starts with `--profile aws`. Its metrics are whatever the seed script loaded, so an emulator import shows the
+collection path working end to end, not how a real database behaves.
+
+> [!NOTE]
+> Against Floci 2.1.0 the import produces topology, the CPU series, metrics and month-to-date cost; CI runs exactly
+> this and then a review with the result. Two things only a real account provides: read replicas (Floci does not
+> support creating them, so the seeded cluster is a writer only) and RDS prices (Floci's pricing snapshot has no
+> `AmazonRDS` products, so `EV-AWS-RATE` is skipped with that reason). Both paths are covered by tests against
+> recorded API responses.
 
 > [!CAUTION]
 > `--live` reads a real account with your normal AWS credentials. Only the five read calls above are made. Cost
@@ -842,7 +849,7 @@ src/capacitylab/
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             140 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+tests/             141 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data
@@ -876,8 +883,9 @@ docs/              provenance and release checklist, evaluation method, screensh
 - The rate card is illustrative. Tenant isolation (shared schema with `tenant_id`) is an assumption; attribution by
   schema name is supported for database-per-tenant setups.
 - Importers are tested on synthetic files. Redaction covers emails and IPv4 addresses only.
-- The AWS import is tested against stubbed API responses and against Floci, not against a real account. It reads
-  one instance at a time and does not yet feed AWS prices into the capacity model's option costs.
+- The AWS import is tested against recorded API responses and against Floci, not against a real account. Readers and
+  prices are only exercised by the recorded responses. It reads one instance at a time and does not yet feed AWS
+  prices into the capacity model's option costs.
 - The web UI has no login and is meant for localhost.
 
 ## Next

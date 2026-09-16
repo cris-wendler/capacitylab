@@ -111,6 +111,19 @@ def test_unlabelled_import_is_named_by_a_hash_and_missing_prices_are_reported():
     assert result.skipped == ["prices: the Pricing API returned nothing for this engine and region"]
 
 
+def test_emulator_without_rds_prices_is_reported_clearly():
+    clients, _ = stubbed_clients()
+    pricing = _client("pricing")
+    stub = Stubber(pricing)
+    stub.add_client_error("get_products", service_error_code="InvalidParameterException",
+                          service_message="Invalid ServiceCode: AmazonRDS")
+    stub.activate()
+    result = import_aws(AwsTarget(), WRITER_ID, hours=2, now=NOW, clients={**clients, "pricing": pricing})
+    assert result.skipped == ["prices: this Pricing endpoint has no RDS products (Floci's snapshot does not include "
+                              "AmazonRDS)"]
+    assert any(i.id.startswith("EV-AWS-COST-") for i in result.items)
+
+
 def test_real_endpoints_need_live_and_live_uses_no_endpoint():
     with pytest.raises(UnsafeAwsTarget):
         AwsTarget(endpoint_url="https://rds.us-east-1.amazonaws.com")

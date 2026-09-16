@@ -39,8 +39,8 @@ METRICS = {  # CloudWatch metric -> unit used in the summary
 SIZES = ("large", "xlarge", "2xlarge", "4xlarge", "8xlarge", "12xlarge", "16xlarge")
 PRICING_ENGINE = {"mysql": "MySQL", "postgres": "PostgreSQL", "mariadb": "MariaDB",
                   "aurora-mysql": "Aurora MySQL", "aurora-postgresql": "Aurora PostgreSQL"}
-EMULATOR_CAVEAT = ("Read from a local AWS emulator (Floci). Its metrics are whatever was loaded into it and its prices "
-                   "are a static snapshot, so this shows the collection path, not a real account.")
+EMULATOR_CAVEAT = ("Read from a local AWS emulator (Floci). Its metrics are whatever was loaded into it, so this shows "
+                   "the collection path, not a real account.")
 LIVE_CAVEAT = "Read from an AWS account through its APIs; CapacityLab did not verify how the account is configured."
 
 
@@ -262,7 +262,12 @@ def import_aws(target: AwsTarget, instance_id: str, hours: float = 24.0, period_
                              topology["writer"]["availability_zone_count"] > 1)
     except Exception as exc:  # pricing is optional; the rest of the import still stands
         prices = {}
-        result.skipped.append(f"prices: {type(exc).__name__}")
+        message = str(exc)
+        if "Invalid ServiceCode" in message:
+            result.skipped.append("prices: this Pricing endpoint has no RDS products (Floci's snapshot does not "
+                                  "include AmazonRDS)")
+        else:
+            result.skipped.append(f"prices: {type(exc).__name__}: {message.splitlines()[0][:160] if message else ''}")
     if prices:
         result.items.append(EvidenceItem(
             id=f"EV-AWS-RATE-{tag}", kind=EvidenceKind.RATE_CARD,
