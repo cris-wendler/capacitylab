@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
-        run: pip install -e ".[dev,anthropic,mysql]"
+        run: pip install -e ".[dev,anthropic,mysql,aws]"
       - name: Lint
         run: ruff check src tests scripts
       - name: Unit, integration, and end-to-end tests (mock provider, SQLite sandbox)
@@ -97,3 +97,33 @@ jobs:
         run: pytest -m postgres tests/test_postgres_lab.py
       - name: Short lab run
         run: capacitylab lab run campaign-overlap --engine postgres --duration 5 --qps 100 --out runs/ci-pg-lab.yaml
+
+  aws-import:
+    name: AWS import (Floci emulator)
+    runs-on: ubuntu-latest
+    env:
+      CAPACITYLAB_TEST_FLOCI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Start Floci
+        run: |
+          docker run -d --name capacitylab-floci -p 127.0.0.1:4566:4566 \
+            -v /var/run/docker.sock:/var/run/docker.sock floci/floci:2.1.0
+          for i in $(seq 1 60); do docker logs capacitylab-floci 2>&1 | grep -q "Ready" && break; sleep 2; done
+      - name: Install
+        run: pip install -e ".[dev,aws]"
+      - name: Seed the emulator
+        run: python scripts/floci_seed.py
+      - name: AWS import tests
+        run: pytest -m aws tests/test_aws_import.py
+      - name: Import through the CLI and use it in a review
+        run: |
+          capacitylab import aws --instance demo-writer --label "floci demo" --out runs/ci-aws.yaml
+          capacitylab run campaign-overlap --provider mock --evidence runs/ci-aws.yaml --out runs/ci-aws-run.json --quiet
+      - name: Floci logs on failure
+        if: failure()
+        run: docker logs capacitylab-floci 2>&1 | tail -80

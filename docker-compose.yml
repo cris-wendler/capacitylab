@@ -37,3 +37,15 @@ services:
       interval: 3s
       timeout: 3s
       retries: 40
+
+  # Local AWS emulator (Floci, MIT) for `capacitylab import aws`. Only started with: docker compose --profile aws up -d floci
+  # It needs the Docker socket because it runs RDS instances as real database containers, which gives it control of
+  # the local Docker daemon. Bound to localhost; nothing here reaches a real AWS account.
+  floci:
+    image: floci/floci:2.1.0
+    container_name: capacitylab-floci
+    profiles: [aws]
+    ports:
+      - "127.0.0.1:4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

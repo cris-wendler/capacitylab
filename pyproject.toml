@@ -21,6 +21,7 @@ dependencies = [
 [project.optional-dependencies]
 anthropic = ["anthropic>=1.5"]
 mysql = ["pymysql>=1.1"]
+aws = ["boto3>=1.34"]
 postgres = ["psycopg[binary]>=3.2"]
 dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.5"]
 media = ["playwright>=1.45", "pillow>=10"]
@@ -41,6 +42,7 @@ addopts = "-m 'not live'"
 markers = [
   "mysql: requires the local MySQL sandbox (docker compose up -d --wait sandbox-mysql)",
   "postgres: requires the local PostgreSQL sandbox (docker compose up -d --wait sandbox-postgres)",
+  "aws: requires a seeded local AWS emulator (docker compose --profile aws up -d floci; python scripts/floci_seed.py)",
   "live: calls a real model provider and spends money",
 ]
 

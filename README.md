@@ -18,6 +18,7 @@
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7-1c5cab" alt="Percona Toolkit 3.7">
   <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/AWS-boto3%20%2B%20Floci-FF9900?logo=amazonwebservices&logoColor=white" alt="AWS APIs through boto3, Floci emulator">
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/license-Apache--2.0-6b6a65" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
@@ -68,7 +69,8 @@ experiments are deterministic Python, and every number an agent states is checke
 | ![](https://img.shields.io/badge/orchestration-7a5ad6?style=flat-square) | Plain Python, no agent framework | Rounds, what each role is allowed to see, checks requested between rounds, stopping when positions settle, and a run log that can be replayed. |
 | ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to the role, every number must appear in the cited evidence, requested checks must be allowed for the role, spend must fit the limits. |
 | ![](https://img.shields.io/badge/capacity%20planning-2d6cdf?style=flat-square) | M/M/c queueing model | CPU utilisation per 15 or 60 minute slot, SLO breach slots, instance options scored against each other. |
-| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model and tenant entitlements | Option costs from the scenario's rate card, spend limits for the model itself, each tenant's CPU share against what its plan guarantees. |
+| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model, tenant entitlements, AWS Pricing and Cost Explorer | Option costs from a rate card, on-demand RDS prices and month-to-date spend read from AWS, spend limits for the model itself, each tenant's CPU share against what its plan guarantees. |
+| ![](https://img.shields.io/badge/AWS-FF9900?style=flat-square) | boto3, Floci (local AWS emulator) | RDS topology, CloudWatch metrics, prices and cost pulled through the AWS APIs, against a local emulator by default or a real account with `--live`. |
 | ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 and PostgreSQL 17 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE` and `EXPLAIN (ANALYZE, BUFFERS)`, index and rewrite experiments, `pt-query-digest` and friends. |
 | ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI for scenarios, runs, lab results and comparisons; the same features on the command line. |
 | ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests, MySQL and PostgreSQL jobs in CI, replay of a full run, and a scan for leftover identifiers. |
@@ -102,7 +104,7 @@ run from scripted rules, which is free, offline and repeatable.
 | 🩺 **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates. `capacitylab findings <scenario>` or the scenario page. |
 | 🧪 **Measurements from a real engine** | A local MySQL 8.0 or PostgreSQL 17 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
 | 💸 **Costs next to the risk** | Every option priced from the scenario's rate card, and each tenant's share of the cluster compared with what it pays for. |
-| 📥 **Your own data** | Import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch metrics and Percona Toolkit reports. |
+| 📥 **Your own data** | Read RDS, CloudWatch, prices and cost straight from AWS, or import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch exports and Percona Toolkit reports. |
 | 🔁 **Replay** | Every item is labelled observed, forecast, assumption, modeled or measured. Every run is a log you can replay to re-check each result. |
 
 ---
@@ -607,6 +609,42 @@ that shares the lab container's network, so it can reach only the lab server.
 
 ## Bringing your own data
 
+### Straight from AWS
+
+```bash
+pip install -e ".[aws]"
+docker compose --profile aws up -d floci      # local AWS emulator
+python scripts/floci_seed.py                  # a synthetic writer, a replica and a day of metrics
+capacitylab import aws --instance demo-writer --label "floci demo" --out runs/imports/aws.yaml
+capacitylab run campaign-overlap --evidence runs/imports/aws.yaml
+```
+
+`capacitylab import aws` reads one RDS instance and its readers through the AWS APIs and turns them into evidence the
+agents can cite:
+
+| Evidence | From | Who sees it |
+|---|---|---|
+| ![](https://img.shields.io/badge/EV--AWS--TOPO-4a3aa7?style=flat-square) writer, readers, instance classes, storage | `rds:DescribeDBInstances`, `rds:DescribeDBClusters` | all but the tenant representative |
+| ![](https://img.shields.io/badge/EV--AWS--CPU-2d6cdf?style=flat-square) writer CPU in 15-minute slots | `cloudwatch:GetMetricStatistics` | database and reliability engineers |
+| ![](https://img.shields.io/badge/EV--AWS--MET-2d6cdf?style=flat-square) CPU, connections, memory, IOPS per node | `cloudwatch:GetMetricStatistics` | database and reliability engineers, FinOps |
+| ![](https://img.shields.io/badge/EV--AWS--RATE-1b9b6d?style=flat-square) on-demand price per instance-hour for the whole family | `pricing:GetProducts` | FinOps |
+| ![](https://img.shields.io/badge/EV--AWS--COST-1b9b6d?style=flat-square) RDS cost this month so far | `ce:GetCostAndUsage` | FinOps, database and reliability engineers |
+
+By default it talks to [Floci](https://github.com/floci-io/floci), a local AWS emulator, with placeholder
+credentials. Floci runs RDS instances as real MySQL containers, which is why its service needs the Docker socket; it
+only starts with `--profile aws`. Its metrics are whatever the seed script loaded and its prices are a static snapshot,
+so an emulator import shows the collection path working end to end, not how a real database behaves.
+
+> [!CAUTION]
+> `--live` reads a real account with your normal AWS credentials. Only the five read calls above are made. Cost
+> Explorer bills per request on AWS, so pass `--no-cost` to skip it. No account id, ARN, endpoint, instance or cluster
+> name, or tag is stored: nodes become `writer` and `reader-1`, and the import is named by `--label` or a short hash.
+
+The scenario's own rate card still drives the capacity model's option costs; the AWS prices sit next to it as evidence
+the FinOps agent can cite and compare.
+
+### From exported files
+
 ```bash
 capacitylab import slowlog mysql-slow.log --tenant-map 1=alder,2=birch --out runs/imports/mine.yaml
 capacitylab import pt-query-digest digest.json --out runs/imports/mine.yaml
@@ -800,13 +838,14 @@ src/capacitylab/
   simulation/      roles, turn format, checks, turn validation, scripted and Claude answers, rounds, decision record
   evaluation/      replay and comparison
   importers.py     slow log, digest, plan, CloudWatch, and Percona Toolkit importers
+  aws_import.py    RDS, CloudWatch, Pricing and Cost Explorer through boto3; emulator by default, --live for AWS
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             136 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
-                   container; 1 calls a real model and is opt-in
+tests/             140 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+                   container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
-scripts/           screenshot and GIF capture
+scripts/           screenshot and GIF capture, Floci seed data
 docs/              provenance and release checklist, evaluation method, screenshots
 ```
 
@@ -820,7 +859,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 |---|---|
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Importers, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
+| Importers, AWS import against Floci, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Five-agent review with Claude (Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
 | CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
@@ -837,6 +876,8 @@ docs/              provenance and release checklist, evaluation method, screensh
 - The rate card is illustrative. Tenant isolation (shared schema with `tenant_id`) is an assumption; attribution by
   schema name is supported for database-per-tenant setups.
 - Importers are tested on synthetic files. Redaction covers emails and IPv4 addresses only.
+- The AWS import is tested against stubbed API responses and against Floci, not against a real account. It reads
+  one instance at a time and does not yet feed AWS prices into the capacity model's option costs.
 - The web UI has no login and is meant for localhost.
 
 ## Next
