@@ -1,75 +1,108 @@
-# CapacityLab
+<p align="center">
+  <img src="docs/media/hero.svg" alt="CapacityLab: five Claude agents review a database capacity decision around shared, checked evidence" width="900">
+</p>
 
-**Review database capacity decisions the way a good team would: five roles, one set of evidence, and a written
-record of what was decided, what is still disputed, and what nobody has measured.**
+<p align="center">
+  <img src="https://img.shields.io/badge/multi--agent-LLM-7a5ad6?style=for-the-badge" alt="Multi-agent LLM">
+  <img src="https://img.shields.io/badge/Claude-Anthropic%20API-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude, Anthropic API">
+  <img src="https://img.shields.io/badge/capacity-planning-2d6cdf?style=for-the-badge" alt="Capacity planning">
+  <img src="https://img.shields.io/badge/SRE-reliability-c98a00?style=for-the-badge" alt="SRE, reliability">
+  <img src="https://img.shields.io/badge/FinOps-cost-1b9b6d?style=for-the-badge" alt="FinOps, cost">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/Pydantic-2-E92063?logo=pydantic&logoColor=white" alt="Pydantic 2">
+  <img src="https://img.shields.io/badge/FastAPI-Jinja-009688?logo=fastapi&logoColor=white" alt="FastAPI and Jinja">
+  <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white" alt="MySQL 8.0">
+  <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7-1c5cab" alt="Percona Toolkit 3.7">
+  <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-6b6a65" alt="Apache 2.0">
+  <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
+</p>
 
 <!-- Add the CI badge once the repository is public:
 [![CI](https://github.com/<owner>/capacitylab/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/capacitylab/actions/workflows/ci.yml) -->
-![Status: prototype](https://img.shields.io/badge/status-prototype-6b6a65)
-![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1c5cab)
-![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Claude API](https://img.shields.io/badge/roles-Claude%20API%20or%20scripted-D97757?logo=anthropic&logoColor=white)
-![FastAPI](https://img.shields.io/badge/web-FastAPI%20%2B%20Jinja-009688?logo=fastapi&logoColor=white)
-![Pydantic](https://img.shields.io/badge/turn%20format-Pydantic%202-E92063?logo=pydantic&logoColor=white)
 
-![MySQL 8.0 lab](https://img.shields.io/badge/lab-MySQL%208.0-4479A1?logo=mysql&logoColor=white)
-![Percona Toolkit](https://img.shields.io/badge/diagnostics-Percona%20Toolkit%203.7-1c5cab)
-![SQLite](https://img.shields.io/badge/experiments-SQLite-003B57?logo=sqlite&logoColor=white)
-![Docker](https://img.shields.io/badge/runs%20in-Docker-2496ED?logo=docker&logoColor=white)
+# CapacityLab
 
-A tenant is about to run a flash sale. The database cluster already runs hot in the evening, and a batch job starts
-in the middle of the sale. Should you scale up for the night, add an index, move the job, or some combination?
+**CapacityLab is a multi-agent LLM simulation for database capacity planning, reliability and FinOps decisions.**
+Five agents built on Claude play the people who normally argue about a busy database: a database engineer, an
+application owner, a reliability engineer (SRE), a FinOps analyst and a tenant representative. They read the same
+evidence, take turns over several rounds, ask for checks, and finish with a decision record: what was decided, what
+is still disputed, and what nobody has measured.
 
-Each team sees a different slice of the answer. The database engineer sees the query that reads 2.4 million rows per
-call. The application owner knows the sale time was announced and cannot move. The reliability engineer knows
-failover time has never been measured. The cost analyst sees the budget. The tenant cares about checkout latency.
+The agents do the arguing. The maths is done in code: the queueing model, costs, lab measurements and query
+experiments are deterministic Python, and every number an agent states is checked against the evidence it cites.
 
-CapacityLab puts those views side by side. Every role cites evidence, asks for checks, and takes a position. Every
-number it states has to appear in the evidence it cites. The result is a decision record you can replay and verify.
-
-### What's inside
-
-| Computed by code (deterministic, replayable) | Written by the language model (checked) |
-|---|---|
-| **Evidence model** — every item labeled observed, forecast, assumption, modeled or measured, with its source | **Each role's turn** — position, claims, challenges, assumptions and requests for checks, from Claude through the Anthropic API |
-| **Capacity model** — M/M/c queueing per time slot (15 or 60 minutes, set by the scenario), option scoring against SLOs, cost from the scenario's rate card | **Checks on every turn** — citations must exist and be visible to that role; every number must appear in the evidence it cites |
-| **Findings** — capacity, high availability, data growth, contention and tenant skew, straight from the evidence | **Reasoning effort per role** — low for roles that quote measurements, higher for the one weighing risk |
-| **MySQL 8.0 lab** — real concurrent workload, `performance_schema`, `EXPLAIN ANALYZE`, repeated passes with a spread, Percona Toolkit | **Spend guard** — tokens counted before each call; the run stops rather than exceed its limit |
-| **Experiments** — index candidates and rewrite equivalence on SQLite or MySQL | **Scripted roles** — the same turn format from fixed rules, for free and repeatable runs |
-
-Python 3.11, Pydantic 2 for the turn format, FastAPI and Jinja for the web interface, Docker for the lab.
+> **The question in the demo.** A tenant is about to run a flash sale on a cluster that already runs hot in the
+> evening, and a batch job starts halfway through. Scale up for the night, add an index, move the job, or a mix?
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="A scenario with its findings, a review run with Claude Sonnet, where each role landed, the discussion, replay, and the comparison" width="900">
+  <img src="docs/media/demo.gif" alt="A scenario with its findings, a review run with Claude Sonnet 5, where each role landed, the discussion, replay, and the comparison" width="900">
 </p>
 
 > [!NOTE]
-> Every scenario, tenant, cluster, and figure in this repository is synthetic. Local lab measurements compare phases
+> Every scenario, tenant, cluster and figure in this repository is synthetic. Local lab measurements compare phases
 > with each other; they do not predict production latency.
-
----
 
 ## Contents
 
 | Start here | Go deeper | Reference |
 |---|---|---|
-| [What you get](#what-you-get) | [How it works](#how-it-works) | [Configuration](#configuration) |
-| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [The local MySQL lab](#the-local-mysql-lab) | [Project layout](#project-layout) |
-| [Quick start](#quick-start) | [Bringing your own data](#bringing-your-own-data) | [Status and limitations](#status-and-limitations) |
-| | [Using a language model for the roles](#using-a-language-model-for-the-roles) | [Next](#next) |
-| | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
+| [Tech stack](#tech-stack) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
+| [The five agents](#the-five-agents) | [Using Claude for the agents](#using-claude-for-the-agents) | [Project layout](#project-layout) |
+| [What you get](#what-you-get) | [The local MySQL lab](#the-local-mysql-lab) | [Status and limitations](#status-and-limitations) |
+| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
+| [Quick start](#quick-start) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
+
+---
+
+## Tech stack
+
+| Layer | Built with | What it does here |
+|---|---|---|
+| ![](https://img.shields.io/badge/LLM%20agents-D97757?style=flat-square) | Claude Opus 5 and Sonnet 5 through the Anthropic Python SDK | Each agent's turn is one Messages API call that returns JSON matching a Pydantic schema (structured outputs). Prompt caching on the evidence block, token counting before every call, reasoning effort set per role, one retry when a turn is cut off. |
+| ![](https://img.shields.io/badge/orchestration-7a5ad6?style=flat-square) | Plain Python, no agent framework | Rounds, what each role is allowed to see, checks requested between rounds, stopping when positions settle, and a run log that can be replayed. |
+| ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to the role, every number must appear in the cited evidence, requested checks must be allowed for the role, spend must fit the limits. |
+| ![](https://img.shields.io/badge/capacity%20planning-2d6cdf?style=flat-square) | M/M/c queueing model | CPU utilisation per 15 or 60 minute slot, SLO breach slots, instance options scored against each other. |
+| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model and tenant entitlements | Option costs from the scenario's rate card, spend limits for the model itself, each tenant's CPU share against what its plan guarantees. |
+| ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` digests, `EXPLAIN ANALYZE`, index and rewrite experiments, `pt-query-digest` and friends. |
+| ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI for scenarios, runs, lab results and comparisons; the same features on the command line. |
+| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests, a MySQL job in CI, replay of a full run, and a scan for leftover identifiers. |
+
+## The five agents
+
+Each agent gets a role, the evidence that role would normally see, and a list of checks it may ask for. None of
+them sees everything.
+
+| Agent | Looks at | Can ask for | Reasoning effort |
+|---|---|---|:---:|
+| ![](https://img.shields.io/badge/Database%20engineer-2d6cdf?style=flat-square) | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
+| ![](https://img.shields.io/badge/Application%20owner-1b9b6d?style=flat-square) | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
+| ![](https://img.shields.io/badge/Reliability%20engineer-c98a00?style=flat-square) | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
+| ![](https://img.shields.io/badge/FinOps%20analyst-c75b3b?style=flat-square) | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
+| ![](https://img.shields.io/badge/Tenant%20representative-7a5ad6?style=flat-square) | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
+
+Roles that mostly quote measurements run at low effort so their answers stay close to the numbers. The reliability
+engineer, who has to weigh an unmeasured failover against headroom and cost, gets more room. The same roles can also
+run from scripted rules, which is free, offline and repeatable.
+
+<p align="center">
+  <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $16.80 that is not in the cited rate card is flagged" width="900">
+</p>
 
 ## What you get
 
 | | |
 |---|---|
-| **A decision record** | What each role recommends and why, open disagreements and unanswered challenges, evidence nobody has, and checks that were requested but never ran. |
-| **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates, each citing its evidence. `capacitylab findings <scenario>` or the scenario page. |
-| **Measurements from a real engine** | A local MySQL 8.0 lab runs the scenario's statement mix with many concurrent connections and records latency percentiles, lock waits, deadlocks, statement digests, and query plans, optionally with Percona Toolkit. |
-| **Checks the roles can ask for** | Capacity and cost model, index experiments, query rewrite equivalence (duplicates, NULLs, tenant boundaries), plan and cardinality review, tenant skew, table growth, bottleneck classification, batch reschedule, lab load tests, redundant-index checks. |
-| **Your own data** | Import slow logs, performance_schema digest exports, `EXPLAIN ANALYZE` output, CloudWatch metrics, and Percona Toolkit reports. |
-| **Traceability** | Every item is labeled observed, forecast, assumption, modeled, or measured, and says where it came from. Every run is a log you can replay to re-check each result. |
-| **Two ways to answer for the roles** | Scripted rules (offline, free, repeatable) or an Anthropic model, with a spend limit that holds across runs. |
+| 📝 **A decision record** | What each agent recommends and why, open disagreements, unanswered challenges, evidence nobody has, and checks that were requested but never ran. |
+| 🩺 **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates. `capacitylab findings <scenario>` or the scenario page. |
+| 🧪 **Measurements from a real engine** | A local MySQL 8.0 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
+| 💸 **Costs next to the risk** | Every option priced from the scenario's rate card, and each tenant's share of the cluster compared with what it pays for. |
+| 📥 **Your own data** | Import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch metrics and Percona Toolkit reports. |
+| 🔁 **Replay** | Every item is labelled observed, forecast, assumption, modeled or measured. Every run is a log you can replay to re-check each result. |
 
 ---
 
@@ -78,6 +111,23 @@ Python 3.11, Pydantic 2 for the turn format, FastAPI and Jinja for the web inter
 The `campaign-overlap` scenario: Tenant Alder runs a sale from 18:00 to 21:00 on `demo-cluster-a` (writer
 `db.r6g.2xlarge`). Other tenants peak at the same time, a release raises order-history traffic, and the loyalty
 recalculation job starts at 19:00.
+
+```mermaid
+gantt
+  title The evening on demo-cluster-a
+  dateFormat HH:mm
+  todayMarker off
+  axisFormat %H:%M
+  section Traffic
+    Release 2.14 raises order history   :active, rel, 14:00, 10h
+    Other tenants' evening peak         :peak, 18:00, 3h
+  section Alder
+    Flash sale, 5x planned (3.1x last time) :crit, sale, 18:00, 3h
+  section Batch
+    Loyalty recalculation, 90 min       :crit, batch, 19:00, 90m
+  section Scale-up option
+    4xlarge window, 2 failovers          :done, scale, 16:00, 7h
+```
 
 > [!IMPORTANT]
 > The tenant expects 5× traffic, but its last sale peaked at 3.1×. CapacityLab flags the conflict instead of picking
@@ -129,12 +179,12 @@ From the scripted run, with the index effect measured in the SQLite experiment d
 
 | Option | Peak CPU | Slots over 80% | SLO breach slots | One-off cost |
 |---|---:|---:|---:|---|
-| Keep capacity | 115.0% | 12 | **16** | $0 |
-| Scale to 4xlarge, 16:00–23:00 | 57.5% | 0 | 0 | $16.80, plus 2 writer failovers of unknown length |
-| Add the index | 97.7% | 8 | **6** | $0 |
-| Move the batch job to 01:00 | 95.0% | 11 | 0 | $0 |
-| Index and move the batch job | 77.7% | 0 | 0 | $0.01/month storage |
-| Scale up and move the batch job | 47.5% | 0 | 0 | $16.80, plus failovers |
+| Keep capacity | 115.0% | 12 | ![16](https://img.shields.io/badge/-16-b42318?style=flat-square) | $0 |
+| Scale to 4xlarge, 16:00–23:00 | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $16.80, plus 2 writer failovers of unknown length |
+| Add the index | 97.7% | 8 | ![6](https://img.shields.io/badge/-6-b42318?style=flat-square) | $0 |
+| Move the batch job to 01:00 | 95.0% | 11 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 |
+| Index and move the batch job | 77.7% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0.01/month storage |
+| Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $16.80, plus failovers |
 
 Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
 the evidence bundle, and a scenario without one fails validation. The numbers shipped here are illustrative and
@@ -197,9 +247,10 @@ xychart-beta
 
 ![Lab results page](docs/media/lab.png)
 
-### What the roles concluded
+### What the agents concluded
 
-With scripted roles and the lab file attached (`capacitylab run campaign-overlap --evidence runs/lab/campaign-overlap-lab.yaml`):
+With scripted roles and the lab file attached (`capacitylab run campaign-overlap --evidence runs/lab/campaign-overlap-lab.yaml`).
+The runs with Claude are [further down](#runs-with-a-real-model).
 
 ```mermaid
 flowchart LR
@@ -216,16 +267,16 @@ flowchart LR
   class O outcome
 ```
 
-- **Round 1.** The database engineer points to the audience query (96.2% of rows examined; the plan estimated 1,800
+- ![Round 1](https://img.shields.io/badge/-Round%201-6b6a65?style=flat-square) The database engineer points to the audience query (96.2% of rows examined; the plan estimated 1,800
   rows and read 2,400,000). The application owner requests a sensitivity forecast at 3.1× because the sources disagree.
-- **Round 2.** `IN → EXISTS` returns identical results on all 15 fixture cases at 29% of the work. `IN → JOIN` returns
+- ![Round 2](https://img.shields.io/badge/-Round%202-4a3aa7?style=flat-square) `IN → EXISTS` returns identical results on all 15 fixture cases at 29% of the work. `IN → JOIN` returns
   duplicate rows. `NOT IN → NOT EXISTS` changes the results for Tenant Cedar because of NULLs, so it is a behavior
   change, not an optimization. Dropping the tenant filter leaks rows across tenants.
-- **Rounds 3–4.** Moving the batch job alone still peaks at 95% against an 80% threshold, so the cost analyst changes
+- ![Rounds 3–4](https://img.shields.io/badge/-Rounds%203--4-9a6700?style=flat-square) Moving the batch job alone still peaks at 95% against an 80% threshold, so the cost analyst changes
   position. The database engineer and the reliability engineer both cite the lab, including the checkout regression
   the index showed in that single-pass run. Three later passes put that regression inside the run-to-run noise, which
   is exactly the trap `--repeats` exists to catch.
-- **Outcome.** Database engineer, application owner, and cost analyst: index and move the batch job. Reliability
+- ![Outcome](https://img.shields.io/badge/-Outcome-127a55?style=flat-square) Database engineer, application owner, and cost analyst: index and move the batch job. Reliability
   engineer and tenant representative: scale up and move the batch job, for more headroom while the index benefit is
   unproven. Still missing: failover duration, a production-like test of the index, and whether the audience query can
   run on the reader.
@@ -255,7 +306,7 @@ reader; the cost analyst holds out for a smaller one.
 
 ---
 
-## How it works
+## How a review runs
 
 ```mermaid
 flowchart LR
@@ -297,18 +348,32 @@ flowchart LR
   style Review fill:#fafaf8,stroke:#c3c2b7,color:#52514e
 ```
 
-**Rounds.** In each round every role receives only the evidence its job gives it, plus the other roles' latest
-positions and challenges. It returns a structured turn: a position, claims with cited evidence IDs, assumptions,
-challenges, missing evidence, and requests for checks. Checks run between rounds, and their results arrive as new
-evidence in the next round. A run stops at the round limit, or earlier when positions stop changing and no challenge is
-left unanswered.
+Each round, every agent receives only the evidence its role gives it, plus the other agents' latest positions and
+challenges. It returns a structured turn: a position, claims with cited evidence ids, assumptions, challenges, missing
+evidence and requests for checks. The requested checks run between rounds, and their results arrive as new evidence in
+the next one. A run stops at the round limit, or earlier when positions stop changing and nothing is left unanswered.
 
-> [!IMPORTANT]
-> **Rules applied to every turn**
-> - A cited evidence ID must exist and must be visible to that role.
-> - Every number in a claim must appear in the evidence cited for that claim. Invented or self-calculated figures are flagged.
-> - A role can only request the checks its job allows, and challenge only the five roles.
-> - Before each language-model call, the projected cost is compared with the run limit and the total budget.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant O as Orchestrator
+  participant A as Agent (Claude)
+  participant V as Turn checks
+  participant T as Checks and experiments
+  rect rgb(234, 242, 252)
+    O->>A: role prompt + evidence this role may see + other positions
+    A-->>O: structured turn (JSON schema)
+  end
+  rect rgb(255, 244, 220)
+    O->>V: citations, numbers, permissions
+    V-->>O: turn kept, problems flagged in the record
+  end
+  rect rgb(227, 245, 238)
+    O->>T: requested checks (forecast, cost, index experiment, lab load test)
+    T-->>O: new evidence, labelled modeled or measured
+  end
+  Note over O,A: next round, until positions settle or the round limit
+```
 
 **Evidence labels.** Each item carries one of five labels, with the same colors as the web UI:
 
@@ -322,18 +387,8 @@ left unanswered.
 
 Each item also records where it came from: scenario data, the local lab, or an imported file.
 
-**Roles.**
-
-| Role | Sees | Can ask for |
-|---|---|---|
-| **Database engineer** | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check |
-| **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost |
-| **Reliability engineer** | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test |
-| **Cost (FinOps) analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost |
-| **Tenant representative** | its own profile, calendar, SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast |
-
 > [!CAUTION]
-> The MySQL experiment database and lab only connect to `localhost` and only to databases named
+> The experiment database and the lab only connect to `localhost` and only to databases named
 > `capacitylab_sandbox…`. Percona Toolkit only attaches to containers named `capacitylab-*`. Nothing in CapacityLab
 > connects to a cloud account.
 
@@ -344,16 +399,59 @@ Each item also records where it came from: scenario data, the local lab, or an i
 Requires Python 3.11+. Docker is only needed for the MySQL lab.
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,anthropic,mysql]"
 cp .env.example .env
-
-capacitylab scenarios
-capacitylab run campaign-overlap --provider mock --out runs/demo.json
-capacitylab replay runs/demo.json          # re-runs every check and compares results
-capacitylab serve                          # http://127.0.0.1:8765
 ```
+
+<table>
+<tr>
+<th width="33%">🆓 Scripted agents, no key</th>
+<th width="33%">🤖 Claude agents</th>
+<th width="33%">🧪 With the lab attached</th>
+</tr>
+<tr>
+<td valign="top">
+
+```bash
+capacitylab findings campaign-overlap
+capacitylab run campaign-overlap \
+  --provider mock --out runs/demo.json
+capacitylab replay runs/demo.json
+```
+
+Free, offline, the same every time.
+
+</td>
+<td valign="top">
+
+```bash
+# ANTHROPIC_API_KEY in .env
+capacitylab run campaign-overlap \
+  --provider anthropic --max-rounds 3
+capacitylab spend
+```
+
+About $1–2 for three rounds; the run stops at your limit.
+
+</td>
+<td valign="top">
+
+```bash
+docker compose up -d --wait sandbox-mysql
+capacitylab lab run campaign-overlap \
+  --repeats 3 --out runs/lab/c.yaml
+capacitylab run campaign-overlap \
+  --evidence runs/lab/c.yaml
+```
+
+Real latency, lock waits and plans as evidence.
+
+</td>
+</tr>
+</table>
+
+`capacitylab serve` opens the web UI at http://127.0.0.1:8765 with all of the above as pages.
 
 <details>
 <summary><b>Running the tests</b></summary>
@@ -480,7 +578,7 @@ id, or by a name you choose: `capacitylab import slowlog peak.log --label "eveni
 
 ---
 
-## Using a language model for the roles
+## Using Claude for the agents
 
 Put your key in `.env` (git-ignored) and set the total you are willing to spend:
 
@@ -494,32 +592,47 @@ capacitylab run campaign-overlap --provider anthropic --max-rounds 3 --evidence 
 capacitylab spend
 ```
 
-The model receives the same evidence and rules as the scripted roles and must return the same structured turn.
-CapacityLab still runs every check itself. Spend is recorded in `runs/spend-ledger.json`.
+Claude receives the same evidence and rules as the scripted roles and must return the same structured turn. Spend is
+recorded in `runs/spend-ledger.json`.
 
-**What the model never touches.** Statement digests, query plans, lock waits, deadlock reports, the queueing
-model, option scoring and costs are computed by deterministic code. The model writes the role's turn — its position,
-claims, challenges, assumptions and requests — and every number in a claim is rejected unless it appears in the
-evidence that claim cites. A model cannot introduce a measurement here, only reason about the ones on the table.
+<table>
+<tr>
+<th width="50%">✍️ Claude writes</th>
+<th width="50%">⚙️ Code computes</th>
+</tr>
+<tr>
+<td valign="top">
 
-**Reasoning effort per role.** The API for these models exposes effort rather than temperature. With
-`CAPACITYLAB_EFFORT=auto` (the default), roles whose turns mostly quote measurements run at low effort, and the role
-weighing risk tradeoffs gets more room:
+- each agent's position and the reasons for it
+- claims, each citing evidence ids
+- challenges to other agents
+- assumptions it relies on and evidence it is missing
+- requests for checks and experiments
 
-| Role | Effort | Why |
-|---|---|---|
-| Database engineer | low | reads digests, plans and lab measurements; answers should stay close to them |
-| Application owner | low | states calendars, freezes and deadlines |
-| Cost analyst | low | works from the rate card and budget |
-| Tenant representative | low | speaks for one tenant's stated expectations |
-| Reliability engineer | medium | weighs unmeasured failover risk against headroom and cost |
+</td>
+<td valign="top">
 
-Setting `CAPACITYLAB_EFFORT` to `low`, `medium` or `high` applies that value to every role instead.
+- statement digests, query plans, lock waits, deadlocks
+- the queueing model and option scoring
+- costs and tenant entitlements
+- index and rewrite experiments, lab load tests
+- the checks on every turn, and the spend limit
+
+</td>
+</tr>
+</table>
+
+An agent cannot add a measurement, only reason about the ones on the table. A number in a claim that does not appear in
+the evidence the claim cites is flagged in the decision record, where the other agents and the reader can see it.
+
+**Reasoning effort, not temperature.** These models take an effort setting rather than a temperature. With
+`CAPACITYLAB_EFFORT=auto` (the default) each agent gets the effort shown in [the five agents](#the-five-agents);
+`low`, `medium` or `high` applies one value to every role.
 
 > [!IMPORTANT]
-> Before each call, the spend check estimates the worst case (the full context plus the maximum output) and stops the
-> run rather than go over the per-run or total limit. A turn cut off at the output limit fails cleanly and is still
-> charged.
+> Before each call, CapacityLab counts the tokens it is about to send and prices the worst case (the full context
+> plus the maximum output). If that would cross the per-run or total limit, the run stops first. A turn cut off at the
+> output limit is retried once with a request for a shorter answer; both attempts are charged.
 
 Each role's pack is sent in two parts: a first part that only grows by appending (scenario header, then one evidence
 item per line, with check results last) and a small second part with this round's state. The first part is marked for
@@ -598,7 +711,7 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted roles) or `anthropic` |
+| `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted agents) or `anthropic` (Claude agents) |
 | `ANTHROPIC_API_KEY` | *(empty)* | Only needed for `anthropic` |
 | `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for keys not scoped to a workspace; sent as the `anthropic-workspace-id` header |
 | `CAPACITYLAB_MODEL` | `claude-opus-5` | Model used for the roles |
@@ -628,7 +741,7 @@ src/capacitylab/
   capacity/        instance catalog, queueing model, option evaluation, cost
   diagnostics/     experiment databases, retail dataset, index and rewrite experiments, evidence analysis
   lab/             MySQL lab: workload driver, performance_schema collector, EXPLAIN ANALYZE parser, Percona Toolkit
-  simulation/      roles, turn format, checks, turn validation, scripted and Anthropic answers, rounds, decision record
+  simulation/      roles, turn format, checks, turn validation, scripted and Claude answers, rounds, decision record
   evaluation/      replay and comparison
   importers.py     slow log, digest, plan, CloudWatch, and Percona Toolkit importers
   spend.py         spend ledger
@@ -651,7 +764,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them, with and without Percona Toolkit 3.7.1 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Importers, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Review with a real language model | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet-127a55?style=flat-square) |
+| Five-agent review with Claude (Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
 | CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**
@@ -673,7 +786,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 
 | | |
 |---|---|
-| **Repeated lab phases** | Report a spread instead of one number per phase, and let scripted roles weigh lab results against the capacity model. |
+| **Lab spread in the agents' reasoning** | Let scripted roles weigh the spread across lab passes against the capacity model. |
 | **Smaller model context** | Trim what each role receives in later rounds so a full three-round review fits a small budget. |
 | **A PostgreSQL lab** | `pg_stat_statements` or `pg_stat_monitor`, `EXPLAIN (ANALYZE, BUFFERS)` parsing, and `pt-pg-summary`. |
 | **`pt-index-usage`** | It runs against the lab but reported nothing useful yet, so it is not wired in. |
