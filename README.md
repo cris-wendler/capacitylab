@@ -413,6 +413,10 @@ capacitylab run campaign-overlap --evidence runs/imports/mine.yaml
 > [!WARNING]
 > Emails and IPv4 addresses are removed on import, and nothing else. Check imported files before sharing a run log.
 
+File names are never stored. They often carry host, customer or person names, and evidence text reaches the model's
+context and the run report. An import is named by a short hash of its contents, so the same file always gets the same
+id, or by a name you choose: `capacitylab import slowlog peak.log --label "evening peak" --out ...`.
+
 ---
 
 ## Using a language model for the roles
