@@ -27,6 +27,18 @@ failover time has never been measured. The cost analyst sees the budget. The ten
 CapacityLab puts those views side by side. Every role cites evidence, asks for checks, and takes a position. Every
 number it states has to appear in the evidence it cites. The result is a decision record you can replay and verify.
 
+### What's inside
+
+| Computed by code (deterministic, replayable) | Written by the language model (checked) |
+|---|---|
+| **Evidence model** — every item labeled observed, forecast, assumption, modeled or measured, with its source | **Each role's turn** — position, claims, challenges, assumptions and requests for checks, from Claude through the Anthropic API |
+| **Capacity model** — M/M/c queueing per time slot (15 or 60 minutes, set by the scenario), option scoring against SLOs, cost from the scenario's rate card | **Checks on every turn** — citations must exist and be visible to that role; every number must appear in the evidence it cites |
+| **Findings** — capacity, high availability, data growth, contention and tenant skew, straight from the evidence | **Reasoning effort per role** — low for roles that quote measurements, higher for the one weighing risk |
+| **MySQL 8.0 lab** — real concurrent workload, `performance_schema`, `EXPLAIN ANALYZE`, repeated passes with a spread, Percona Toolkit | **Spend guard** — tokens counted before each call; the run stops rather than exceed its limit |
+| **Experiments** — index candidates and rewrite equivalence on SQLite or MySQL | **Scripted roles** — the same turn format from fixed rules, for free and repeatable runs |
+
+Python 3.11, Pydantic 2 for the turn format, FastAPI and Jinja for the web interface, Docker for the lab.
+
 <p align="center">
   <img src="docs/media/demo.gif" alt="A scenario, a review run, where each role landed, the discussion, replay, and the comparison" width="900">
 </p>
@@ -52,6 +64,7 @@ number it states has to appear in the evidence it cites. The result is a decisio
 | | |
 |---|---|
 | **A decision record** | What each role recommends and why, open disagreements and unanswered challenges, evidence nobody has, and checks that were requested but never ran. |
+| **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates, each citing its evidence. `capacitylab findings <scenario>` or the scenario page. |
 | **Measurements from a real engine** | A local MySQL 8.0 lab runs the scenario's statement mix with many concurrent connections and records latency percentiles, lock waits, deadlocks, statement digests, and query plans, optionally with Percona Toolkit. |
 | **Checks the roles can ask for** | Capacity and cost model, index experiments, query rewrite equivalence (duplicates, NULLs, tenant boundaries), plan and cardinality review, tenant skew, table growth, bottleneck classification, batch reschedule, lab load tests, redundant-index checks. |
 | **Your own data** | Import slow logs, performance_schema digest exports, `EXPLAIN ANALYZE` output, CloudWatch metrics, and Percona Toolkit reports. |
@@ -69,6 +82,20 @@ recalculation job starts at 19:00.
 > [!IMPORTANT]
 > The tenant expects 5× traffic, but its last sale peaked at 3.1×. CapacityLab flags the conflict instead of picking
 > one, and makes the planning value (5×) an explicit assumption every role can see and challenge.
+
+### The assumptions it rests on
+
+Every number the model leans on without a measurement is written down, with what it is based on. Roles can ask for a
+forecast with any of them changed.
+
+| Assumption | Value | Why it is an assumption | Based on |
+|---|---:|---|---|
+| `A-CAMPAIGN-MULT` | 5.0× | The tenant's stated expectation for the sale; its last comparable sale peaked at 3.1× | tenant profile, event calendar |
+| `A-RELEASE-MULT` | 1.3× | Estimated effect of release 2.14 on order-history calls | release calendar |
+| `A-CPU-ROWS-EXPONENT` | 0.8 | Turns work saved in a local experiment into production CPU; never measured | nothing measured |
+| `A-PROD-ORDERS-ROWS` | 7,200,000 rows | Production size of `orders`, used to extrapolate index size | table statistics |
+| `A-FAILOVER-SECONDS` | unknown | Writer failover time during an instance change; never measured on this cluster | nothing measured |
+| `A-BUFFER-POOL-FRACTION` | 0.75 | Buffer pool share of instance memory in `downsize-reader`; common default, parameter group not checked | nothing measured |
 
 ### What the capacity model says
 
