@@ -40,7 +40,7 @@ number it states has to appear in the evidence it cites. The result is a decisio
 Python 3.11, Pydantic 2 for the turn format, FastAPI and Jinja for the web interface, Docker for the lab.
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="A scenario, a review run, where each role landed, the discussion, replay, and the comparison" width="900">
+  <img src="docs/media/demo.gif" alt="A scenario with its findings, a review run with Claude Sonnet, where each role landed, the discussion, replay, and the comparison" width="900">
 </p>
 
 > [!NOTE]
@@ -140,7 +140,12 @@ Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from
 the evidence bundle, and a scenario without one fails validation. The numbers shipped here are illustrative and
 labelled as an assumption, so replacing that one evidence item with your provider's rates re-prices every option.
 
-![Each option's modeled utilization over the evening, with event windows](docs/media/run-options.png)
+![Each option's modeled utilization over the evening, at the end of the Sonnet run](docs/media/run-options.png)
+
+The chart above comes from the three-round review with Claude Sonnet, not the scripted run. Its index options show no
+benefit because that run's database engineer measured a different index (`tenant_id, customer_id, created_day`, 16.7%
+less work) from the one those options propose; with no measurement for the proposed index, the model credits it with
+nothing. The table above comes from the scripted run, which measured the proposed index.
 
 ### What the lab measured
 
@@ -225,7 +230,10 @@ flowchart LR
   unproven. Still missing: failover duration, a production-like test of the index, and whether the audience query can
   run on the reader.
 
-![Where each role landed, what is still disputed, and what has not been measured](docs/media/run-positions.png)
+![Where each role landed in the Sonnet run: all five on moving the batch job, and what nobody has measured](docs/media/run-positions.png)
+
+*Screenshots of runs are from the three-round review with Claude Sonnet described [below](#runs-with-a-real-model),
+where every role converged; the rounds above describe the scripted run, which split 3–2.*
 
 > [!NOTE]
 > The scripted roles cite the lab numbers, but their choice rules do not weigh them against the capacity model. A
@@ -237,7 +245,7 @@ flowchart LR
 Every proposed index or rewrite must include evidence, why it should help and how sure we are, the change, tradeoffs
 (write overhead, storage), how to validate it, how to roll it back, and the result so far.
 
-![Proposed index change with evidence, tradeoffs, validation, and rollback](docs/media/run-proposal.png)
+![A database change proposed in the Sonnet run, with evidence, tradeoffs, validation, and rollback](docs/media/run-proposal.png)
 
 `downsize-reader` covers the opposite question. CPU would allow a smaller reader, but its working set (71 GiB) is
 larger than the smaller instance's modeled buffer pool, and the reader is the failover target. Four roles keep the
