@@ -91,7 +91,8 @@
       <ul class="plain">
       {% for m in d.missing_evidence %}
         <li>{% if gaps.get(m.item) %}<strong>{{ gaps[m.item].description }}</strong> <span class="mono small muted">{{ m.item }}</span>{% else %}{{ m.item }}{% endif %}
-          <div class="muted small">raised by {{ m.raised_by|map('role')|join(', ') }}</div></li>
+          <div class="muted small">raised by {{ m.raised_by|map('role')|join(', ') }}</div>
+          {% if m.details %}<ul class="plain gap-details">{% for text in m.details %}<li class="small">{{ text }}</li>{% endfor %}</ul>{% endif %}</li>
       {% else %}<li class="muted">Nothing raised.</li>{% endfor %}
       </ul>
       {% if d.open_tool_requests %}

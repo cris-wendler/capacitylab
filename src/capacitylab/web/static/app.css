@@ -145,7 +145,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px
 .btn-secondary { border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-secondary:hover, .btn-primary:hover { text-decoration: none; border-color: var(--accent); }
-.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 @media (max-width: 800px) { .split { grid-template-columns: minmax(0, 1fr); } }
 .facts-list { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; margin: 12px 0 0; }
 .facts-list dt { color: var(--muted); }
