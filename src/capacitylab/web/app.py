@@ -15,7 +15,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from capacitylab.capacity.options import build_context, evaluate_all
+from capacitylab.capacity.cost import choose_rate_card
+from capacitylab.capacity.options import build_context, evaluate_all, needed_instance_classes
 from capacitylab.evidence.bundle import EvidenceBundle
 from capacitylab.evidence.models import PROVENANCE_LABELS, EvidenceKind
 from capacitylab.factory import make_provider, make_sandbox_factory
@@ -256,7 +257,8 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     @app.get("/scenarios/{sid}", response_class=HTMLResponse)
     def scenario_page(request: Request, sid: str, evidence: str | None = None):
         scenario, bundle = scenario_or_404(sid)
-        outcomes = [o.model_dump() for o in evaluate_all(build_context(scenario, bundle))]
+        context = build_context(scenario, bundle)
+        outcomes = [o.model_dump() for o in evaluate_all(context)]
         grouped: dict[str, list] = {}
         for item in bundle:
             grouped.setdefault(item.kind.value.replace("_", " "), []).append(item)
@@ -264,7 +266,8 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
                     issues=validate_scenario(scenario, bundle), contradictions=bundle.contradictions(),
                     panels=panels(scenario, outcomes), anthropic_ready=Settings.anthropic_credentials_present(),
                     findings=review_findings(scenario, bundle),
-                    files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario))
+                    files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario),
+                    prices_note=context.rate_card_note)
 
     @app.post("/scenarios/{sid}/run")
     async def start_run(request: Request, sid: str):
@@ -318,7 +321,9 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     @app.get("/runs/{run_id}", response_class=HTMLResponse)
     def run_page(request: Request, run_id: str):
         run = run_or_404(run_id)
-        scenario, _ = scenario_or_404(run.scenario_id)
+        scenario, base_bundle = scenario_or_404(run.scenario_id)
+        rate_cards = [i for i in [*base_bundle, *run.extra_evidence_items] if i.kind == EvidenceKind.RATE_CARD]
+        price_choice = choose_rate_card(rate_cards, needed_instance_classes(scenario))
         roles = [r.value for r in ROLE_ORDER if any(t.role == r.value for t in run.turns)] or sorted({t.role for t in run.turns})
         matrix = {role: {t.round: t for t in run.turns if t.role == role} for role in roles}
         outcomes = [o.model_dump() for o in run.decision.option_outcomes] if run.decision else []
@@ -329,6 +334,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         # A role that starts undecided and then picks an option has decided, not changed its mind.
         first_position = {role: next((t.draft.position for t in run.turns if t.role == role), "undecided") for role in roles}
         return page(request, "run.html", run=run, scenario=scenario, roles=roles, matrix=matrix,
+                    prices_note=price_choice.note if price_choice else "",
                     rounds=list(range(1, run.rounds_completed + 1)), panels=panels(scenario, outcomes) if outcomes else [],
                     evidence_titles=evidence_titles, labels=option_labels(scenario), lab=lab, revised_in=revised_in,
                     first_position=first_position,

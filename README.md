@@ -190,7 +190,8 @@ From the scripted run, with the index effect measured in the SQLite experiment d
 | Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $16.80, plus failovers |
 
 Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
-the evidence bundle, and a scenario without one fails validation. The numbers shipped here are illustrative and
+the evidence bundle, and a scenario without one fails validation. An AWS import with prices replaces the instance
+rates for that review (see [Straight from AWS](#straight-from-aws)). The numbers shipped here are illustrative and
 labelled as an assumption, so replacing that one evidence item with your provider's rates re-prices every option.
 
 ![Each option's modeled utilization over the evening, at the end of the Sonnet run](docs/media/run-options.png)
@@ -651,8 +652,10 @@ collection path working end to end, not how a real database behaves.
 
 ![AWS import page: topology and a day of writer CPU read from the Floci emulator](docs/media/aws-import.png)
 
-The scenario's own rate card still drives the capacity model's option costs; the AWS prices sit next to it as evidence
-the FinOps agent can cite and compare.
+When a review has an `EV-AWS-RATE` item attached that covers every instance class the options need, the capacity model
+prices the options with those on-demand AWS prices, keeping only the storage rate from the scenario's rate card. If any
+class is missing, it keeps the scenario's rate card and says which classes were missing. The scenario and run pages
+name the prices they used, and the cost check tells the agents the same.
 
 ### From exported files
 
@@ -855,7 +858,7 @@ src/capacitylab/
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             141 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+tests/             147 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data
@@ -890,8 +893,8 @@ docs/              provenance and release checklist, evaluation method, screensh
   schema name is supported for database-per-tenant setups.
 - Importers are tested on synthetic files. Redaction covers emails and IPv4 addresses only.
 - The AWS import is tested against recorded API responses and against Floci, not against a real account. Readers and
-  prices are only exercised by the recorded responses. It reads one instance at a time and does not yet feed AWS
-  prices into the capacity model's option costs.
+  prices are only exercised by the recorded responses. It reads one instance at a time. AWS prices are on-demand list
+  prices; reserved instances and savings plans are not applied.
 - The web UI has no login and is meant for localhost.
 
 ## Next
