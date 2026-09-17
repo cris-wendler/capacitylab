@@ -113,3 +113,6 @@ class JsonClient:
 
     def post(self, url: str, body: dict, params: dict | None = None) -> dict:
         return self._call("POST", url, params, body)
+
+    def put(self, url: str, body: dict, params: dict | None = None) -> dict:
+        return self._call("PUT", url, params, body)

@@ -133,3 +133,31 @@ jobs:
       - name: Floci logs on failure
         if: failure()
         run: docker logs capacitylab-floci 2>&1 | tail -80
+
+  cloud-emulators:
+    name: GCP and Azure import (floci-gcp, floci-az)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Start floci-gcp and floci-az
+        run: |
+          docker run -d --name capacitylab-floci-gcp -p 127.0.0.1:4588:4588 -v /var/run/docker.sock:/var/run/docker.sock floci/floci-gcp:latest
+          docker run -d --name capacitylab-floci-az -p 127.0.0.1:4577:4577 -v /var/run/docker.sock:/var/run/docker.sock floci/floci-az:latest
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4588/health > /dev/null && break; sleep 2; done
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:4577/ && break; sleep 2; done
+          sleep 5
+      - name: Probe floci-gcp (temporary)
+        run: python scripts/cloud_emulator_probe.py gcp
+      - name: Probe floci-az (temporary)
+        run: python scripts/cloud_emulator_probe.py azure
+      - name: Emulator logs
+        if: always()
+        run: |
+          docker logs capacitylab-floci-gcp 2>&1 | tail -40
+          docker logs capacitylab-floci-az 2>&1 | tail -40
