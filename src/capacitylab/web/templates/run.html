@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% from "_macros.html" import prov, status, chip, ev, options_table, lab_table %}
+{% from "_macros.html" import prov, status, chip, ev, options_table, lab_table, avatar %}
 {% block title %}{{ scenario.title }} · run · CapacityLab{% endblock %}
 {% block content %}
 <div class="crumbs"><a href="/">Scenarios</a> / <a href="/scenarios/{{ scenario.id }}">{{ scenario.id }}</a> / run <span class="mono">{{ run.run_id }}</span></div>
 {% if run.mocked %}
-<div class="banner">Scripted run: every role's answers come from fixed rules written in code, not from a language model.</div>
+<div class="banner">Scripted run: every agent's answers come from fixed rules written in code, not from a language model.</div>
 {% endif %}
 <h1>{{ scenario.title }}</h1>
 <div class="meta">
   {{ status(run.state.status.value) }}
-  <span>{% if run.mocked %}Scripted roles{% else %}{{ run.model }}{% endif %}</span>
+  <span>{% if run.mocked %}Scripted agents{% else %}{{ run.model }}{% endif %}</span>
   <span>{{ run.rounds_completed }} rounds</span>
   <span>{{ checks_run }} checks run</span>
   {% if not run.mocked %}<span>${{ '%.4f' % run.spend_usd }} model spend</span>{% endif %}
@@ -34,8 +34,8 @@
 <section id="decision">
   <div class="outcome outcome-{{ 'agreed' if unanimous else 'split' }}">
     <div class="outcome-headline">
-      {% if unanimous %}All {{ decided|length }} roles: {{ labels.get(leading, leading) }}
-      {% elif leading %}{{ counts[leading] }} of {{ d.final_positions|length }} roles: {{ labels.get(leading, leading) }}
+      {% if unanimous %}All {{ decided|length }} agents: {{ labels.get(leading, leading) }}
+      {% elif leading %}{{ counts[leading] }} of {{ d.final_positions|length }} agents: {{ labels.get(leading, leading) }}
       {% elif tied|length > 1 %}Tied {{ tied|map(attribute='1')|join('–') }}: {{ tied|map(attribute='0')|map('replace', 'OPT-', '')|join(' vs ') }}
       {% else %}No role took a position{% endif %}
     </div>
@@ -46,15 +46,15 @@
     </div>
   </div>
 
-  <h2>Where each role landed</h2>
+  <h2>Where each agent landed</h2>
   <div class="role-cards">
   {% for p in d.final_positions %}
     <article class="role-card{% if p.position == 'undecided' %} role-card-open{% elif p.position == leading %} role-card-with{% else %} role-card-against{% endif %}">
-      <div class="role-name">{{ role_titles.get(p.role, p.role) }}</div>
+      <div class="role-head">{{ avatar(p.role) }}<div class="role-name">{{ role_titles.get(p.role, p.role) }}</div></div>
       <div class="role-position">{{ labels.get(p.position, p.position) }}</div>
       <div class="role-meta">
         <span class="conf conf-{{ p.confidence }}">{{ p.confidence }} confidence</span>
-        {% if revised_in.get(p.role) %}<span class="tag">{{ 'decided' if first_position.get(p.role) == 'undecided' else 'changed' }} in round {{ revised_in[p.role] }}</span>{% endif %}
+        {% if shift_in.get(p.role) %}<span class="tag">{{ shift_in[p.role][1] }} in round {{ shift_in[p.role][0] }}</span>{% endif %}
       </div>
       <p class="small clamp">{{ p.rationale }}</p>
       <div class="mono small muted">{{ p.position }}</div>
@@ -104,6 +104,50 @@
 </section>
 {% endif %}
 
+{% if player %}
+<section id="player" class="player" aria-label="The review, round by round">
+  <div class="player-head">
+    <h2>Watch the review</h2>
+    <div class="player-controls">
+      <button type="button" class="btn-icon" data-player="prev" aria-label="Previous round">&#8249;</button>
+      <button type="button" class="btn-play" data-player="play" aria-label="Play the rounds">&#9654; Play</button>
+      <button type="button" class="btn-icon" data-player="next" aria-label="Next round">&#8250;</button>
+      <div class="round-tabs" role="tablist">
+      {% for step in player %}<button type="button" role="tab" class="round-tab{% if loop.last %} active{% endif %}" data-round="{{ loop.index0 }}" aria-selected="{{ 'true' if loop.last else 'false' }}">Round {{ step.round }}</button>{% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="player-progress"><span style="width: 100%"></span></div>
+  {% set last = player[-1] %}
+  <div class="agent-grid">
+  {% for role in roles %}{% set t = last.turns.get(role) %}
+    <article class="agent-tile role-{{ role }}" data-role="{{ role }}">
+      <header>{{ avatar(role, 'lg') }}<div><div class="role-name">{{ role_titles[role] }}</div>
+        <div class="agent-position" data-field="label">{{ t.label if t else 'no turn' }}</div></div></header>
+      <div class="agent-meta">
+        <span class="conf conf-{{ t.confidence if t else 'low' }}" data-field="confidence">{{ t.confidence if t else '' }} confidence</span>
+        <span class="tag tag-changed" data-field="changed" {% if not (t and t.shift) %}hidden{% endif %}>{{ 'decided' if t and t.shift == 'decided' else 'changed position' }}</span>
+        <span class="tag tag-flag" data-field="flags" {% if not (t and t.flags) %}hidden{% endif %}>{{ t.flags if t else 0 }} flagged</span>
+      </div>
+      <p class="agent-says" data-field="rationale">{{ t.rationale if t else '' }}</p>
+      <div class="agent-acts" data-field="acts">
+        {% if t %}{% for c in t.challenges %}<div class="act act-challenge">challenges the {{ c.target|lower }}</div>{% endfor %}
+        {% for q in t.requests %}<div class="act act-request">asks for <span class="mono">{{ q }}</span></div>{% endfor %}{% endif %}
+      </div>
+    </article>
+  {% endfor %}
+  </div>
+  <div class="player-checks">
+    <h3>Checks that ran after this round</h3>
+    <ul class="plain check-feed" data-field="checks">
+    {% for c in last.checks %}<li><span class="pill {{ 'pill-ok' if c.status == 'ok' else 'pill-warn' }}">{{ c.status.replace('_', ' ') }}</span> <span class="mono">{{ c.tool }}</span> <span class="muted small">asked by {{ c.by|join(', ') }}</span>{% if c.evidence_id %} → <a class="ev" href="/runs/{{ run.run_id }}/evidence/{{ c.evidence_id }}">{{ c.evidence_id }}</a>{% endif %}</li>
+    {% else %}<li class="muted small">No checks after the final round.</li>{% endfor %}
+    </ul>
+  </div>
+  <script type="application/json" id="player-data">{{ {'run_id': run.run_id, 'rounds': player}|tojson }}</script>
+</section>
+{% endif %}
+
 <h2 id="positions">Positions by round</h2>
 <div class="table-wrap">
 <table class="matrix">
@@ -111,7 +155,7 @@
   <tbody>
   {% for role in roles %}
     <tr>
-      <th scope="row">{{ role_titles[role] }}</th>
+      <th scope="row"><span class="row-role">{{ avatar(role, 'sm') }}{{ role_titles[role] }}</span></th>
       {% for r in rounds %}{% set t = matrix[role].get(r) %}
       <td>{% if t %}{{ chip(t.draft.position) }}{% if t.draft.revised_from_previous %}<span class="revised" title="{{ t.draft.revision_reason }}">changed</span>{% endif %}<div class="muted small">{{ t.draft.confidence }}{% if t.draft.challenges %} · {{ t.draft.challenges|length }} challenge{{ 's' if t.draft.challenges|length > 1 }}{% endif %}{% if t.draft.tool_requests %} · asked for {{ t.draft.tool_requests|length }} check{{ 's' if t.draft.tool_requests|length > 1 }}{% endif %}</div>{% endif %}</td>
       {% endfor %}
@@ -164,13 +208,17 @@ real engine at small scale; they are not production numbers.</p>
 {% endif %}
 
 <h2>Discussion, round by round</h2>
+<div class="role-filter" role="group" aria-label="Show turns from">
+  <button type="button" class="filter-chip active" data-filter="all">Everyone</button>
+  {% for role in roles %}<button type="button" class="filter-chip role-{{ role }}" data-filter="{{ role }}">{{ avatar(role, 'sm') }}{{ role_titles[role] }}</button>{% endfor %}
+</div>
 {% for r in rounds %}
 <details class="round" {% if loop.last %}open{% endif %}>
   <summary>Round {{ r }}</summary>
   {% for t in run.turns if t.round == r %}
-  <article class="turn">
+  <article class="turn role-{{ t.role }}" data-role="{{ t.role }}">
     <header>
-      <strong>{{ role_titles[t.role] }}</strong> {{ chip(t.draft.position) }} <span class="muted small">{{ t.draft.confidence }} confidence</span>
+      {{ avatar(t.role) }}<strong>{{ role_titles[t.role] }}</strong> {{ chip(t.draft.position) }} <span class="muted small">{{ t.draft.confidence }} confidence</span>
       {% if not t.model_call.mocked %}<span class="muted small">{{ t.model_call.input_tokens }} in / {{ t.model_call.output_tokens }} out tokens</span>{% endif %}
     </header>
     <p class="rationale">{{ t.draft.position_rationale }}</p>

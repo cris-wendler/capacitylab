@@ -76,6 +76,8 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         status_labels=STATUS_LABELS,
         approach_labels=APPROACH_LABELS,
         environment_labels=ENVIRONMENT_LABELS,
+        role_initials={"database_engineer": "DB", "application_owner": "AO", "reliability_engineer": "SRE",
+                       "finops_analyst": "FO", "tenant_representative": "TR", "single_agent": "1"},
     )
     role_names = {r.value: d.title for r, d in ROLES.items()}
     templates.env.filters["role"] = lambda role: role_names.get(role, str(role).replace("_", " "))
@@ -254,20 +256,66 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     def runs(request: Request):
         return page(request, "runs.html", runs=recent_runs(200))
 
+    def what_if_sliders(scenario, bundle) -> list[dict]:
+        """Numeric assumptions that drive the traffic forecast, with values other evidence puts on them."""
+        sliders = []
+        for event in scenario.events:
+            aid = getattr(event, "multiplier_assumption", None)
+            if not aid or any(s["id"] == aid for s in sliders):
+                continue
+            assumption = scenario.assumption(aid)
+            if not isinstance(assumption.value, int | float):
+                continue
+            tenant = getattr(event, "tenant", None)
+            marks = sorted({(float(a.value), item.id) for item in bundle for a in item.assertions
+                            if tenant and a.key == f"campaign.{tenant}.traffic_multiplier"
+                            and isinstance(a.value, int | float)})
+            value = float(assumption.value)
+            sliders.append({"id": aid, "value": value, "min": 1.0, "max": max(6.0, round(value * 1.5)), "step": 0.1,
+                            "label": event.name if getattr(event, "name", None) else f"{event.kind.replace('_', ' ')} for {tenant}",
+                            "statement": assumption.statement,
+                            "marks": [{"value": v, "evidence_id": e} for v, e in marks]})
+        return sliders
+
+    def options_view(scenario, bundle, overrides: dict[str, float] | None = None) -> dict:
+        context = build_context(scenario, bundle, overrides)
+        outcomes = [o.model_dump() for o in evaluate_all(context)]
+        safe = [o for o in outcomes if o["total_slo_breach_slots"] == 0]
+        free = [o for o in safe if o["cost_delta_event_usd"] == 0 and o["cost_delta_month_usd"] == 0]
+        headroom = [o for o in safe if o["slots_over_threshold"] == 0]
+        return {"panels": panels(scenario, outcomes), "prices_note": context.rate_card_note, "safe_count": len(safe),
+                "option_count": len(outcomes), "free_safe": free, "headroom_safe": headroom}
+
+    @app.get("/scenarios/{sid}/options", response_class=HTMLResponse)
+    def scenario_options(request: Request, sid: str):
+        scenario, bundle = scenario_or_404(sid)
+        allowed = {s["id"]: s for s in what_if_sliders(scenario, bundle)}
+        overrides = {}
+        for key, raw in request.query_params.items():
+            if key not in allowed:
+                raise HTTPException(400, f"{key} cannot be changed here")
+            try:
+                value = float(raw)
+            except ValueError as exc:
+                raise HTTPException(400, f"{key} must be a number") from exc
+            if not allowed[key]["min"] <= value <= allowed[key]["max"]:
+                raise HTTPException(400, f"{key} must be between {allowed[key]['min']} and {allowed[key]['max']}")
+            overrides[key] = value
+        return templates.TemplateResponse(request, "_options_live.html",
+                                          {"scenario": scenario, **options_view(scenario, bundle, overrides)})
+
     @app.get("/scenarios/{sid}", response_class=HTMLResponse)
     def scenario_page(request: Request, sid: str, evidence: str | None = None):
         scenario, bundle = scenario_or_404(sid)
-        context = build_context(scenario, bundle)
-        outcomes = [o.model_dump() for o in evaluate_all(context)]
         grouped: dict[str, list] = {}
         for item in bundle:
             grouped.setdefault(item.kind.value.replace("_", " "), []).append(item)
         return page(request, "scenario.html", scenario=scenario, bundle=bundle, grouped=grouped,
                     issues=validate_scenario(scenario, bundle), contradictions=bundle.contradictions(),
-                    panels=panels(scenario, outcomes), anthropic_ready=Settings.anthropic_credentials_present(),
+                    sliders=what_if_sliders(scenario, bundle), **options_view(scenario, bundle),
+                    anthropic_ready=Settings.anthropic_credentials_present(),
                     findings=review_findings(scenario, bundle),
-                    files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario),
-                    prices_note=context.rate_card_note)
+                    files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario))
 
     @app.post("/scenarios/{sid}/run")
     async def start_run(request: Request, sid: str):
@@ -309,6 +357,13 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         who = "scripted roles" if provider == "mock" else "the Anthropic model"
         return start_job(Job(id=uuid.uuid4().hex[:10], kind="run", title=f"{scenario.title} with {who}"), work)
 
+    @app.get("/jobs/{job_id}.json")
+    def job_status(job_id: str):
+        job = jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "unknown job")
+        return JSONResponse({"done": job.done, "target": job.target, "error": job.error, "messages": job.messages[-60:]})
+
     @app.get("/jobs/{job_id}", response_class=HTMLResponse)
     def job_page(request: Request, job_id: str):
         job = jobs.get(job_id)
@@ -329,15 +384,46 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         outcomes = [o.model_dump() for o in run.decision.option_outcomes] if run.decision else []
         evidence_titles = {e.id: e.title for e in [*run.tool_evidence, *run.extra_evidence_items]}
         lab = next((e for e in run.extra_evidence_items if e.id == "EV-LAB-CMP"), None)
-        revised_in = {role: next((t.round for t in run.turns if t.role == role and t.draft.revised_from_previous and t.round > 1),
-                                 None) for role in roles}
-        # A role that starts undecided and then picks an option has decided, not changed its mind.
-        first_position = {role: next((t.draft.position for t in run.turns if t.role == role), "undecided") for role in roles}
-        return page(request, "run.html", run=run, scenario=scenario, roles=roles, matrix=matrix,
+        # The last round in which each agent's position actually moved. Moving off "undecided" is a first decision,
+        # not a change of mind. Positions are compared directly rather than trusting the turn's own revision flag.
+        shift_in: dict[str, tuple[int, str]] = {}
+        for role in roles:
+            seen = None
+            for t in sorted((t for t in run.turns if t.role == role), key=lambda t: t.round):
+                if seen is not None and t.draft.position != seen:
+                    shift_in[role] = (t.round, "decided" if seen == "undecided" else "changed")
+                seen = t.draft.position
+        labels = option_labels(scenario)
+        player = []
+        previous: dict[str, str] = {}
+        for rnd in range(1, run.rounds_completed + 1):
+            turns = {}
+            for t in run.turns:
+                if t.round != rnd:
+                    continue
+                rationale = t.draft.position_rationale
+                before = previous.get(t.role)
+                # Moving off "undecided" is a first decision, not a change of mind (same rule as the final cards).
+                shift = None if before is None or before == t.draft.position else (
+                    "decided" if before == "undecided" else "changed")
+                turns[t.role] = {
+                    "position": t.draft.position, "label": labels.get(t.draft.position, t.draft.position),
+                    "confidence": t.draft.confidence, "changed": shift == "changed", "shift": shift,
+                    "rationale": rationale if len(rationale) <= 260 else rationale[:257].rsplit(" ", 1)[0] + "…",
+                    "challenges": [{"target": role_names.get(c.target_role, c.target_role), "reason": c.reason}
+                                   for c in t.draft.challenges],
+                    "requests": [q.tool for q in t.draft.tool_requests],
+                    "flags": sum(1 for f in t.findings if f.severity == "error"),
+                }
+            previous.update({role: turn["position"] for role, turn in turns.items()})
+            checks = [{"tool": c.tool, "by": [role_names.get(r, r) for r in c.requested_by], "status": c.status,
+                       "evidence_id": c.evidence_id, "title": evidence_titles.get(c.evidence_id, "")}
+                      for c in run.tool_calls if c.round == rnd]
+            player.append({"round": rnd, "turns": turns, "checks": checks})
+        return page(request, "run.html", run=run, scenario=scenario, roles=roles, matrix=matrix, player=player,
                     prices_note=price_choice.note if price_choice else "",
                     rounds=list(range(1, run.rounds_completed + 1)), panels=panels(scenario, outcomes) if outcomes else [],
-                    evidence_titles=evidence_titles, labels=option_labels(scenario), lab=lab, revised_in=revised_in,
-                    first_position=first_position,
+                    evidence_titles=evidence_titles, labels=option_labels(scenario), lab=lab, shift_in=shift_in,
                     gaps={g.id: g for g in scenario.missing_evidence},
                     checks_run=sum(1 for c in run.tool_calls if c.status == "ok"))
 

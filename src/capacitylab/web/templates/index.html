@@ -2,11 +2,15 @@
 {% from "_macros.html" import status %}
 {% block content %}
 <section class="hero">
-  <h1>Five AI agents review a database capacity decision</h1>
-  <p class="lead">A database engineer, an application owner, a reliability engineer, a FinOps analyst and a tenant
-  representative, played by Claude or by scripted rules, look at the same decision. Each sees the evidence its role
-  gives it, asks for checks, and takes a position. Code does the maths and checks every number they quote. The result
-  is a written record of what each agent recommends, what is still disputed, and what nobody has measured yet.</p>
+  <div>
+    <h1>Five AI agents review a database capacity decision</h1>
+    <p class="lead">A database engineer, an application owner, a reliability engineer, a FinOps analyst and a tenant
+    representative, simulated by a large language model or by scripted rules, look at the same decision. Each sees the
+    evidence its role gives it, asks for checks, and takes a position. Code does the maths and checks every number they
+    quote. The result is a written record of what each agent recommends, what is still disputed, and what nobody has
+    measured yet.</p>
+  </div>
+  <div class="hero-ring">{% include "_agents_ring.html" %}</div>
 </section>
 
 <section class="steps" aria-label="How it works">

@@ -1,0 +1,23 @@
+{% from "_macros.html" import options_table %}
+<div class="whatif-summary">
+  <span class="big-number{% if safe_count == 0 %} none{% endif %}">{{ safe_count }}<small>/{{ option_count }}</small></span>
+  <div>
+    <div><strong>options keep every SLO</strong>{% if safe_count == 0 %}: none does at this traffic.{% endif %}</div>
+    {% if safe_count %}<div class="small muted">
+      {{ free_safe|length }} of them cost nothing{% if free_safe %} ({{ free_safe|map(attribute='label')|join('; ') }}){% endif %}.
+      {{ headroom_safe|length }} also stay under the {{ scenario.utilization_threshold_pct|int }}% CPU threshold{% if headroom_safe %} ({{ headroom_safe|map(attribute='label')|join('; ') }}){% endif %}.
+    </div>{% endif %}
+  </div>
+</div>
+<div class="multiples">
+{% for p in panels %}
+  <figure class="panel{% if p.outcome.total_slo_breach_slots == 0 %} panel-safe{% else %} panel-breach{% endif %}">
+    <figcaption><strong>{{ p.outcome.label }}</strong>
+      <div class="supporters"><span class="pill {{ 'pill-ok' if p.outcome.total_slo_breach_slots == 0 else 'pill-bad' }}">{{ p.outcome.total_slo_breach_slots }} SLO breach slot{{ '' if p.outcome.total_slo_breach_slots == 1 else 's' }}</span>
+        <span class="mono muted">{{ p.outcome.option_id }}</span></div></figcaption>
+    {{ p.svg|safe }}
+  </figure>
+{% endfor %}
+</div>
+{{ options_table(panels|map(attribute='outcome')|list) }}
+<p class="small muted prices-note">{{ prices_note }}</p>

@@ -1,10 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Running · CapacityLab{% endblock %}
+{% block title %}{{ job.title }} · CapacityLab{% endblock %}
 {% block content %}
-{% if not job.done %}<meta http-equiv="refresh" content="1">{% endif %}
-<h1>{% if job.error %}Run failed{% else %}Simulation running{% endif %}</h1>
-<p class="muted">{{ job.scenario_id }} with the {{ job.provider }} provider.</p>
-{% if job.error %}<div class="warn">{{ job.error }}</div>{% endif %}
-<pre class="log">{% for m in job.messages[-40:] %}{{ m }}
-{% endfor %}</pre>
+<noscript>{% if not job.done %}<meta http-equiv="refresh" content="1">{% endif %}</noscript>
+<section id="job-live" class="job{% if job.error %} failed{% endif %}" data-src="/jobs/{{ job.id }}.json">
+  <div class="job-head">
+    <span class="job-spinner" aria-hidden="true"></span>
+    <div>
+      <h1 class="job-title">{% if job.error %}This job failed{% else %}Working on it{% endif %}</h1>
+      <p class="muted">{{ job.title }}</p>
+    </div>
+  </div>
+  <div class="job-bar" aria-hidden="true"><span></span></div>
+  <div class="warn job-error" {% if not job.error %}hidden{% endif %}>{{ job.error or '' }}</div>
+  <ol class="job-steps">
+  {% for m in job.messages[-60:] %}<li class="{{ 'current' if loop.last and not job.done else 'done' }}">{{ m }}</li>{% endfor %}
+  </ol>
+  <p class="small muted">This page follows the job and opens the result when it is ready.</p>
+</section>
 {% endblock %}

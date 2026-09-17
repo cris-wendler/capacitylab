@@ -23,11 +23,11 @@
     <h2>Start a review</h2>
     <form method="post" action="/scenarios/{{ scenario.id }}/run">
       <fieldset>
-        <legend>Who answers for each role</legend>
+        <legend>Who plays the five agents</legend>
         <label class="option"><input type="radio" name="provider" value="mock" checked>
-          <span><strong>Scripted roles</strong><span class="muted small">Fixed rules in code. Offline and free. Good for trying the workflow.</span></span></label>
+          <span><strong>Scripted agents</strong><span class="muted small">Fixed rules in code. Offline and free. Good for trying the workflow.</span></span></label>
         <label class="option"><input type="radio" name="provider" value="anthropic">
-          <span><strong>Anthropic model</strong><span class="muted small">{% if anthropic_ready %}API key found.{% else %}No API key found in the environment.{% endif %} Uses the model budget (${{ '%.2f' % budget.spent }} of ${{ '%.2f' % budget.total }} used).</span></span></label>
+          <span><strong>LLM agents</strong><span class="muted small">{{ settings.model }} through the Anthropic API. {% if anthropic_ready %}API key found.{% else %}No API key found in the environment.{% endif %} Uses the model budget (${{ '%.2f' % budget.spent }} of ${{ '%.2f' % budget.total }} used).</span></span></label>
       </fieldset>
       <fieldset>
         <legend>Where experiments run</legend>
@@ -77,19 +77,35 @@ finding cites what it rests on.</p>
 {% endif %}
 
 <h2 id="options">Options before any checks <span class="prov-note">{{ prov('modeled') }}</span></h2>
-<p class="section-lead">Modeled CPU use per {{ scenario.horizon.slot_minutes }}-minute slot with the scenario's base assumptions. Index
-options show no benefit here until an index experiment measures one.</p>
-<div class="multiples">
-{% for p in panels %}
-  <figure class="panel">
-    <figcaption><strong>{{ p.outcome.label }}</strong>
-      <div class="supporters mono">{{ p.outcome.option_id }}</div></figcaption>
-    {{ p.svg|safe }}
-  </figure>
-{% endfor %}
+<p class="section-lead">Modeled CPU use per {{ scenario.horizon.slot_minutes }}-minute slot. Index options show no benefit
+here until an index experiment measures one.</p>
+{% if sliders %}
+<section class="whatif" aria-label="What if the traffic assumption is wrong">
+  <div class="whatif-head">
+    <h3>What if the traffic is different?</h3>
+    <button type="button" class="btn-ghost" data-whatif-reset>Back to the scenario's values</button>
+  </div>
+  {% for s in sliders %}
+  <div class="whatif-row">
+    <label for="wi-{{ s.id }}"><span class="mono">{{ s.id }}</span> <span class="muted small">{{ s.statement }}</span></label>
+    <div class="whatif-control">
+      <input type="range" id="wi-{{ s.id }}" name="{{ s.id }}" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}"
+             value="{{ s.value }}" data-default="{{ s.value }}" data-whatif>
+      <output for="wi-{{ s.id }}" class="whatif-value">{{ '%.1f' % s.value }}×</output>
+    </div>
+    <div class="whatif-marks">
+      <button type="button" class="mark" data-set="{{ s.id }}" data-value="{{ s.value }}">planning value {{ '%.1f' % s.value }}×</button>
+      {% for m in s.marks if m.value != s.value %}
+      <button type="button" class="mark" data-set="{{ s.id }}" data-value="{{ m.value }}">{{ '%.1f' % m.value }}× in {{ m.evidence_id }}</button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+<div id="options-live" data-src="/scenarios/{{ scenario.id }}/options" aria-live="polite">
+{% include "_options_live.html" %}
 </div>
-{{ options_table(panels|map(attribute='outcome')|list) }}
-<p class="small muted prices-note">{{ prices_note }} Attach an AWS import with prices to cost the options at on-demand list prices.</p>
 
 <div class="split">
   <section>

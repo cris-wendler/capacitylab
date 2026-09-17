@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img" aria-labelledby="t d">
   <title id="t">CapacityLab</title>
-  <desc id="d">Five Claude agents (database engineer, application owner, reliability engineer, FinOps analyst, tenant representative) take turns reviewing shared evidence about a database capacity decision.</desc>
+  <desc id="d">Five LLM agents (database engineer, application owner, reliability engineer, FinOps analyst, tenant representative) take turns reviewing shared evidence about a database capacity decision.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#101a33"/>
@@ -51,7 +51,7 @@
   <text x="60" y="178" class="q q3">Move the batch job?</text>
 
   <g transform="translate(42 222)">
-    <rect width="92" height="26" rx="13" fill="#d97757"/><text x="46" y="17.5" class="chip" text-anchor="middle">Claude API</text>
+    <rect width="92" height="26" rx="13" fill="#d97757"/><text x="46" y="17.5" class="chip" text-anchor="middle">LLM agents</text>
     <rect x="100" width="118" height="26" rx="13" fill="#3a4a7a"/><text x="159" y="17.5" class="chip" text-anchor="middle">queueing model</text>
     <rect x="226" width="92" height="26" rx="13" fill="#2f6b58"/><text x="272" y="17.5" class="chip" text-anchor="middle">cost model</text>
     <rect x="326" width="88" height="26" rx="13" fill="#2b5c8a"/><text x="370" y="17.5" class="chip" text-anchor="middle">MySQL lab</text>

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.svg" alt="CapacityLab: five Claude agents review a database capacity decision around shared, checked evidence" width="900">
+  <img src="docs/media/hero.svg" alt="CapacityLab: five LLM agents review a database capacity decision around shared, checked evidence" width="900">
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 # CapacityLab
 
 **CapacityLab is a multi-agent LLM simulation for database capacity planning, reliability and FinOps decisions.**
-CapacityLab uses Claude to simulate the five people who usually have a say when a busy database needs a capacity
+CapacityLab uses a large language model (LLM) to simulate the five people who usually have a say when a busy database needs a capacity
 decision: a database engineer, an application owner, a reliability engineer (SRE), a FinOps analyst and a tenant
 representative. Each one is an AI agent with its own role and its own view of the evidence. Over several rounds they
 discuss the options, ask for checks and give a recommendation, and the result is a decision record: what was decided,
@@ -43,7 +43,7 @@ experiments are deterministic Python, and every number an agent quotes is checke
 > evening, and a batch job starts halfway through. Scale up for the night, add an index, move the job, or a mix?
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="A scenario with its findings, a review run with Claude Sonnet 5, where each role landed, the discussion, replay, and the comparison" width="900">
+  <img src="docs/media/demo.gif" alt="A scenario with its findings, a review run by LLM agents, where each agent landed, the discussion, replay, and the comparison" width="900">
 </p>
 
 > [!NOTE]
@@ -55,7 +55,7 @@ experiments are deterministic Python, and every number an agent quotes is checke
 | Start here | Go deeper | Reference |
 |---|---|---|
 | [Tech stack](#tech-stack) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
-| [The five agents](#the-five-agents) | [Using Claude for the agents](#using-claude-for-the-agents) | [Project layout](#project-layout) |
+| [The five agents](#the-five-agents) | [Using an LLM for the agents](#using-an-llm-for-the-agents) | [Project layout](#project-layout) |
 | [What you get](#what-you-get) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
 | [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
 | [Quick start](#quick-start) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
@@ -197,7 +197,13 @@ labelled as an assumption, so replacing that one evidence item with your provide
 
 ![Each option's modeled utilization over the evening, at the end of the Sonnet run](docs/media/run-options.png)
 
-The chart above comes from the three-round review with Claude Sonnet, not the scripted run. Its index options show no
+On the scenario page, drag the traffic assumption and every option is re-modeled on the spot. At the 3.1× the tenant
+actually reached last time, all six options keep every SLO; at the 5× planning value, four do; at 6×, only the two
+scale-up options still do:
+
+![What-if slider set to 3.1x: all six options keep every SLO, and which of them cost nothing or stay under 80% CPU](docs/media/scenario-whatif.png)
+
+The chart above comes from the three-round LLM review, not the scripted run. Its index options show no
 benefit because that run's database engineer measured a different index (`tenant_id, customer_id, created_day`, 16.7%
 less work) from the one those options propose; with no measurement for the proposed index, the model credits it with
 nothing. The table above comes from the scripted run, which measured the proposed index.
@@ -297,7 +303,7 @@ varies even more (±132%, ±134%), so the index's effect on writes stays unanswe
 ### What the agents concluded
 
 With scripted roles and the lab file attached (`capacitylab run campaign-overlap --evidence runs/lab/campaign-overlap-lab.yaml`).
-The runs with Claude are [further down](#runs-with-a-real-model).
+The LLM runs are [further down](#runs-with-a-real-model).
 
 ```mermaid
 flowchart LR
@@ -328,9 +334,14 @@ flowchart LR
   unproven. Still missing: failover duration, a production-like test of the index, and whether the audience query can
   run on the reader.
 
-![Where each role landed in the Sonnet run: all five on moving the batch job, and what nobody has measured](docs/media/run-positions.png)
+![Where each agent landed in the LLM run: all five on moving the batch job, and what nobody has measured](docs/media/run-positions.png)
 
-*Screenshots of runs are from the three-round review with Claude Sonnet described [below](#runs-with-a-real-model),
+Step through the rounds, or press play, to watch each agent's position change and see the checks that ran between
+rounds:
+
+![Round 2 of the LLM run in the round-by-round player: the database engineer has changed position, with challenges and requested checks](docs/media/run-player.png)
+
+*Screenshots of runs are from the three-round LLM review described [below](#runs-with-a-real-model),
 where every role converged; the rounds above describe the scripted run, which split 3–2.*
 
 > [!NOTE]
@@ -404,7 +415,7 @@ the next one. A run stops at the round limit, or earlier when positions stop cha
 sequenceDiagram
   autonumber
   participant O as Orchestrator
-  participant A as Agent (Claude)
+  participant A as Agent (LLM)
   participant V as Turn checks
   participant T as Checks and experiments
   rect rgb(234, 242, 252)
@@ -454,7 +465,7 @@ cp .env.example .env
 <table>
 <tr>
 <th width="33%">🆓 Scripted agents, no key</th>
-<th width="33%">🤖 Claude agents</th>
+<th width="33%">🤖 LLM agents</th>
 <th width="33%">🧪 With the lab attached</th>
 </tr>
 <tr>
@@ -685,7 +696,7 @@ id, or by a name you choose: `capacitylab import slowlog peak.log --label "eveni
 
 ---
 
-## Using Claude for the agents
+## Using an LLM for the agents
 
 Put your key in `.env` (git-ignored) and set the total you are willing to spend:
 
@@ -699,12 +710,12 @@ capacitylab run campaign-overlap --provider anthropic --max-rounds 3 --evidence 
 capacitylab spend
 ```
 
-Claude receives the same evidence and rules as the scripted roles and must return the same structured turn. Spend is
+The LLM receives the same evidence and rules as the scripted agents and must return the same structured turn. Spend is
 recorded in `runs/spend-ledger.json`.
 
 <table>
 <tr>
-<th width="50%">✍️ Claude writes</th>
+<th width="50%">✍️ The LLM writes</th>
 <th width="50%">⚙️ Code computes</th>
 </tr>
 <tr>
@@ -818,7 +829,7 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted agents) or `anthropic` (Claude agents) |
+| `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted agents) or `anthropic` (LLM agents) |
 | `ANTHROPIC_API_KEY` | *(empty)* | Only needed for `anthropic` |
 | `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for keys not scoped to a workspace; sent as the `anthropic-workspace-id` header |
 | `CAPACITYLAB_MODEL` | `claude-opus-5` | Model used for the roles |
@@ -852,7 +863,7 @@ src/capacitylab/
   diagnostics/     experiment databases, retail dataset, index and rewrite experiments, evidence analysis
   lab/             labs: workload driver for both engines, performance_schema and pg_stat_statements collectors,
                    EXPLAIN ANALYZE and JSON plan parsers, Percona Toolkit
-  simulation/      roles, turn format, checks, turn validation, scripted and Claude answers, rounds, decision record
+  simulation/      roles, turn format, checks, turn validation, scripted and LLM answers, rounds, decision record
   evaluation/      replay and comparison
   importers.py     slow log, digest, plan, CloudWatch, and Percona Toolkit importers
   aws_import.py    RDS, CloudWatch, Pricing and Cost Explorer through boto3; emulator by default, --live for AWS
@@ -877,7 +888,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Importers, AWS import against Floci, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Five-agent review with Claude (Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
+| Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
 | CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**

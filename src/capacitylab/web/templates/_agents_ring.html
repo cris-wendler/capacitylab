@@ -1,0 +1,24 @@
+<svg viewBox="0 0 340 300" role="img" aria-label="Five AI agents take turns around shared evidence">
+  <path class="ring-link" stroke="#2d6cdf" d="M170 58 L170 111"/>
+  <path class="ring-link" stroke="#c98a00" d="M210 124 L205 138"/>
+  <path class="ring-link" stroke="#c75b3b" d="M218 229 L195 182"/>
+  <path class="ring-link" stroke="#7a5ad6" d="M122 229 L145 182"/>
+  <path class="ring-link" stroke="#1b9b6d" d="M130 124 L135 138"/>
+  <circle class="ring-pulse" cx="170" cy="150" r="38"/>
+  <circle class="ring-core" cx="170" cy="150" r="38"/>
+  <text class="ring-core-text" x="170" y="148">evidence</text>
+  <text class="ring-core-sub" x="170" y="163">cited, checked</text>
+  {% set nodes = [
+    ('database_engineer', 170, 42, 'Database engineer', 0),
+    ('reliability_engineer', 272, 116, 'Reliability (SRE)', 2),
+    ('finops_analyst', 234, 244, 'FinOps analyst', 4),
+    ('tenant_representative', 106, 244, 'Tenant rep', 6),
+    ('application_owner', 68, 116, 'Application owner', 8)] %}
+  {% for role, x, y, label, delay in nodes %}
+  <g class="role-{{ role }}">
+    <rect class="ring-glow" x="{{ x - 62 }}" y="{{ y - 15 }}" width="124" height="30" rx="15" style="animation-delay: {{ delay }}s"/>
+    <rect class="ring-node" x="{{ x - 62 }}" y="{{ y - 15 }}" width="124" height="30" rx="15" fill-opacity="0"/>
+    <text class="ring-text" x="{{ x }}" y="{{ y + 4 }}">{{ label }}</text>
+  </g>
+  {% endfor %}
+</svg>

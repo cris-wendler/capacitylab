@@ -7,7 +7,7 @@
   <tr>
     <td><a href="/runs/{{ r.file }}" class="mono">{{ r.run_id }}</a></td>
     <td>{{ r.scenario_id }}</td>
-    <td>{% if r.mocked %}Scripted roles{% else %}{{ r.model }}{% endif %}</td>
+    <td>{% if r.mocked %}Scripted agents{% else %}{{ r.model }}{% endif %}</td>
     <td>{{ status(r.status) }}</td>
     <td class="num">{{ r.rounds }}</td>
     <td class="num">{{ r.extra or '—' }}</td>
