@@ -80,6 +80,39 @@ def test_measured_effects_and_regressions_propagate(campaign):
     assert better.peak_utilization_pct < keep.peak_utilization_pct < worse.peak_utilization_pct
 
 
+def test_a_rewrite_competes_on_price_only_when_it_is_measured_and_equivalent(campaign):
+    """A query rewrite costs no instance hours, so it must hold the SLO on merit, not on hope."""
+    scenario, bundle = campaign
+    ctx = build_context(scenario, bundle)
+    measured = {"RW-EXISTS": OptimizationEffect(
+        index_candidate="RW-EXISTS", kind="rewrite", equivalent=True, evidence_ids=["EV-TOOL-1"],
+        cpu_multiplier_by_fingerprint={"QF-AUDIENCE": 0.35})}
+
+    unmeasured = evaluate_option(ctx, "OPT-REWRITE")
+    assert any("NOT applied" in u for u in unmeasured.unknowns)
+    assert unmeasured.utilization_by_slot == evaluate_option(ctx, "OPT-KEEP").utilization_by_slot
+
+    applied = evaluate_option(ctx, "OPT-REWRITE", measured)
+    assert applied.total_slo_breach_slots == 0
+    # No instance hours and no storage: a rewrite ships in a release, so it beats every scaling option on cost.
+    assert applied.cost_delta_event_usd == 0.0 and applied.cost_delta_month_usd == 0.0
+    assert evaluate_option(ctx, "OPT-SCALE-TEMP").cost_delta_event_usd == 129.92
+    assert any("needs a release" in e for e in applied.operational_events)
+    assert any("evidence and not proof" in u for u in applied.unknowns)
+    assert "EV-TOOL-1" in applied.evidence_ids
+
+    # Changing the answer is not an optimization, whatever it saves.
+    changed = evaluate_option(ctx, "OPT-REWRITE", {"RW-EXISTS": measured["RW-EXISTS"].model_copy(
+        update={"equivalent": False})})
+    assert changed.utilization_by_slot == evaluate_option(ctx, "OPT-KEEP").utilization_by_slot
+    assert any("did not return the same rows" in u for u in changed.unknowns)
+
+    # Combined with moving the batch job it also clears the SLO, and still costs nothing to run.
+    together = evaluate_option(ctx, "OPT-REWRITE-RESCHEDULE", measured)
+    assert together.total_slo_breach_slots == 0 and together.cost_delta_event_usd == 0.0
+    assert together.peak_utilization_pct < applied.peak_utilization_pct
+
+
 def test_assumption_overrides_change_forecast(campaign):
     scenario, bundle = campaign
     base = evaluate_option(build_context(scenario, bundle), "OPT-KEEP")

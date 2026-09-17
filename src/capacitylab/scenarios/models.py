@@ -107,8 +107,8 @@ class ReleaseEvent(BaseModel):
 
 Event = Annotated[CampaignEvent | BatchEvent | ReleaseEvent, Field(discriminator="kind")]
 
-OptionKind = Literal["keep", "scale_temporary", "scale_season", "optimize_index", "reschedule_batch", "resize_permanent",
-                     "combined"]
+OptionKind = Literal["keep", "scale_temporary", "scale_season", "optimize_index", "optimize_rewrite",
+                     "reschedule_batch", "resize_permanent", "combined"]
 
 
 class OptionSpec(BaseModel):

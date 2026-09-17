@@ -224,7 +224,7 @@ The review is available to the application owner, reliability engineer and cost 
 
 ### What the capacity model says
 
-From the scripted run, with the index effect measured in the SQLite experiment database:
+From the scripted run, with the index and rewrite effects measured in the SQLite experiment database:
 
 | Option | Peak CPU | Slots over 80% | SLO breach slots | One-off | Monthly | Revenue at risk |
 |---|---:|---:|---:|---:|---:|---:|
@@ -233,12 +233,35 @@ From the scripted run, with the index effect measured in the SQLite experiment d
 | Scale to 32xlarge for the 6-week season | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $18,708.48 | $0 | $0 |
 | Resize to 32xlarge permanently | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $13,548.80 | $0 |
 | Add the index | 97.7% | 8 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
+| Rewrite the audience query (`EXISTS`) | 100.1% | 8 | ![2](https://img.shields.io/badge/-2-b42318?style=flat-square) | $0 | $0 | $0 |
 | Move the batch job to 01:00 | 95.0% | 11 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0 | $0 |
 | Index and move the batch job | 77.7% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
 | Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $129.92 | $0 | $0 |
+| Rewrite and move the batch job | 80.1% | 1 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0 | $0 |
 
 Every scale option also carries writer failovers of unknown length. The scripted FinOps agent reads this table on a
 12-month view, which is why a $129.92 evening beats a $13,548.80-a-month resize even though both keep every SLO.
+
+**A query rewrite competes here on the same terms.** It buys no instance hours and needs no storage, so it costs $0 to
+run; what it costs is a release and a validation. The row above is the honest outcome: the measured `EXISTS` rewrite
+takes the peak from 115.0% to 100.1%, which still misses the SLO in 2 slots, so on its own it is not the answer.
+Paired with moving the batch job it holds every SLO at $0, which is cheaper than the index pairing ($0.08 a month) and
+far cheaper than the evening scale-up. Two guards keep that from being wishful: no benefit is credited until an
+equivalence check has measured it, and a rewrite that returns different rows than the original gets no benefit at all,
+however much work it saves - changing the answer is not an optimization.
+
+That guard earns its keep: of the four candidate rewrites, only one is equivalent on the fixtures, and the three that
+fail do so for three different reasons.
+
+| Candidate | Work | Equivalent | What the check caught |
+|---|---:|---|---|
+| `EXISTS`, tenant predicate kept | 0.29x | ✅ | - |
+| inner `JOIN` on orders | 0.67x | ❌ | join fan-out returns duplicate rows |
+| `NOT IN` to `NOT EXISTS` | 2.71x | ❌ | a NULL `customer_id` in suppressions makes `NOT IN` return nothing and `NOT EXISTS` return rows |
+| `EXISTS` without the tenant predicate | 0.33x | ❌ | extra rows qualify only through another tenant's orders: a tenant boundary violation |
+
+The last one is the dangerous kind. It looks like the winner, being three times cheaper, and it leaks one tenant's
+customers into another tenant's audience. A benchmark that only timed the two statements would have recommended it.
 
 *SLO breach slots* counts each SLO separately: when nothing changes, checkout and order history each miss their SLO in
 the same 7 sale slots, so 7 × 2 = 14. *Revenue at risk* counts the slot once. The index costs $0.08 a month: the
@@ -254,11 +277,11 @@ savings-plan discounts. Replacing that one evidence item with your provider's ra
 ![Each option's modeled utilization over the evening, with cost and revenue at risk, at the end of the LLM run](docs/media/run-options.png)
 
 On the scenario page, drag the traffic assumption and every option is re-modeled on the spot. At the 3.1× the tenant
-actually reached last time, all eight options keep every SLO and doing nothing risks $0; at the 5× planning value, six
+actually reached last time, all ten options keep every SLO and doing nothing risks $0; at the 5× planning value, seven
 keep every SLO and doing nothing risks $304,500; at 6×, only the four scale-up options do, and doing nothing risks
 $522,000:
 
-![What-if slider set to 3.1x: all eight options keep every SLO, doing nothing risks $0, and which options cost nothing](docs/media/scenario-whatif.png)
+![What-if slider set to 3.1x: all ten options keep every SLO, doing nothing risks $0, and which options cost nothing](docs/media/scenario-whatif.png)
 
 The chart above comes from the two-round LLM review, not the scripted run. Its index options show no benefit because
 no agent in that run asked for an index experiment, and the model credits an index with nothing until one is measured.

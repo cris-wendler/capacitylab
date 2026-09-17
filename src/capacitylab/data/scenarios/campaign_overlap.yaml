@@ -103,6 +103,10 @@ options:
     kind: optimize_index
     label: Add a composite index for the audience query
     params: {index_candidate: IDX-TENANT-DAY-CUSTOMER}
+  - id: OPT-REWRITE
+    kind: optimize_rewrite
+    label: Rewrite the audience query to a correlated EXISTS
+    params: {rewrite_id: RW-EXISTS}
   - id: OPT-RESCHEDULE
     kind: reschedule_batch
     label: Move the loyalty batch job to 01:00
@@ -115,6 +119,10 @@ options:
     kind: combined
     label: Temporary scale-up plus batch reschedule
     params: {components: [OPT-SCALE-TEMP, OPT-RESCHEDULE]}
+  - id: OPT-REWRITE-RESCHEDULE
+    kind: combined
+    label: Query rewrite plus batch reschedule
+    params: {components: [OPT-REWRITE, OPT-RESCHEDULE]}
 assumptions:
   - id: A-CAMPAIGN-MULT
     statement: Planning multiplier for Alder's campaign-sensitive statements during the sale.

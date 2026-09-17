@@ -198,8 +198,23 @@ def _index_experiment(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOut
 def _rewrite_equivalence(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:
     rewrite_ids = _list(args, "rewrite_ids", list(fx.REWRITES))
     result = experiments.rewrite_equivalence(env.sandbox(), rewrite_ids)
+    exponent = env.assumption("A-CPU-ROWS-EXPONENT", 0.8)
+
+    def register(evidence_id: str) -> None:
+        """Make each rewrite modelable, so it can be compared with buying capacity rather than only discussed."""
+        for rid, r in result["rewrites"].items():
+            ratio = r["work_ratio"]
+            multiplier = round(ratio ** exponent, 4) if ratio else 1.0
+            env.effects[rid] = OptimizationEffect(
+                index_candidate=rid, kind="rewrite",
+                cpu_multiplier_by_fingerprint={r["original"]: multiplier},
+                equivalent=r["equivalent_on_fixtures"],
+                evidence_ids=[evidence_id],
+            )
+
     return ToolOutcome(title="Rewrite equivalence: " + ", ".join(rewrite_ids), data=result, cited=[],
-                       caveats=[result["caveat"]])
+                       caveats=[result["caveat"], "Production translation uses assumption A-CPU-ROWS-EXPONENT."],
+                       after_created=register)
 
 
 def _explain_query(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:
