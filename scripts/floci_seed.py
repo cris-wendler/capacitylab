@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Load a local AWS emulator (Floci) with a synthetic RDS writer, a read replica where supported, and a day of metrics.
 
     docker compose --profile aws up -d floci

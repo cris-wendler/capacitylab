@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Build evidence from Azure: flexible server topology (MySQL or PostgreSQL), Azure Monitor metrics, on-demand prices
 and month-to-date cost.
 

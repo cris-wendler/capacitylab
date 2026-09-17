@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Construct providers and sandboxes from settings."""
 
 from __future__ import annotations

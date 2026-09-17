@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The same lab phases on PostgreSQL 17, producing the same evidence ids as the MySQL runner.
 
 What differs is where the numbers come from: pg_stat_statements instead of performance_schema, shared buffer

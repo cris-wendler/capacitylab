@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Deterministic MOCK stakeholders for local development, demos, and CI.
 
 These are hand-written policies, not a language model. They read only the evidence their role can

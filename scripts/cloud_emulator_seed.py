@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Load the local Google Cloud and Azure emulators with synthetic databases for `capacitylab import gcp|azure`.
 
     docker compose --profile gcp up -d floci-gcp

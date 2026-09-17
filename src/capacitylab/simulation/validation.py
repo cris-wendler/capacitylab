@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Checks every stakeholder turn for traceability: citations, access, grounded numbers, tool permissions."""
 
 from __future__ import annotations

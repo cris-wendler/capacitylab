@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Read-only collection from a PostgreSQL lab database: pg_stat_statements, pg_stat_database, plans, table sizes."""
 
 from __future__ import annotations

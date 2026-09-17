@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from capacitylab import cli
 from capacitylab.evaluation.replay import replay
 from capacitylab.report import render_markdown

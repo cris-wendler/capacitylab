@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Build evidence from Google Cloud: Cloud SQL topology and Cloud Monitoring metrics.
 
 By default this talks to a local emulator (floci-gcp on 127.0.0.1:4588). Reading a real project needs `live=True`,

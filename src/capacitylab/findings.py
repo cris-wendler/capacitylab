@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Findings computed from a scenario's evidence alone, before any review runs.
 
 Each finding names the evidence it rests on and says what it is: a measurement, a model output, or a

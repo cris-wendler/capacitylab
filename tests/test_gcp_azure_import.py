@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """GCP and Azure imports against recorded API responses: no network, no cloud account, no spend."""
 
 import json

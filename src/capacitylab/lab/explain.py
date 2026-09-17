@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Parse MySQL 8.0 `EXPLAIN ANALYZE` tree output into plan steps."""
 
 from __future__ import annotations

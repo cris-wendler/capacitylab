@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Deterministic cost arithmetic. Rates come only from a rate card evidence item, never from a model."""
 
 from __future__ import annotations

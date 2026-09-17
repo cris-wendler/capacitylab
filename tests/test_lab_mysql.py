@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Real workload on the local MySQL 8.0 lab. Run with the container up: CAPACITYLAB_TEST_MYSQL=1 pytest -m mysql"""
 
 import os

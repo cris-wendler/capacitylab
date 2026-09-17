@@ -44,7 +44,8 @@
     <main>
       {% block content %}{% endblock %}
     </main>
-    <footer>CapacityLab · scenarios, tenants, and lab data are synthetic · modeled and locally measured results are labeled as such</footer>
+    <footer>CapacityLab · scenarios, tenants, and lab data are synthetic · modeled and locally measured results are labeled as such
+      · {% if settings.source_url %}<a href="{{ settings.source_url }}">source</a> ({{ license }}){% else %}{{ license }}{% endif %}</footer>
   </div>
   <script src="/static/app.js"></script>
 </body>

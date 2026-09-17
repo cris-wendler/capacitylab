@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Replay a run ledger: re-execute every recorded tool call and rebuild the decision without a model."""
 
 from __future__ import annotations

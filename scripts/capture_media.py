@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Capture README screenshots and a short GIF from a real local mock run.
 
 Requires the media extra: pip install -e ".[media]" && playwright install chromium

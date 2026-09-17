@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """A deliberately simple CPU queueing model (M/M/c). Every output of this module is a *modeled* value.
 
 Assumptions (surfaced in every option outcome):

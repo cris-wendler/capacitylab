@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Instance class catalog (vCPU and memory per class, from public instance specifications)."""
 
 from __future__ import annotations

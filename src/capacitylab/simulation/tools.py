@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tool registry. Stakeholders request tools; the orchestrator executes them deterministically.
 
 Each successful call produces a new evidence item whose provenance reflects how it was produced:

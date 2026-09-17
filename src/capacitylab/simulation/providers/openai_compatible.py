@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Stakeholder turns from any OpenAI-compatible chat completions endpoint.
 
 One provider covers the hosted APIs that speak this protocol (OpenAI, Google Gemini's OpenAI endpoint, Mistral, Groq,

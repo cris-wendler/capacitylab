@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """No personal identities, hosts, accounts, or internal database names may ship."""
 
 import json

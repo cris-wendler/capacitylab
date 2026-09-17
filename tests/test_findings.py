@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Findings are computed from evidence alone, before any review runs."""
 
 from capacitylab.findings import review_findings

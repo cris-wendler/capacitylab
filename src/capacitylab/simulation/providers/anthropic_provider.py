@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Real model provider for stakeholder turns (Anthropic Messages API, structured output).
 
 The model receives the same context pack a mock stakeholder sees and must return a `TurnDraft`.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Local web UI (FastAPI + server-rendered templates). Binds to localhost by default; no external assets."""
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LAB_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+\.yaml$")
 AWS_DIR = "imports"
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+LICENSE = "AGPL-3.0-or-later"
 
 STATUS_LABELS = {
     "concluded": "Finished",
@@ -81,6 +83,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals.update(
+        license=LICENSE,
         provenance_labels=PROVENANCE_LABELS,
         role_titles={r.value: d.title for r, d in ROLES.items()},
         status_labels=STATUS_LABELS,

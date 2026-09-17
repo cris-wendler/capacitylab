@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Read-only collection from a MySQL 8.0 lab database (performance_schema, information_schema, status)."""
 
 from __future__ import annotations

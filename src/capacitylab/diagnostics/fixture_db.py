@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Deterministic synthetic retail dataset ("retail_v1") with the edge cases rewrites must survive.
 
 Edge cases deliberately present:

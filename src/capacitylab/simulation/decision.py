@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Synthesis of a run into a decision record. It reports positions; it does not manufacture consensus."""
 
 from __future__ import annotations

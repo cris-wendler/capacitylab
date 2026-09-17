@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/clouds-AWS%20%C2%B7%20GCP%20%C2%B7%20Azure-FF9900" alt="Cloud imports from AWS, Google Cloud and Azure">
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
-  <img src="https://img.shields.io/badge/license-Apache--2.0-6b6a65" alt="Apache 2.0">
+  <img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-6b6a65" alt="AGPL 3.0 or later">
   <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
 </p>
 
@@ -50,15 +50,33 @@ experiments are deterministic Python, and every number an agent quotes is checke
 > Every scenario, tenant, cluster and figure in this repository is synthetic. Local lab measurements compare phases
 > with each other; they do not predict production latency.
 
+## Why not just let it autoscale?
+
+Because autoscaling reacts, and a known event needs a decision made before it starts.
+
+Automatic scaling, Aurora Serverless v2 included, watches the database and adds capacity after load arrives, in steps.
+How fast it reaches the size a sharp ramp needs depends on the workload, and scaling down is deliberately slower than
+scaling up. For a flash sale that multiplies traffic inside one 15-minute slot, "it will scale" is a hope, not a plan:
+while capacity is still catching up, checkout is already missing its SLO, and that is the part customers feel. The
+`campaign-overlap` scenario carries this as an assumption nobody has measured (`A-AUTOSCALE-LAG`) and as an evidence
+gap (`GAP-AUTOSCALE-RESPONSE`), so the agents have to argue about it instead of assuming it away.
+
+The second half is *what* the scaling decision looks at. An autoscaler sees CPU, connections and I/O. It does not know
+that a campaign starts at 18:00, that the storefront earns $1.45 million an hour while it runs, that a batch job lands
+at 19:00, or that one tenant will take a third of the cluster. CapacityLab puts those product signals next to the
+database metrics, prices each option, and shows the revenue at risk if nothing changes, so engineers can make the call
+ahead of time and have the reasoning on record afterwards.
+
 ## Contents
 
 | Start here | Go deeper | Reference |
 |---|---|---|
-| [Tech stack](#tech-stack) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
-| [The five agents](#the-five-agents) | [Using an LLM for the agents](#using-an-llm-for-the-agents) | [Project layout](#project-layout) |
-| [What you get](#what-you-get) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
-| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
-| [Quick start](#quick-start) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
+| [Why not just let it autoscale?](#why-not-just-let-it-autoscale) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
+| [Tech stack](#tech-stack) | [Using an LLM for the agents](#using-an-llm-for-the-agents) | [Project layout](#project-layout) |
+| [The five agents](#the-five-agents) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
+| [What you get](#what-you-get) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
+| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
+| [Quick start](#quick-start) | | |
 
 ---
 
@@ -1048,11 +1066,16 @@ docs/              evaluation method, screenshots
 
 ## License
 
-[Apache License 2.0](LICENSE). Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and
-PostgreSQL (PostgreSQL License) run from their own Docker images as separate programs and are not included or modified here. The files under
-`tests/data/percona/` are Percona Toolkit output captured from the synthetic lab dataset.
+[GNU Affero General Public License, version 3 or later](LICENSE) (`AGPL-3.0-or-later`). You may read, run, modify and
+share CapacityLab; if you distribute it or run a modified version as a network service, the AGPL asks you to publish
+your changes under the same license. If you host it for others, set `CAPACITYLAB_SOURCE_URL` to where your version's
+source can be fetched, and the web UI will link to it in the footer.
 
----
+**Commercial use.** If the AGPL does not suit you, for example to embed CapacityLab in a closed product or to offer it
+as a hosted service without publishing your changes, a separate commercial license is available. The copyright is held
+by one author, so it can be granted: open an issue on this repository to get in touch.
 
-<sub>All scenarios, tenants, clusters, and figures in this project are synthetic. Product names are trademarks of their
-owners and are used descriptively.</sub>
+Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and PostgreSQL (PostgreSQL License) run
+from their own Docker images as separate programs and are not included or modified here. The Floci, floci-gcp and
+floci-az emulators (MIT) are used the same way. Python dependencies keep their own licenses and are not redistributed.
+

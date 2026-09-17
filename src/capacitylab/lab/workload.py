@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Concurrent, open-loop workload driver for the MySQL and PostgreSQL labs.
 
 Arrivals follow a seeded Poisson schedule derived from the scenario's statement mix. Workers execute

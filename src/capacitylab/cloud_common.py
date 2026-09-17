@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Pieces shared by the cloud imports (AWS, GCP, Azure): naming, slot series, safety checks and a small JSON client.
 
 The GCP and Azure imports call the providers' REST APIs directly with this client, so the same code talks to a local

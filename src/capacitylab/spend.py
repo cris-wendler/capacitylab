@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Persistent model-spend ledger so a total budget holds across runs, evaluations, and the web UI."""
 
 from __future__ import annotations

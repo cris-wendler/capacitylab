@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Deterministic evaluation of decision options over the scenario horizon.
 
 Every number produced here is a MODELED outcome derived from scenario assumptions, evidence items,

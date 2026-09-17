@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Experiments executed against an isolated sandbox. Results are MEASURED locally, never in production.
 
 Any translation of a local measurement into a production effect is a separate, explicitly

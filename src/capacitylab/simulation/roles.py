@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Stakeholder roles: responsibilities, constraints, evidence access, and permitted tools."""
 
 from __future__ import annotations

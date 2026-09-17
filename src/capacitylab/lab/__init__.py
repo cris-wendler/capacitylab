@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Local lab: drive a real concurrent workload against a disposable MySQL 8.0 database and collect evidence.
 
 Lab evidence is observed on a real engine, but the workload and data are synthetic and the scale is small.

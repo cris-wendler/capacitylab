@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Run lifecycle state machine."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The run ledger: everything needed to audit, report, and replay a simulation."""
 
 from __future__ import annotations
