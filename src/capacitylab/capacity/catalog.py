@@ -22,6 +22,15 @@ CATALOG: dict[str, InstanceClass] = {
         InstanceClass("db.r6g.8xlarge", 32, 256),
         InstanceClass("db.r6g.12xlarge", 48, 384),
         InstanceClass("db.r6g.16xlarge", 64, 512),
+        InstanceClass("db.r6i.large", 2, 16),
+        InstanceClass("db.r6i.xlarge", 4, 32),
+        InstanceClass("db.r6i.2xlarge", 8, 64),
+        InstanceClass("db.r6i.4xlarge", 16, 128),
+        InstanceClass("db.r6i.8xlarge", 32, 256),
+        InstanceClass("db.r6i.12xlarge", 48, 384),
+        InstanceClass("db.r6i.16xlarge", 64, 512),
+        InstanceClass("db.r6i.24xlarge", 96, 768),
+        InstanceClass("db.r6i.32xlarge", 128, 1024),
     ]
 }
 

@@ -197,11 +197,13 @@ def test_aws_pages(client):
 def test_what_if_options_recompute_on_the_server(client):
     page = client.get("/scenarios/campaign-overlap")
     assert 'data-whatif' in page.text and 'id="options-live"' in page.text and "3.1× in EV-CAL-002" in page.text
-    assert "4<small>/6</small>" in page.text
+    assert "6<small>/8</small>" in page.text and "$304,500" in page.text and "$18,708 one-off" in page.text
+    assert "$13,549/month" in page.text and "$162,586" in page.text, "12-month view of a permanent resize"
     lower = client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "3.1"})
-    assert lower.status_code == 200 and "6<small>/6</small>" in lower.text and "<svg class=\"viz\"" in lower.text
+    assert lower.status_code == 200 and "8<small>/8</small>" in lower.text and "<svg class=\"viz\"" in lower.text
+    assert 'risk-off' in lower.text
     higher = client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "6"})
-    assert "2<small>/6</small>" in higher.text and "0 of them cost nothing" in higher.text
+    assert "4<small>/8</small>" in higher.text and "0 of them cost nothing" in higher.text and "$522,000" in higher.text
     assert client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "60"}).status_code == 400
     assert client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "lots"}).status_code == 400
     assert client.get("/scenarios/campaign-overlap/options", params={"A-FAILOVER-SECONDS": "5"}).status_code == 400

@@ -396,3 +396,18 @@ input[type=range][data-whatif]::-moz-range-thumb { width: 16px; height: 16px; bo
   .reveal { opacity: 1; transform: none; transition: none; }
   .player-progress span { transition: none; }
 }
+
+/* --- money ------------------------------------------------------------------------------------------ */
+.money { font-weight: 650; font-variant-numeric: tabular-nums; }
+.money-spend { color: #9a4a00; }
+.money-save { color: #0f6b4d; }
+.money-risk { color: var(--critical); }
+.money-safe { color: #0f6b4d; }
+.pill-cost { background: rgba(199, 91, 59, .12); color: #9a3e22; }
+.whatif-summary { flex-wrap: wrap; }
+.risk-callout { margin-left: auto; display: grid; justify-items: end; padding-left: 16px; border-left: 1px solid var(--grid); }
+.risk-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.risk-number { font: 750 26px/1.1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.risk-on .risk-number { color: var(--critical); }
+.risk-off .risk-number { color: var(--measured); }
+@media (max-width: 700px) { .risk-callout { margin-left: 0; justify-items: start; padding-left: 0; border-left: 0; } }

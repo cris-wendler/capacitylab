@@ -21,4 +21,4 @@ def test_three_approaches_scored_on_identical_evidence(campaign):
 
 def test_rule_based_downsizing(downsize):
     option, reason = rule_based_recommendation(*downsize)
-    assert option == "OPT-DOWNSIZE-2XL" and "downsize" in reason
+    assert option == "OPT-DOWNSIZE-16XL" and "downsize" in reason

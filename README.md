@@ -94,7 +94,7 @@ engineer, who has to weigh an unmeasured failover against headroom and cost, get
 run from scripted rules, which is free, offline and repeatable.
 
 <p align="center">
-  <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $16.80 that is not in the cited rate card is flagged" width="900">
+  <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $129.92 that is not in the cited rate card is flagged" width="900">
 </p>
 
 ## What you get
@@ -112,9 +112,19 @@ run from scripted rules, which is free, offline and repeatable.
 
 ## Example: a flash sale meets a batch job
 
-The `campaign-overlap` scenario: Tenant Alder runs a sale from 18:00 to 21:00 on `demo-cluster-a` (writer
-`db.r6g.2xlarge`). Other tenants peak at the same time, a release raises order-history traffic, and the loyalty
-recalculation job starts at 19:00.
+The `campaign-overlap` scenario: Tenant Alder runs a sale from 18:00 to 21:00 on `demo-cluster-a`, a shared
+production cluster with a writer and a reader on `db.r6i.16xlarge` (64 vCPU each, about $13,500 a month in instances
+against a $16,500 budget). Other tenants peak at the same time, a release raises order-history traffic, and the
+loyalty recalculation job starts at 19:00. Alder's previous sale earned $2.9 million in two hours.
+
+| On the table | |
+|---|---|
+| ![sale](https://img.shields.io/badge/sale%20revenue-%244.35M%20over%203%20h-1b9b6d?style=flat-square) | $1.45M an hour, based on the previous sale |
+| ![risk](https://img.shields.io/badge/doing%20nothing-%24304%2C500%20at%20risk-b42318?style=flat-square) | 7 sale slots where checkout or order history misses its SLO, each losing 12% of that slot's revenue |
+| ![evening](https://img.shields.io/badge/scale%20up%20tonight-%24130-c75b3b?style=flat-square) | writer and reader on `db.r6i.32xlarge` from 16:00 to 23:00, plus failovers of unknown length |
+| ![season](https://img.shields.io/badge/scale%20up%20for%20the%20season-%2418%2C708-c75b3b?style=flat-square) | the same for the 6-week peak season |
+| ![resize](https://img.shields.io/badge/resize%20permanently-%2413%2C549%2Fmonth-c75b3b?style=flat-square) | $162,586 a year, and over the monthly budget |
+| ![move](https://img.shields.io/badge/move%20the%20batch%20job-%240-127a55?style=flat-square) | keeps every SLO in the model, but runs at 95% CPU at the peak |
 
 ```mermaid
 gantt
@@ -130,7 +140,7 @@ gantt
   section Batch
     Loyalty recalculation, 90 min       :crit, batch, 19:00, 90m
   section Scale-up option
-    4xlarge window, 2 failovers          :done, scale, 16:00, 7h
+    32xlarge window, 2 failovers         :done, scale, 16:00, 7h
 ```
 
 > [!IMPORTANT]
@@ -147,7 +157,9 @@ forecast with any of them changed.
 | `A-CAMPAIGN-MULT` | 5.0× | The tenant's stated expectation for the sale; its last comparable sale peaked at 3.1× | tenant profile, event calendar |
 | `A-RELEASE-MULT` | 1.3× | Estimated effect of release 2.14 on order-history calls | release calendar |
 | `A-CPU-ROWS-EXPONENT` | 0.8 | Turns work saved in a local experiment into production CPU; never measured | nothing measured |
-| `A-PROD-ORDERS-ROWS` | 7,200,000 rows | Production size of `orders`, used to extrapolate index size | table statistics |
+| `A-PROD-ORDERS-ROWS` | 57,600,000 rows | Production size of `orders`, used to extrapolate index size | table statistics |
+| `A-SALE-REVENUE-PER-HOUR` | $1,450,000 | Revenue per hour of the sale; based on the previous sale, not scaled with traffic | event calendar |
+| `A-CHECKOUT-LOSS-SHARE` | 12% | Share of a slot's sale revenue lost while checkout or order history misses its SLO; never measured for this tenant | tenant profile |
 | `A-FAILOVER-SECONDS` | unknown | Writer failover time during an instance change; never measured on this cluster | nothing measured |
 | `A-BUFFER-POOL-FRACTION` | 0.75 | Buffer pool share of instance memory in `downsize-reader`; common default, parameter group not checked | nothing measured |
 
@@ -157,13 +169,13 @@ On a shared cluster, a sale is not only a capacity question; it is a question of
 is. Each tenant's plan is evidence (tier, contract value, the CPU share it guarantees; synthetic here), and CapacityLab
 compares it with the CPU share each tenant's workload takes, modeled from calls per second and CPU per call:
 
-| Tenant | Plan | Guaranteed | Normal evening | During Alder's sale (5×) |
-|---|---|---:|---:|---:|
-| Alder | premium | 35% | 42.5% | ![over](https://img.shields.io/badge/-78.7%25%20over-b42318?style=flat-square) |
-| Birch | standard | 20% | 23.0% | ![squeezed](https://img.shields.io/badge/-8.5%25%20squeezed-9a6700?style=flat-square) |
-| Cedar | standard | 20% | 16.4% | ![squeezed](https://img.shields.io/badge/-6.1%25%20squeezed-9a6700?style=flat-square) |
-| Dune | standard | 15% | 11.1% | ![squeezed](https://img.shields.io/badge/-4.1%25%20squeezed-9a6700?style=flat-square) |
-| Elm | basic | 10% | 7.0% | ![squeezed](https://img.shields.io/badge/-2.6%25%20squeezed-9a6700?style=flat-square) |
+| Tenant | Plan | Contract | Guaranteed | Normal evening | During Alder's sale (5×) |
+|---|---|---:|---:|---:|---:|
+| Alder | premium | $185,000/month | 35% | 42.5% | ![over](https://img.shields.io/badge/-78.7%25%20over-b42318?style=flat-square) |
+| Birch | standard | $72,000/month | 20% | 23.0% | ![squeezed](https://img.shields.io/badge/-8.5%25%20squeezed-9a6700?style=flat-square) |
+| Cedar | standard | $61,000/month | 20% | 16.4% | ![squeezed](https://img.shields.io/badge/-6.1%25%20squeezed-9a6700?style=flat-square) |
+| Dune | standard | $44,000/month | 15% | 11.1% | ![squeezed](https://img.shields.io/badge/-4.1%25%20squeezed-9a6700?style=flat-square) |
+| Elm | basic | $16,000/month | 10% | 7.0% | ![squeezed](https://img.shields.io/badge/-2.6%25%20squeezed-9a6700?style=flat-square) |
 
 *Over* means more than 125% of the guaranteed share; *squeezed* means less than 60% of it.
 
@@ -181,32 +193,38 @@ The review is available to the application owner, reliability engineer and cost 
 
 From the scripted run, with the index effect measured in the SQLite experiment database:
 
-| Option | Peak CPU | Slots over 80% | SLO breach slots | One-off cost |
-|---|---:|---:|---:|---|
-| Keep capacity | 115.0% | 12 | ![16](https://img.shields.io/badge/-16-b42318?style=flat-square) | $0 |
-| Scale to 4xlarge, 16:00–23:00 | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $16.80, plus 2 writer failovers of unknown length |
-| Add the index | 97.7% | 8 | ![6](https://img.shields.io/badge/-6-b42318?style=flat-square) | $0 |
-| Move the batch job to 01:00 | 95.0% | 11 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 |
-| Index and move the batch job | 77.7% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0.01/month storage |
-| Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $16.80, plus failovers |
+| Option | Peak CPU | Slots over 80% | SLO breach slots | One-off | Monthly | Revenue at risk |
+|---|---:|---:|---:|---:|---:|---:|
+| Keep capacity | 115.0% | 12 | ![14](https://img.shields.io/badge/-14-b42318?style=flat-square) | $0 | $0 | **$304,500** |
+| Scale to 32xlarge, 16:00–23:00 | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $130 | $0 | $0 |
+| Scale to 32xlarge for the 6-week season | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $18,708 | $0 | $0 |
+| Resize to 32xlarge permanently | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $13,549 | $0 |
+| Add the index | 97.7% | 8 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
+| Move the batch job to 01:00 | 95.0% | 11 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0 | $0 |
+| Index and move the batch job | 77.7% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
+| Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $130 | $0 | $0 |
+
+Every scale option also carries writer failovers of unknown length. The scripted FinOps agent reads this table on a
+12-month view, which is why a $130 evening beats a $13,549-a-month resize even though both keep every SLO.
 
 Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
 the evidence bundle, and a scenario without one fails validation. An AWS import with prices replaces the instance
 rates for that review (see [Straight from AWS](#straight-from-aws)). The numbers shipped here are illustrative and
-labelled as an assumption, so replacing that one evidence item with your provider's rates re-prices every option.
+labelled as an assumption: on-demand rates at production scale ($0.145 per vCPU-hour) without reserved-instance or
+savings-plan discounts. Replacing that one evidence item with your provider's rates re-prices every option.
 
-![Each option's modeled utilization over the evening, at the end of the Sonnet run](docs/media/run-options.png)
+![Each option's modeled utilization over the evening, with cost and revenue at risk, at the end of the LLM run](docs/media/run-options.png)
 
 On the scenario page, drag the traffic assumption and every option is re-modeled on the spot. At the 3.1× the tenant
-actually reached last time, all six options keep every SLO; at the 5× planning value, four do; at 6×, only the two
-scale-up options still do:
+actually reached last time, all eight options keep every SLO and doing nothing risks $0; at the 5× planning value, six
+keep every SLO and doing nothing risks $304,500; at 6×, only the four scale-up options do, and doing nothing risks
+$522,000:
 
-![What-if slider set to 3.1x: all six options keep every SLO, and which of them cost nothing or stay under 80% CPU](docs/media/scenario-whatif.png)
+![What-if slider set to 3.1x: all eight options keep every SLO, doing nothing risks $0, and which options cost nothing](docs/media/scenario-whatif.png)
 
-The chart above comes from the three-round LLM review, not the scripted run. Its index options show no
-benefit because that run's database engineer measured a different index (`tenant_id, customer_id, created_day`, 16.7%
-less work) from the one those options propose; with no measurement for the proposed index, the model credits it with
-nothing. The table above comes from the scripted run, which measured the proposed index.
+The chart above comes from the two-round LLM review, not the scripted run. Its index options show no benefit because
+no agent in that run asked for an index experiment, and the model credits an index with nothing until one is measured.
+The table above comes from the scripted run, which measured the proposed index.
 
 ### What the lab measured
 
@@ -309,7 +327,7 @@ The LLM runs are [further down](#runs-with-a-real-model).
 flowchart LR
   R1["<b>Round 1</b><br/>everyone undecided<br/>11 checks run"] --> R2["<b>Round 2</b><br/>positions form<br/>rewrites: 1 safe, 3 unsafe"]
   R2 --> R3["<b>Rounds 3–4</b><br/>reliability challenges cost<br/>cost analyst changes position"]
-  R3 --> O["<b>Outcome</b><br/>3 to 2<br/>left open"]
+  R3 --> O["<b>Outcome</b><br/>4 to 1<br/>left open"]
   classDef start fill:#f1f0ec,stroke:#898781,color:#0b0b0b
   classDef round fill:#efedfa,stroke:#4a3aa7,color:#0b0b0b
   classDef dispute fill:#fff4dc,stroke:#eda100,color:#0b0b0b
@@ -329,9 +347,10 @@ flowchart LR
   position. The database engineer and the reliability engineer both cite the lab, including the checkout regression
   the index showed in that single-pass run. Three later passes put that regression inside the run-to-run noise, which
   is exactly the trap `--repeats` exists to catch.
-- ![Outcome](https://img.shields.io/badge/-Outcome-127a55?style=flat-square) Database engineer, application owner, and cost analyst: index and move the batch job. Reliability
-  engineer and tenant representative: scale up and move the batch job, for more headroom while the index benefit is
-  unproven. Still missing: failover duration, a production-like test of the index, and whether the audience query can
+- ![Outcome](https://img.shields.io/badge/-Outcome-127a55?style=flat-square) Database engineer, application owner, cost analyst and tenant representative: index and move the batch
+  job, at $0.08 a month. Reliability engineer: scale up and move the batch job ($130 plus failovers), for more headroom
+  while the index benefit is unproven. The cost analyst also puts doing nothing at $304,500 of sale revenue at risk.
+  Still missing: failover duration, a production-like test of the index, and whether the audience query can
   run on the reader.
 
 ![Where each agent landed in the LLM run: all five on moving the batch job, and what nobody has measured](docs/media/run-positions.png)
@@ -339,10 +358,10 @@ flowchart LR
 Step through the rounds, or press play, to watch each agent's position change and see the checks that ran between
 rounds:
 
-![Round 2 of the LLM run in the round-by-round player: the database engineer has changed position, with challenges and requested checks](docs/media/run-player.png)
+![Round 2 of the LLM run in the round-by-round player: three agents decide, with their challenges, requested checks and the checks that ran](docs/media/run-player.png)
 
-*Screenshots of runs are from the three-round LLM review described [below](#runs-with-a-real-model),
-where every role converged; the rounds above describe the scripted run, which split 3–2.*
+*Screenshots of runs are from the two-round LLM review described [below](#runs-with-a-real-model),
+where every role converged; the rounds above describe the scripted run, which split 4–1.*
 
 > [!NOTE]
 > The scripted roles cite the lab numbers, but their choice rules do not weigh them against the capacity model. A
@@ -356,9 +375,11 @@ Every proposed index or rewrite must include evidence, why it should help and ho
 
 ![A database change proposed in the Sonnet run, with evidence, tradeoffs, validation, and rollback](docs/media/run-proposal.png)
 
-`downsize-reader` covers the opposite question. CPU would allow a smaller reader, but its working set (71 GiB) is
-larger than the smaller instance's modeled buffer pool, and the reader is the failover target. Four roles keep the
-reader; the cost analyst holds out for a smaller one.
+`downsize-reader` covers the opposite question. The cluster runs a writer and a reader on `db.r6i.32xlarge` (128 vCPU,
+about $27,100 a month against a $25,000 budget), and the reader peaks at 18.7% CPU. Downsizing it to `16xlarge` saves
+$6,774 a month ($81,293 a year); to `8xlarge`, $10,162 a month ($121,939 a year). CPU would allow either, but the
+working set (568 GiB) is larger than the smaller instance's modeled buffer pool, and the reader is the failover
+target. Four agents keep the reader; the cost analyst holds out for the $81,293 a year.
 
 </details>
 
@@ -490,7 +511,7 @@ capacitylab run campaign-overlap \
 capacitylab spend
 ```
 
-About $1–2 for three rounds; the run stops at your limit.
+About $2.40 for two rounds with Sonnet on this scenario; the run stops at your limit.
 
 </td>
 <td valign="top">
@@ -785,34 +806,41 @@ earlier rounds.
 
 Rough cost of a full review, using the live run's average turn length and the prices in `.env.example`:
 
-| Rounds | Model | Estimated cost |
-|---:|---|---:|
-| 2 | Sonnet | $0.74 |
-| 2 | Opus | $1.24 |
-| 3 | Sonnet | $1.09 |
-| 3 | Opus | $1.81 |
+| Review of `campaign-overlap` with the lab file | Cost |
+|---|---:|
+| 2 rounds with Sonnet, production-scale numbers (measured, 2026-09-17) | $2.40 |
+| 3 rounds with Sonnet, production-scale numbers (estimated from that run) | about $4 |
+| 3 rounds with Sonnet, before the production-scale numbers (measured, 2026-09-16) | $2.28 |
 
-Output is more than half of it, so the rest depends on how long the turns are, not on how much evidence is attached.
+Output is more than half of it, so cost depends on how long the turns are, not on how much evidence is attached. The
+production-scale scenario has more options and more money to argue about, and its turns run longer.
 
 ### Runs with a real model
 
-Two runs so far on `campaign-overlap` with the lab file attached:
+Four runs so far on `campaign-overlap` with the lab file attached. The last two use the production-scale numbers
+(clusters, options, revenue at risk); the screenshots come from the last one.
 
-| | Opus, 2026-09-15 | Sonnet, 2026-09-16 |
-|---|---|---|
-| **Outcome** | ![stopped](https://img.shields.io/badge/-stopped%20by%20the%20%242.00%20limit-9a6700?style=flat-square) 9 of 15 turns | ![complete](https://img.shields.io/badge/-3%20rounds%20complete-127a55?style=flat-square) 15 turns |
-| **Cost** | $1.94 | $2.28 |
-| **Outcome of the review** | 3–2 split: index and move the batch job, against scale up and move it | all five roles: move the batch job |
-| **Violations caught** | 8 (plus 3 checker mistakes, since fixed) | 4, all in round 1 |
+| | Opus, 09-15 | Sonnet, 09-16 | Sonnet, 09-17 | Sonnet, 09-17 |
+|---|---|---|---|---|
+| **Numbers** | small cluster | small cluster | production scale | production scale |
+| **Run** | ![stopped by the $2.00 limit](https://img.shields.io/badge/-stopped%20by%20the%20%242.00%20limit-9a6700?style=flat-square) 9 of 15 turns | ![3 rounds complete](https://img.shields.io/badge/-3%20rounds%20complete-127a55?style=flat-square) 15 turns | ![stopped by the $2.50 limit](https://img.shields.io/badge/-stopped%20by%20the%20%242.50%20limit-9a6700?style=flat-square) 9 of 15 turns | ![2 rounds complete](https://img.shields.io/badge/-2%20rounds%20complete-127a55?style=flat-square) 10 turns |
+| **Cost** | $1.94 | $2.28 | $2.37 | $2.40 |
+| **Outcome of the review** | 3–2 split: index and move the batch job, against scale up and move it | all five: move the batch job | four chose, all but one on moving the batch job; the tenant representative never got a round-2 turn | all five: move the batch job |
+| **Violations caught** | 8 (plus 3 checker mistakes, since fixed) | 4, all in round 1 | 10 | 6, all in round 2 |
 
-- **The two models disagreed about the answer.** Opus split 3–2, as the scripted roles do. Sonnet converged: after the
-  forecasts arrived, its database engineer moved to "index and move the batch job" in round 2, then back to "move the
-  batch job" in round 3, and the others followed. Unanimity is not agreement about truth; both runs used the same
-  evidence. Both also predate the three-pass lab run, which supports an audience-query benefit from the index but
-  cannot resolve what it does to checkout writes.
-- **What the checks caught in the Sonnet run:** two numbers quoted from the scenario summary instead of from cited
-  evidence, one proposal marked as measured without citing an experiment, and one role citing a gap id as if it were
-  evidence. The prompt now addresses the last two directly.
+- **The models disagreed about the answer.** Opus split 3–2. Sonnet converged twice on moving the batch job: in the
+  earlier run its database engineer went to "index and move the batch job" in round 2 and back in round 3; in the
+  production-scale run it chose the move in round 1 and the application owner, FinOps analyst and tenant representative
+  decided in round 2. Unanimity is not agreement about truth. None of these runs requested an index experiment, so the
+  index options show no benefit in their forecasts.
+- **Money changed the conversation.** In the production-scale run the agents quote the $304,500 of sale revenue at risk
+  if nothing changes, the $18,708 season scale-up and the $13,549-a-month resize against a $16,500 monthly budget, and
+  settle on the $0 option that keeps every SLO in the model.
+- **What the checks caught in the production-scale run:** the FinOps analyst quoted the $16,500 budget while citing
+  the cost estimate instead of the budget evidence, and worked out a -$18,408.48 headroom itself instead of quoting it;
+  the reliability engineer quoted 95% and 5× without citing where they came from. In the stopped run two agents cited
+  assumption names as if they were evidence; the prompt now says they are not, and the next run had no invalid
+  citations.
 - **One turn hit the output limit** and was retried with a request for a shorter turn, which saved the run. Both
   attempts were charged.
 - **Round 1 costs almost nothing in input** because the whole pack is written to the cache; rounds 2 and 3 re-send
@@ -828,12 +856,12 @@ assumptions no role saw (for example the real multiplier, 4.2×).
 
 | Scenario | Approach | Recommendation | Extra breach slots | Extra cost | Root cause found | Known gaps raised |
 |---|---|---|---:|---:|:---:|---:|
-| campaign-overlap | five-role review | index and move batch job *(3 of 5)* | 0 | $0.00 | yes | 100% |
+| campaign-overlap | five-role review | index and move batch job *(4 of 5)* | 0 | $0.00 | yes | 100% |
 | campaign-overlap | single reviewer | index and move batch job | 0 | $0.00 | yes | 100% |
-| campaign-overlap | simple rules | scale up | 0 | $16.79 | **no** | **0%** |
+| campaign-overlap | simple rules | scale up for the evening | 0 | $129.84 | **no** | **0%** |
 | downsize-reader | five-role review | keep *(4 of 5)* | 0 | $0.00 | n/a | 100% |
 | downsize-reader | single reviewer | keep | 0 | $0.00 | n/a | 100% |
-| downsize-reader | simple rules | downsize to 2xlarge | 0 | −$876.00 | n/a | **0%** |
+| downsize-reader | simple rules | downsize to 16xlarge | 0 | −$6,774.40/month | n/a | **0%** |
 
 ![Comparison page](docs/media/evaluation.png)
 
@@ -899,7 +927,7 @@ src/capacitylab/
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             155 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+tests/             156 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data
@@ -917,7 +945,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Importers, AWS import against Floci, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
+| Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%20production--scale%2C%202%20rounds-127a55?style=flat-square) |
 | CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**

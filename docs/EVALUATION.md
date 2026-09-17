@@ -43,12 +43,12 @@ output is the set of positions, not a vote. A tie is reported and broken alphabe
 
 | Scenario | Approach | Recommendation | Breach regret | Cost regret | Root cause | Gap recall | Citation errors | Ungrounded | Disagreements |
 |---|---|---|---|---|---|---|---|---|---|
-| campaign-overlap | five-role review | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 8 |
+| campaign-overlap | five-role review | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 7 |
 | campaign-overlap | single reviewer | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 0 |
-| campaign-overlap | rule-based | OPT-SCALE-TEMP | 0 | 16.79 | no | 0.0 | 0 | 0 | 0 |
+| campaign-overlap | rule-based | OPT-SCALE-TEMP | 0 | 129.84 | no | 0.0 | 0 | 0 | 0 |
 | downsize-reader | five-role review | OPT-KEEP | 0 | 0.00 | n/a | 1.0 | 0 | 0 | 6 |
 | downsize-reader | single reviewer | OPT-KEEP | 0 | 0.00 | n/a | 1.0 | 0 | 0 | 0 |
-| downsize-reader | rule-based | OPT-DOWNSIZE-2XL | 0 | −876.00 | n/a | 0.0 | 0 | 0 | 0 |
+| downsize-reader | rule-based | OPT-DOWNSIZE-16XL | 0 | −6,774.40 | n/a | 0.0 | 0 | 0 | 0 |
 
 ### What these results do and do not show
 

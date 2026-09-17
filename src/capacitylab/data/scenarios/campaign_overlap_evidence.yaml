@@ -10,8 +10,8 @@ items:
     data:
       cluster_id: demo-cluster-a
       engine: "MySQL 8.0-compatible (Aurora MySQL assumed)"
-      writer: {instance_class: db.r6g.2xlarge, vcpu: 8, memory_gib: 64}
-      readers: [{instance_class: db.r6g.2xlarge, vcpu: 8, memory_gib: 64, promotion_tier: 1}]
+      writer: {instance_class: db.r6i.16xlarge, vcpu: 64, memory_gib: 512}
+      readers: [{instance_class: db.r6i.16xlarge, vcpu: 64, memory_gib: 512, promotion_tier: 1}]
       tenants: [alder, birch, cedar, dune, elm]
       isolation_model: shared_schema_tenant_column
       reader_receives_application_reads: false
@@ -42,12 +42,12 @@ items:
     cluster_id: demo-cluster-a
     data:
       CPUUtilization: {p95_of_5min_averages_pct: 55, max_1min_pct: 76}
-      FreeableMemoryGiB: {min: 9.1, mean: 9.6}
+      FreeableMemoryGiB: {min: 72.8, mean: 76.8}
       BufferPoolHitRatioPct: {min: 99.5}
-      ReadIOPS: {p95: 2100, max: 2600}
-      DatabaseConnections: {max: 410, configured_max_connections: 2000}
-      RowLockWaitsPerSecond: {during_batch: 38, outside_batch: 0.4}
-      TmpDiskTablesPerSecond: {mean: 0.3}
+      ReadIOPS: {p95: 16800, max: 20800}
+      DatabaseConnections: {max: 3280, configured_max_connections: 16000}
+      RowLockWaitsPerSecond: {during_batch: 304, outside_batch: 3.2}
+      TmpDiskTablesPerSecond: {mean: 2.4}
       ReplicaLagMs: {max: 24}
     caveats:
       - "The p95 of 5-minute averages (55%) hides 1-minute peaks (76%)."
@@ -65,21 +65,21 @@ items:
         - fingerprint_id: QF-AUDIENCE
           label: Campaign audience selection
           normalized: "select c.customer_id from customers c where c.tenant_id = ? and c.marketing_opt_in = ? and c.customer_id in (select o.customer_id from orders o where o.tenant_id = ? and o.created_day >= ?) and c.customer_id not in (select s.customer_id from suppressions s where s.tenant_id = ?)"
-          calls_per_s: 0.43
+          calls_per_s: 3.44
           avg_latency_ms: 1210
           p95_latency_ms: 2900
           avg_cpu_ms: 950
           avg_rows_examined: 2400000
           avg_rows_sent: 3100
           avg_lock_wait_ms: 0.2
-          tmp_disk_tables_per_s: 0.3
+          tmp_disk_tables_per_s: 2.4
           share_of_cpu_pct: 15.7
           share_of_rows_examined_pct: 96.2
           by_tenant: {alder: {share_of_calls_pct: 93}, birch: {share_of_calls_pct: 7}}
         - fingerprint_id: QF-ORDER-HISTORY
           label: Storefront order history lookup
           normalized: "select order_id, order_state, total_cents, created_day from orders where tenant_id = ? and customer_id = ? order by created_day desc limit ?"
-          calls_per_s: 180
+          calls_per_s: 1440
           avg_latency_ms: 11.2
           p95_latency_ms: 38
           avg_cpu_ms: 4.0
@@ -92,7 +92,7 @@ items:
         - fingerprint_id: QF-CHECKOUT-WRITE
           label: Checkout order insert and loyalty point update
           normalized: "insert into orders (?+) values (?+); update customers set loyalty_points = loyalty_points + ? where tenant_id = ? and customer_id = ?"
-          calls_per_s: 40
+          calls_per_s: 320
           avg_latency_ms: 31
           p95_latency_ms: 190
           avg_cpu_ms: 9.0
@@ -104,7 +104,7 @@ items:
           by_tenant: {alder: {share_of_calls_pct: 35}, birch: {share_of_calls_pct: 25}, cedar: {share_of_calls_pct: 20}, dune: {share_of_calls_pct: 12.5}, elm: {share_of_calls_pct: 7.5}}
         - fingerprint_id: QF-OTHER
           label: All other statements (aggregated)
-          calls_per_s: 930
+          calls_per_s: 7440
           avg_latency_ms: 3.1
           avg_cpu_ms: 1.2
           avg_rows_examined: 40
@@ -114,7 +114,7 @@ items:
           label: Loyalty recalculation batch (per-tenant UPDATE ... SELECT SUM)
           calls_per_s: 0.02
           avg_latency_ms: 81000
-          cpu_cores_while_running: 1.6
+          cpu_cores_while_running: 12.8
           avg_rows_examined: 24000000
           holds_row_locks_on: customers
     caveats: ["CPU shares exclude the batch job, which is reported as cores while running."]
@@ -156,12 +156,12 @@ items:
     cluster_id: demo-cluster-a
     data:
       tables:
-        - {table: audit_events, rows: 410000000, data_gib: 212, index_gib: 9, growth_pct_per_week: 2.9, accessed_by: {QF-OTHER: "insert and primary-key lookup only"}}
-        - {table: orders, rows: 7200000, data_gib: 3.1, index_gib: 1.4, growth_pct_per_week: 1.8, accessed_by: {QF-AUDIENCE: "tenant prefix scan, rows examined grow with the tenant's order count", QF-ORDER-HISTORY: "bounded index lookup", QF-CHECKOUT-WRITE: "insert"}}
-        - {table: customers, rows: 3400000, data_gib: 1.2, index_gib: 0.2, growth_pct_per_week: 0.6, accessed_by: {QF-AUDIENCE: "primary key lookup", QF-CHECKOUT-WRITE: "primary key update"}}
-        - {table: suppressions, rows: 170000, data_gib: 0.02, index_gib: 0.01, growth_pct_per_week: 0.2, accessed_by: {QF-AUDIENCE: "tenant index lookup"}}
+        - {table: audit_events, rows: 3280000000, data_gib: 1696, index_gib: 72, growth_pct_per_week: 2.9, accessed_by: {QF-OTHER: "insert and primary-key lookup only"}}
+        - {table: orders, rows: 57600000, data_gib: 24.8, index_gib: 11.2, growth_pct_per_week: 1.8, accessed_by: {QF-AUDIENCE: "tenant prefix scan, rows examined grow with the tenant's order count", QF-ORDER-HISTORY: "bounded index lookup", QF-CHECKOUT-WRITE: "insert"}}
+        - {table: customers, rows: 27200000, data_gib: 9.6, index_gib: 1.6, growth_pct_per_week: 0.6, accessed_by: {QF-AUDIENCE: "primary key lookup", QF-CHECKOUT-WRITE: "primary key update"}}
+        - {table: suppressions, rows: 1360000, data_gib: 0.16, index_gib: 0.08, growth_pct_per_week: 0.2, accessed_by: {QF-AUDIENCE: "tenant index lookup"}}
     assertions:
-      - {key: tables.orders.rows, value: 7200000, unit: rows, tolerance: 0.05}
+      - {key: tables.orders.rows, value: 57600000, unit: rows, tolerance: 0.05}
 
   - id: EV-CAL-001
     kind: event_calendar
@@ -184,6 +184,7 @@ items:
       date: "2026-08-20"
       observed_peak_multiplier_on_campaign_statements: 3.1
       duration_hours: 2
+      sale_revenue_usd: 2900000
     assertions:
       - {key: campaign.alder.traffic_multiplier, value: 3.1, unit: x, tolerance: 0.15}
 
@@ -200,6 +201,7 @@ items:
       reason: "Sale time was announced to customers two weeks earlier."
       most_sensitive_journeys: [checkout, order history]
       tolerance_for_brief_errors: low
+      checkout_sensitivity: "Carts abandoned during slow checkout are mostly not recovered after the sale."
       flash_sales_per_quarter: 3
     assertions:
       - {key: campaign.alder.traffic_multiplier, value: 5.0, unit: x, tolerance: 0.15}
@@ -239,7 +241,7 @@ items:
       job: loyalty-recalculation
       start: "19:00"
       typical_duration_minutes: 90
-      cpu_cores_while_running: 1.6
+      cpu_cores_while_running: 12.8
       must_finish_before_next_day: "06:00"
       downstream_dependency: "partner loyalty export at 06:00"
       locks: "row locks on customers during per-tenant UPDATE"
@@ -290,10 +292,10 @@ items:
     source: fixture:rate_card
     data:
       currency: USD
-      instance_hourly: {db.r6g.large: 0.30, db.r6g.xlarge: 0.60, db.r6g.2xlarge: 1.20, db.r6g.4xlarge: 2.40, db.r6g.8xlarge: 4.80, db.r6g.12xlarge: 7.20, db.r6g.16xlarge: 9.60}
+      instance_hourly: {db.r6i.large: 0.29, db.r6i.xlarge: 0.58, db.r6i.2xlarge: 1.16, db.r6i.4xlarge: 2.32, db.r6i.8xlarge: 4.64, db.r6i.12xlarge: 6.96, db.r6i.16xlarge: 9.28, db.r6i.24xlarge: 13.92, db.r6i.32xlarge: 18.56}
       storage_gib_month: 0.10
       hours_per_month: 730
-      source_note: "Illustrative synthetic rates for the demo. Not provider pricing; replace with your own rate card."
+      source_note: "Illustrative on-demand rates per instance-hour at production scale, without reserved-instance or savings-plan discounts. Not a provider quote; replace with your own rate card or import prices from AWS."
 
   - id: EV-BUD-001
     kind: budget
@@ -302,10 +304,10 @@ items:
     source: fixture:finance
     cluster_id: demo-cluster-a
     data:
-      monthly_budget_usd: 2600
-      month_to_date_usd: 1210
-      forecast_month_usd: 2310
-      current_monthly_instance_cost_usd: 1752
+      monthly_budget_usd: 16500
+      month_to_date_usd: 7980
+      forecast_month_usd: 16200
+      current_monthly_instance_cost_usd: 13548.8
 
   - id: EV-ENT-001
     kind: tenant_entitlements
@@ -317,8 +319,8 @@ items:
       basis: Share of cluster CPU each plan guarantees when tenants compete for it.
       source_note: "Synthetic plan values for the demo. Replace with your own plans and contract terms."
       by_tenant:
-        alder: {tier: premium, monthly_contract_usd: 4200, entitled_cpu_share_pct: 35}
-        birch: {tier: standard, monthly_contract_usd: 1800, entitled_cpu_share_pct: 20}
-        cedar: {tier: standard, monthly_contract_usd: 1500, entitled_cpu_share_pct: 20}
-        dune: {tier: standard, monthly_contract_usd: 1100, entitled_cpu_share_pct: 15}
-        elm: {tier: basic, monthly_contract_usd: 400, entitled_cpu_share_pct: 10}
+        alder: {tier: premium, monthly_contract_usd: 185000, entitled_cpu_share_pct: 35}
+        birch: {tier: standard, monthly_contract_usd: 72000, entitled_cpu_share_pct: 20}
+        cedar: {tier: standard, monthly_contract_usd: 61000, entitled_cpu_share_pct: 20}
+        dune: {tier: standard, monthly_contract_usd: 44000, entitled_cpu_share_pct: 15}
+        elm: {tier: basic, monthly_contract_usd: 16000, entitled_cpu_share_pct: 10}

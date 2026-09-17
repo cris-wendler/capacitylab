@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 270" width="900" height="270" role="img" aria-labelledby="t d">
   <title id="t">Checks on every agent turn</title>
-  <desc id="d">An illustrative FinOps analyst turn from an LLM agent goes through four checks. Citations exist and are visible to the role, requested checks are allowed, and spend is within limits. One claim quotes $16.80, which is not in the rate card it cites, so it is flagged in the decision record.</desc>
+  <desc id="d">An illustrative FinOps analyst turn from an LLM agent goes through four checks. Citations exist and are visible to the role, requested checks are allowed, and spend is within limits. One claim quotes $129.92, which is not in the rate card it cites, so it is flagged in the decision record.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#101a33"/>
@@ -41,7 +41,7 @@
 
   <rect x="34" y="166" width="390" height="44" rx="8" fill="#e5484d" fill-opacity="0.16" stroke="#ff8a8f" stroke-opacity="0.8" class="hit d2"/>
   <text x="40" y="182" class="k">CLAIM</text>
-  <text x="40" y="200" class="v">Scaling up costs $16.80 for the evening</text>
+  <text x="40" y="200" class="v">Scaling up costs $129.92 for the evening</text>
   <text x="416" y="200" class="id" text-anchor="end">EV-RATE-001</text>
 
   <text x="40" y="232" class="k">ASKS FOR</text>
@@ -61,7 +61,7 @@
     <circle cx="13" cy="13" r="13" fill="#ffffff" fill-opacity="0.08"/>
     <g class="hit d2"><circle cx="13" cy="13" r="13" fill="#e5484d"/><path class="mark" d="M8.5 8.5 L17.5 17.5 M17.5 8.5 L8.5 17.5"/></g>
     <text x="38" y="12" class="row">Every number appears in the evidence it cites</text>
-    <text x="38" y="28" class="note">16.80 is not in EV-RATE-001: flagged in the record</text>
+    <text x="38" y="28" class="note">129.92 is not in EV-RATE-001: flagged in the record</text>
   </g>
   <g transform="translate(460 180)">
     <circle cx="13" cy="13" r="13" fill="#ffffff" fill-opacity="0.08"/>

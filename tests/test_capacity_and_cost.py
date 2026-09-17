@@ -53,7 +53,12 @@ def test_campaign_options_are_deterministic_and_ordered(campaign):
     outcomes = {o.option_id: o for o in evaluate_all(ctx)}
     assert outcomes["OPT-KEEP"].total_slo_breach_slots > 0 and outcomes["OPT-KEEP"].saturated_slots > 0
     scale = outcomes["OPT-SCALE-TEMP"]
-    assert scale.total_slo_breach_slots == 0 and scale.cost_delta_event_usd == 16.8  # (2.40 - 1.20) * 7 h * 2 nodes
+    assert scale.total_slo_breach_slots == 0 and scale.cost_delta_event_usd == 129.92  # (18.56 - 9.28) * 7 h * 2 nodes
+    season, resize = outcomes["OPT-SCALE-SEASON"], outcomes["OPT-RESIZE-UP"]
+    assert season.cost_delta_event_usd == 18708.48 and season.cost_delta_month_usd == 0  # 9.28 * 24 h * 42 days * 2
+    assert resize.cost_delta_month_usd == 13548.8 and resize.cost_delta_event_usd == 0  # 9.28 * 730 h * 2 nodes
+    assert season.total_slo_breach_slots == resize.total_slo_breach_slots == 0
+    assert any("failover" in u for u in season.unknowns) and any("failover" in u for u in resize.unknowns)
     assert any("failover" in u for u in scale.unknowns)
     assert outcomes["OPT-RESCHEDULE"].batch_deadline_ok is True
     assert outcomes["OPT-RESCHEDULE"].slo["SLO-CHECKOUT"].worst_p95_ms < 250
@@ -86,10 +91,11 @@ def test_assumption_overrides_change_forecast(campaign):
 def test_downsizing_flags_working_set_and_failover_target(downsize):
     scenario, bundle = downsize
     outcomes = {o.option_id: o for o in evaluate_all(build_context(scenario, bundle))}
-    two = outcomes["OPT-DOWNSIZE-2XL"]
-    assert two.cost_delta_month_usd == -876.0
+    two = outcomes["OPT-DOWNSIZE-16XL"]
+    assert two.cost_delta_month_usd == -6774.4  # (9.28 - 18.56) * 730 h
+    assert two.revenue_at_risk_usd is None, "no event with revenue on the line in this scenario"
     assert any("Working set" in u for u in two.unknowns) and any("failover target" in u for u in two.unknowns)
-    assert outcomes["OPT-DOWNSIZE-XL"].peak_utilization_pct > outcomes["OPT-DOWNSIZE-2XL"].peak_utilization_pct
+    assert outcomes["OPT-DOWNSIZE-8XL"].peak_utilization_pct > outcomes["OPT-DOWNSIZE-16XL"].peak_utilization_pct
 
 
 def test_cyclic_combined_option_is_rejected(campaign):
@@ -98,3 +104,17 @@ def test_cyclic_combined_option_is_rejected(campaign):
     broken.options.append(OptionSpec(id="OPT-LOOP", kind="combined", label="loop", params={"components": ["OPT-LOOP"]}))
     with pytest.raises(ValueError, match="cyclically"):
         evaluate_option(build_context(broken, bundle), "OPT-LOOP")
+
+
+def test_revenue_at_risk_counts_breached_slots_inside_the_sale(campaign):
+    scenario, bundle = campaign
+    outcomes = {o.option_id: o for o in evaluate_all(build_context(scenario, bundle))}
+    keep = outcomes["OPT-KEEP"]
+    # each breached 15-minute sale slot loses 12% of $1.45M/h: 0.25 h * 1,450,000 * 0.12 = $43,500
+    assert keep.revenue_at_risk_slots > 0 and keep.revenue_at_risk_usd == keep.revenue_at_risk_slots * 43500
+    assert outcomes["OPT-RESCHEDULE"].revenue_at_risk_usd == 0.0
+    lower = evaluate_option(build_context(scenario, bundle, {"A-CAMPAIGN-MULT": 3.1}), "OPT-KEEP")
+    higher = evaluate_option(build_context(scenario, bundle, {"A-CAMPAIGN-MULT": 6.0}), "OPT-KEEP")
+    assert lower.revenue_at_risk_usd < keep.revenue_at_risk_usd < higher.revenue_at_risk_usd
+    unset = build_context(scenario, bundle, {"A-CHECKOUT-LOSS-SHARE": ""})
+    assert evaluate_option(unset, "OPT-KEEP").revenue_at_risk_usd is None, "no figure without both assumptions"

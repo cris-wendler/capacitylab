@@ -32,6 +32,17 @@ from capacitylab.spend import SpendLedger
 from capacitylab.web.charts import event_bands, shared_y_max, utilization_panel
 
 HERE = Path(__file__).parent
+
+
+def usd(value) -> str:
+    """$129.92 below a thousand, $18,708 above it; negative amounts are savings and keep their sign."""
+    if value is None:
+        return "not modeled"
+    sign = "-" if value < 0 else ""
+    amount = abs(float(value))
+    if amount == 0:
+        return "$0"
+    return f"{sign}${amount:,.0f}" if amount >= 1000 else f"{sign}${amount:,.2f}"
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LAB_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+\.yaml$")
 AWS_DIR = "imports"
@@ -81,6 +92,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     )
     role_names = {r.value: d.title for r, d in ROLES.items()}
     templates.env.filters["role"] = lambda role: role_names.get(role, str(role).replace("_", " "))
+    templates.env.filters["usd"] = usd
     jobs: dict[str, Job] = {}
     evaluations: dict[str, object] = {}
 

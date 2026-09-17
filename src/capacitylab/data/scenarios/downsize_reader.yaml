@@ -13,10 +13,10 @@ horizon:
 cluster:
   id: demo-cluster-b
   engine_assumption: "MySQL 8.0-compatible managed cluster (Aurora MySQL assumed; not verified)"
-  writer_instance: db.r6g.4xlarge
-  reader_instances: [db.r6g.4xlarge]
+  writer_instance: db.r6i.32xlarge
+  reader_instances: [db.r6i.32xlarge]
   evaluated_node: reader
-  working_set_gib: 71
+  working_set_gib: 568
   buffer_pool_fraction_assumption: 0.75
 tenant_isolation:
   model: shared_schema_tenant_column
@@ -35,26 +35,26 @@ workload:
       label: Tenant reporting summary
       kind: read
       cpu_ms_per_exec: 38.0
-      base_qps_by_tenant: {fir: 6, hazel: 22, juniper: 8}
+      base_qps_by_tenant: {fir: 48, hazel: 176, juniper: 64}
       slo_id: SLO-REPORTING
       tables: [orders]
     - id: QF-READ-OTHER
       label: Other reader statements (aggregated)
       kind: other
       cpu_ms_per_exec: 1.5
-      base_qps_by_tenant: {fir: 300, hazel: 500, juniper: 250}
+      base_qps_by_tenant: {fir: 2400, hazel: 4000, juniper: 2000}
 events: []
 utilization_threshold_pct: 70
 options:
-  - {id: OPT-KEEP, kind: keep, label: Keep the reader at db.r6g.4xlarge}
-  - id: OPT-DOWNSIZE-2XL
+  - {id: OPT-KEEP, kind: keep, label: Keep the reader at db.r6i.32xlarge}
+  - id: OPT-DOWNSIZE-16XL
     kind: resize_permanent
-    label: Downsize the reader to db.r6g.2xlarge
-    params: {node: reader, target_instance: db.r6g.2xlarge}
-  - id: OPT-DOWNSIZE-XL
+    label: Downsize the reader to db.r6i.16xlarge
+    params: {node: reader, target_instance: db.r6i.16xlarge}
+  - id: OPT-DOWNSIZE-8XL
     kind: resize_permanent
-    label: Downsize the reader to db.r6g.xlarge
-    params: {node: reader, target_instance: db.r6g.xlarge}
+    label: Downsize the reader to db.r6i.8xlarge
+    params: {node: reader, target_instance: db.r6i.8xlarge}
 assumptions:
   - id: A-BUFFER-POOL-FRACTION
     statement: Buffer pool is 75% of instance memory (common default; parameter group not verified).
@@ -78,6 +78,6 @@ ground_truth:
   root_cause_fingerprints: []
   expected_gap_flags: [GAP-FAILOVER-CAPACITY, GAP-WORKING-SET-TEST]
   notes: >
-    CPU alone permits db.r6g.2xlarge, but the working set exceeds that class's modeled buffer pool and
+    CPU alone permits db.r6i.16xlarge, but the working set exceeds that class's modeled buffer pool and
     the reader is the failover target. A defensible outcome keeps the reader or defers downsizing until
     the missing tests exist.

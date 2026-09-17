@@ -106,7 +106,8 @@ class ReleaseEvent(BaseModel):
 
 Event = Annotated[CampaignEvent | BatchEvent | ReleaseEvent, Field(discriminator="kind")]
 
-OptionKind = Literal["keep", "scale_temporary", "optimize_index", "reschedule_batch", "resize_permanent", "combined"]
+OptionKind = Literal["keep", "scale_temporary", "scale_season", "optimize_index", "reschedule_batch", "resize_permanent",
+                     "combined"]
 
 
 class OptionSpec(BaseModel):
@@ -129,6 +130,16 @@ class Budgets(BaseModel):
     max_tool_calls: int = 40
     max_tool_calls_per_turn: int = 4
     max_usd: float = 3.0
+
+
+class RevenueAtRisk(BaseModel):
+    """How to put a price on a missed SLO during an event: every slot in the event window where any of these SLOs is
+    breached loses `loss_share` of the revenue earned in that slot. Both inputs are named assumptions."""
+
+    event_id: str
+    slo_ids: list[str]
+    revenue_per_hour_assumption: str
+    loss_share_assumption: str
 
 
 class GroundTruth(BaseModel):
@@ -161,6 +172,7 @@ class Scenario(BaseModel):
     evidence_file: str
     sandbox_fixture: str = "retail_v1"
     ground_truth: GroundTruth | None = None
+    revenue_at_risk: RevenueAtRisk | None = None
 
     def assumption(self, assumption_id: str) -> Assumption:
         for a in self.assumptions:
