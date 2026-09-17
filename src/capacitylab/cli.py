@@ -9,6 +9,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from capacitylab import __version__
 from capacitylab.settings import Settings, load_dotenv
 
 
@@ -596,6 +597,8 @@ def cmd_sandbox_check(args, settings) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="capacitylab", description="Stakeholder simulation for database capacity decisions")
+    parser.add_argument("--version", action="version",
+                        version=f"capacitylab {__version__} (Python {sys.version.split()[0]})")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("scenarios", help="list scenarios").set_defaults(func=cmd_scenarios)
 

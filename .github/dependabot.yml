@@ -1,0 +1,11 @@
+# Monthly, so a dependency bump does not become a stream of pull requests. Each one starts a CI run.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule: {interval: monthly}
+    open-pull-requests-limit: 3
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: monthly}
+    open-pull-requests-limit: 3
