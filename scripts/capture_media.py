@@ -87,6 +87,10 @@ def main() -> int:
         if source.is_file():
             (Path(runs_dir) / "lab").mkdir(parents=True, exist_ok=True)
             shutil.copy(source, Path(runs_dir) / "lab" / source.name)
+    aws_source = ROOT / "runs" / "imports" / "aws-floci.yaml"  # a real Floci import (the CI floci-import artifact)
+    if aws_source.is_file():
+        (Path(runs_dir) / "imports").mkdir(parents=True, exist_ok=True)
+        shutil.copy(aws_source, Path(runs_dir) / "imports" / "aws-floci-demo.yaml")
     env = {**os.environ, "CAPACITYLAB_RUNS_DIR": runs_dir, "CAPACITYLAB_PROVIDER": "mock"}
     server = subprocess.Popen([sys.executable, "-m", "capacitylab", "serve", "--port", str(PORT)], cwd=ROOT, env=env,
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -126,6 +130,14 @@ def main() -> int:
                 crop(full, span(page, "h1", ".lab-table"), MEDIA / "lab-postgres.png")
                 page.locator("details.round").nth(1).locator("h3").first.scroll_into_view_if_needed()
                 frame("lab-postgres")
+
+            if aws_source.is_file():
+                page.goto(BASE + "/aws/aws-floci-demo.yaml")
+                full = FRAMES / "aws-full.png"
+                page.screenshot(path=str(full), full_page=True)
+                crop(full, span(page, "h1", ".aws-charts"), MEDIA / "aws-import.png")
+                page.locator(".aws-charts").scroll_into_view_if_needed()
+                frame("aws-import")
 
             page.goto(BASE + "/scenarios/campaign-overlap")
             frame("scenario")

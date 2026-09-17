@@ -263,3 +263,5 @@ pre.json, pre.log { background: var(--surface); border: 1px solid var(--border);
 pre.plan { white-space: pre; }
 .phase-list { margin-bottom: 12px; }
 .ok { color: var(--good); } .bad { color: var(--critical); }
+
+.aws-charts { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }

@@ -33,6 +33,8 @@ from capacitylab.web.charts import event_bands, shared_y_max, utilization_panel
 HERE = Path(__file__).parent
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LAB_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+\.yaml$")
+AWS_DIR = "imports"
+AWS_NAME_RE = re.compile(r"^aws-[A-Za-z0-9_.-]+\.yaml$")
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 STATUS_LABELS = {
@@ -438,5 +440,108 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         }
         return page(request, "lab_detail.html", file_name=name, cmp=cmp, phases=phases, latency=latency, plans=plans,
                     digests=digests, tables=tables, percona=percona, rel_path=str(path.relative_to(runs_dir)))
+
+    # --- AWS import --------------------------------------------------------------------------------
+
+    aws_dir = runs_dir / AWS_DIR
+
+    def aws_target():
+        from capacitylab.aws_import import AwsTarget
+
+        if settings.aws_live:
+            return AwsTarget(region=settings.aws_region, live=True, endpoint_url=None)
+        return AwsTarget(region=settings.aws_region, endpoint_url=settings.aws_endpoint)
+
+    def aws_status() -> dict:
+        try:
+            import boto3  # noqa: F401
+        except ImportError:
+            return {"ok": False, "detail": "boto3 is not installed (pip install -e '.[aws]').", "instances": []}
+        from capacitylab.aws_import import UnsafeAwsTarget, list_instances
+
+        try:
+            target = aws_target()
+        except UnsafeAwsTarget as exc:
+            return {"ok": False, "detail": str(exc), "instances": []}
+        where = f"AWS account, {settings.aws_region}" if target.live else f"emulator at {target.endpoint_url}"
+        try:
+            instances = list_instances(target)
+        except Exception as exc:
+            return {"ok": False, "detail": f"Not reachable: {where} ({type(exc).__name__}).", "instances": [],
+                    "live": target.live}
+        return {"ok": True, "detail": f"{len(instances)} DB instance{'s' if len(instances) != 1 else ''} in the {where}",
+                "instances": instances, "live": target.live}
+
+    def aws_files() -> list[dict]:
+        if not aws_dir.is_dir():
+            return []
+        out = []
+        for path in sorted(aws_dir.glob("aws-*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True):
+            try:
+                items = load_evidence_file(path)
+            except Exception:
+                continue
+            topo = next((i for i in items if i.kind == EvidenceKind.TOPOLOGY and i.id.startswith("EV-AWS-")), None)
+            if topo is None:
+                continue
+            out.append({"name": path.name, "title": topo.title, "item_count": len(items),
+                        "writer": topo.data.get("writer", {}).get("instance_class"), "engine": topo.data.get("engine"),
+                        "source": topo.source.split(":", 1)[0],
+                        "modified": datetime.fromtimestamp(path.stat().st_mtime, UTC).strftime("%Y-%m-%d %H:%M UTC")})
+        return out
+
+    @app.get("/aws", response_class=HTMLResponse)
+    def aws_page(request: Request):
+        return page(request, "aws.html", status=aws_status(), files=aws_files())
+
+    @app.post("/aws/import")
+    def start_aws_import(instance: str = Form(...), label: str = Form(""), hours: float = Form(24),
+                         include_cost: bool = Form(False)):
+        if not (1 <= hours <= 24 * 14):
+            raise HTTPException(400, "hours must be between 1 and 336")
+        status = aws_status()
+        if not status["ok"]:
+            raise HTTPException(400, f"AWS is not reachable: {status['detail']}")
+        if instance not in {i["id"] for i in status["instances"]}:
+            raise HTTPException(400, "unknown DB instance")
+
+        def work(job: Job) -> None:
+            from capacitylab.aws_import import import_aws
+            from capacitylab.lab.runner import write_evidence
+
+            job.messages.append("reading topology, metrics, prices and cost")
+            result = import_aws(aws_target(), instance, hours=hours, label=label or None, include_cost=include_cost)
+            for reason in result.skipped:
+                job.messages.append(f"skipped {reason}")
+            tag = result.items[0].id.removeprefix("EV-AWS-TOPO-").lower()
+            name = f"aws-{tag}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.yaml"
+            write_evidence(result.items, aws_dir / name)
+            job.target = f"/aws/{name}"
+
+        return start_job(Job(id=uuid.uuid4().hex[:10], kind="aws", title="AWS import"), work)
+
+    @app.get("/aws/{name}", response_class=HTMLResponse)
+    def aws_detail(request: Request, name: str):
+        path = aws_dir / name
+        if not AWS_NAME_RE.match(name) or not path.is_file():
+            raise HTTPException(404, "unknown AWS import")
+        items = {i.id: i for i in load_evidence_file(path)}
+        find = lambda prefix: next((i for k, i in items.items() if k.startswith(prefix)), None)  # noqa: E731
+        topo = find("EV-AWS-TOPO-")
+        if topo is None:
+            raise HTTPException(404, "not an AWS import")
+        cpu = find("EV-AWS-CPU-")
+        charts = []
+        if cpu:
+            labels = [s[-5:] for s in cpu.data["slots"]]
+            for key, title in (("avg_by_slot", "Average CPU per 15 minutes"), ("max_by_slot", "Highest CPU per 15 minutes")):
+                outcome = {"option_id": title, "utilization_by_slot": cpu.data[key],
+                           "peak_utilization_pct": max(cpu.data[key])}
+                y_max = shared_y_max([outcome], 80)
+                charts.append({"title": title, "svg": utilization_panel(outcome, labels, 80, y_max, [], width=560, height=190)})
+        scenarios = [{"id": sid, "title": load_scenario(sid)[0].title} for sid in list_scenarios()]
+        return page(request, "aws_detail.html", file_name=name, topo=topo, cpu=cpu, charts=charts,
+                    metrics=find("EV-AWS-MET-"), rate=find("EV-AWS-RATE-"), cost=find("EV-AWS-COST-"),
+                    item_ids=list(items), scenarios=scenarios, rel_path=str(path.relative_to(runs_dir)))
 
     return app
