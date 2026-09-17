@@ -21,15 +21,15 @@
       .link { stroke-width: 2; stroke-dasharray: 4 7; fill: none; opacity: 0.55; animation: flow 1.6s linear infinite; }
       .glow { opacity: 0.18; animation: turn 10s ease-in-out infinite; }
       .ring { fill: none; stroke: #ffffff; stroke-width: 1.5; transform-origin: 690px 150px; animation: pulse 2.5s ease-out infinite; }
-      .q1 { animation: rotate 9s infinite; }
-      .q2 { animation: rotate 9s infinite 3s; }
-      .q3 { animation: rotate 9s infinite 6s; }
+      .q1, .q2, .q3, .q4, .q5, .q6 { animation: rotate 18s infinite; }
+      .q2 { animation-delay: 3s; } .q3 { animation-delay: 6s; } .q4 { animation-delay: 9s; }
+      .q5 { animation-delay: 12s; } .q6 { animation-delay: 15s; }
       .caret { fill: #ffd27a; animation: blink 1s steps(1) infinite; }
       .r2 { animation-delay: 2s; } .r3 { animation-delay: 4s; } .r4 { animation-delay: 6s; } .r5 { animation-delay: 8s; }
       @keyframes flow { to { stroke-dashoffset: -22; } }
       @keyframes turn { 0%, 22%, 100% { opacity: 0.18; } 6%, 16% { opacity: 1; } }
       @keyframes pulse { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.7); opacity: 0; } }
-      @keyframes rotate { 0% { opacity: 0; } 4%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
+      @keyframes rotate { 0% { opacity: 0; } 2%, 15% { opacity: 1; } 17%, 100% { opacity: 0; } }
       @keyframes blink { 50% { opacity: 0; } }
       @media (prefers-reduced-motion: reduce) {
         .link, .glow, .ring, .caret { animation: none; }
@@ -46,9 +46,12 @@
   <text x="42" y="132" class="sub">reliability and FinOps decisions</text>
 
   <text x="42" y="178" class="q caret" style="opacity:1">&#8250;</text>
-  <text x="60" y="178" class="q q1">Scale up for the flash sale?</text>
-  <text x="60" y="178" class="q q2">Add the index?</text>
-  <text x="60" y="178" class="q q3">Move the batch job?</text>
+  <text x="60" y="178" class="q q1">Add capacity for the flash sale?</text>
+  <text x="60" y="178" class="q q2">Downsize an oversized reader?</text>
+  <text x="60" y="178" class="q q3">Add an index instead of hardware?</text>
+  <text x="60" y="178" class="q q4">Move the batch job out of the peak?</text>
+  <text x="60" y="178" class="q q5">Is failover ready for the change?</text>
+  <text x="60" y="178" class="q q6">Who pays for the tenant's burst?</text>
 
   <g transform="translate(42 222)">
     <rect width="92" height="26" rx="13" fill="#d97757"/><text x="46" y="17.5" class="chip" text-anchor="middle">LLM agents</text>
