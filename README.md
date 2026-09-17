@@ -284,6 +284,8 @@ varies even more (±132%, ±134%), so the index's effect on writes stays unanswe
 > runs at 3.22–4.10 ms. With 7–9 calls per phase, the lab cannot yet separate the index's benefit from the batch job's
 > cost.
 
+![PostgreSQL lab results page](docs/media/lab-postgres.png)
+
 > [!IMPORTANT]
 > PostgreSQL keeps no cumulative lock-wait counter. Lock waits here come from sampling `pg_stat_activity` every
 > 0.1 s, so they are session-seconds rather than a count of waits, and they are not comparable with the MySQL row.

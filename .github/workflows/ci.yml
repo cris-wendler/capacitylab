@@ -124,6 +124,12 @@ jobs:
         run: |
           capacitylab import aws --instance demo-writer --label "floci demo" --out runs/ci-aws.yaml
           capacitylab run campaign-overlap --provider mock --evidence runs/ci-aws.yaml --out runs/ci-aws-run.json --quiet
+      - name: Keep the imported evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: floci-import
+          path: runs/ci-aws.yaml
+          retention-days: 14
       - name: Floci logs on failure
         if: failure()
         run: docker logs capacitylab-floci 2>&1 | tail -80

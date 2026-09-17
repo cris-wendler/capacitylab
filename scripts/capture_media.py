@@ -77,9 +77,13 @@ def main() -> int:
         run.decision.missing_evidence = group_missing_evidence(
             [(role, m) for role, t in last.items() for m in t.draft.missing_evidence])
     (Path(runs_dir) / live_source.name).write_text(run.model_dump_json())
+    ledger = ROOT / "runs" / "spend-ledger.json"  # so the budget shown matches what was really spent
+    if ledger.is_file():
+        shutil.copy(ledger, Path(runs_dir) / ledger.name)
     lab_source = ROOT / "runs" / "lab" / "campaign-overlap-lab.yaml"  # produced by `capacitylab lab run`
     percona_source = ROOT / "runs" / "lab" / "campaign-overlap-lab-percona.yaml"  # produced by `lab run --percona`
-    for source in (lab_source, percona_source):
+    postgres_source = ROOT / "runs" / "lab" / "campaign-overlap-lab-postgres.yaml"  # `lab run --engine postgres`
+    for source in (lab_source, percona_source, postgres_source):
         if source.is_file():
             (Path(runs_dir) / "lab").mkdir(parents=True, exist_ok=True)
             shutil.copy(source, Path(runs_dir) / "lab" / source.name)
@@ -114,6 +118,14 @@ def main() -> int:
                 full = FRAMES / "lab-percona-full.png"
                 page.screenshot(path=str(full), full_page=True)
                 crop(full, span(page, "#ptqd-EVENT", "#ptqd-EVENT"), MEDIA / "lab-percona.png", pad=2)
+
+            if postgres_source.is_file():
+                page.goto(BASE + f"/lab/{postgres_source.name}")
+                full = FRAMES / "lab-postgres-full.png"
+                page.screenshot(path=str(full), full_page=True)
+                crop(full, span(page, "h1", ".lab-table"), MEDIA / "lab-postgres.png")
+                page.locator("details.round").nth(1).locator("h3").first.scroll_into_view_if_needed()
+                frame("lab-postgres")
 
             page.goto(BASE + "/scenarios/campaign-overlap")
             frame("scenario")
