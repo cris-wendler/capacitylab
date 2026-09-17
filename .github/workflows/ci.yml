@@ -1,9 +1,19 @@
 name: CI
 
+# Until the repository is public, every minute comes out of a small Actions budget: run once per change, cancel an
+# older run when a newer push arrives, and skip runs when only documentation changed.
 on:
   push:
     branches: [main]  # feature branches are covered by their pull request; running both doubles the minutes
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
