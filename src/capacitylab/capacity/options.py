@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from capacitylab.capacity.catalog import buffer_pool_gib, get_instance
 from capacitylab.capacity.cost import (
     RateCard,
+    choose_rate_card,
     monthly_resize_delta,
     resize_delta_for_hours,
     storage_cost_month,
@@ -76,6 +77,15 @@ class ModelContext:
     batch_duration_minutes: int | None
     assumptions: dict[str, float | str | None]
     evidence_ids: list[str] = field(default_factory=list)
+    rate_card_note: str = ""
+    prices_from_aws: bool = False
+
+
+def needed_instance_classes(scenario: Scenario) -> set[str]:
+    """Every instance class the cost model may have to price: the current nodes and every option's target."""
+    classes = {scenario.cluster.writer_instance, *scenario.cluster.reader_instances}
+    classes |= {o.params["target_instance"] for o in scenario.options if "target_instance" in o.params}
+    return classes
 
 
 def assumption_values(scenario: Scenario, overrides: dict[str, float] | None = None) -> dict[str, float | str | None]:
@@ -133,10 +143,10 @@ def build_context(scenario: Scenario, bundle: EvidenceBundle, overrides: dict[st
         for s in slo_item.data.get("slos", []):
             slos[s["id"]] = s
 
-    rate_item = bundle.first(EvidenceKind.RATE_CARD)
-    rate_card = RateCard(**rate_item.data) if rate_item else None
-    if rate_item:
-        evidence_ids.append(rate_item.id)
+    choice = choose_rate_card(bundle.by_kind(EvidenceKind.RATE_CARD), needed_instance_classes(scenario))
+    rate_card = choice.card if choice else None
+    if choice:
+        evidence_ids.extend(choice.evidence_ids)
 
     batches = scenario.events_of("batch_job")
     batch = batches[0] if batches else None
@@ -164,6 +174,8 @@ def build_context(scenario: Scenario, bundle: EvidenceBundle, overrides: dict[st
         batch_duration_minutes=duration,
         assumptions=assumptions,
         evidence_ids=evidence_ids,
+        rate_card_note=choice.note if choice else "No rate card; costs are not modeled.",
+        prices_from_aws=bool(choice and choice.prices_from_aws),
     )
 
 

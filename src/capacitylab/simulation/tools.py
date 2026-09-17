@@ -152,14 +152,17 @@ def _cost_estimate(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcom
             row["forecast_month_with_option_usd"] = round(forecast, 2)
             row["budget_headroom_usd"] = round(budget.data.get("monthly_budget_usd", 0) - forecast, 2)
         rows.append(row)
-    rate = env.bundle.first(EvidenceKind.RATE_CARD)
-    cited = [i for i in (rate.id if rate else None, budget.id if budget else None) if i]
-    return ToolOutcome(
-        title="Cost estimate for " + ", ".join(option_ids),
-        data={"options": rows, "rate_card_note": rate.data.get("source_note") if rate else "no rate card"},
-        cited=cited,
-        caveats=["Amounts are arithmetic on the rate card evidence; the demo rate card is illustrative."],
-    )
+    rate_ids = [i for i in ctx.evidence_ids if env.bundle.get(i).kind == EvidenceKind.RATE_CARD]
+    cited = rate_ids + ([budget.id] if budget else [])
+    if ctx.prices_from_aws:
+        data = {"options": rows, "rate_card_note": ctx.rate_card.source_note, "prices_used": ctx.rate_card_note}
+        caveat = ("Instance amounts use on-demand list prices read from AWS; reserved or savings-plan discounts are not "
+                  "included.")
+    else:  # unchanged output, so recorded runs still replay
+        rate = env.bundle.get(rate_ids[0]) if rate_ids else None
+        data = {"options": rows, "rate_card_note": rate.data.get("source_note") if rate else "no rate card"}
+        caveat = "Amounts are arithmetic on the rate card evidence; the demo rate card is illustrative."
+    return ToolOutcome(title="Cost estimate for " + ", ".join(option_ids), data=data, cited=cited, caveats=[caveat])
 
 
 def _index_experiment(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:

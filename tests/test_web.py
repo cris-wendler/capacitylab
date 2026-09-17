@@ -161,6 +161,19 @@ def test_comparison_page(client):
     assert page.status_code == 200 and "Simple rules" in page.text and "Single reviewer" in page.text
 
 
+def test_attached_aws_prices_are_named_on_the_run_page(client, runs_dir):
+    from tests.test_rate_card_choice import FAMILY, aws_rate
+
+    write_evidence([aws_rate(FAMILY)], runs_dir / "imports" / "aws-prices-test.yaml")
+    started = client.post("/scenarios/campaign-overlap/run",
+                          data={"provider": "mock", "max_rounds": 2, "sandbox": "sqlite",
+                                "evidence": "imports/aws-prices-test.yaml"})
+    assert started.status_code == 200
+    assert "Instance prices from EV-AWS-RATE-TEST" in started.text and "storage rate from EV-RATE-001" in started.text
+    scenario = client.get("/scenarios/campaign-overlap")
+    assert "Prices from EV-RATE-001." in scenario.text
+
+
 def test_aws_pages(client):
     page = client.get("/aws")
     assert page.status_code == 200 and "Import from AWS" in page.text

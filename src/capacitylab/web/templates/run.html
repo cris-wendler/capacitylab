@@ -141,6 +141,7 @@ real engine at small scale; they are not production numbers.</p>
 {% endfor %}
 </div>
 {{ options_table(panels|map(attribute='outcome')|list) }}
+{% if prices_note %}<p class="small muted prices-note">{{ prices_note }}</p>{% endif %}
 
 {% if d.optimization_proposals %}
 <h2>Proposed database changes</h2>
