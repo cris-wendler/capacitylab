@@ -133,6 +133,7 @@ is free, offline and repeatable.
 | 🩺 **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates. `capacitylab findings <scenario>` or the scenario page. |
 | 🧪 **Measurements from a real engine** | A local MySQL 8.0 or PostgreSQL 17 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
 | 💸 **Costs next to the risk** | Every option priced from the scenario's rate card, and each tenant's share of the cluster compared with what it pays for. |
+| 📈 **What your cluster actually does** | `history collect` appends each window of metrics to a local store, and `history envelope` reports what every hour of every weekday reaches - typically, at the high end and at worst - weighted towards recent days, with level shifts detected and thin evidence flagged. |
 | 📥 **Your own data** | Read database topology, metrics, prices and cost straight from AWS, Google Cloud or Azure, or import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch exports and Percona Toolkit reports. |
 | 🔁 **Replay** | Every item is labelled observed, forecast, assumption, modeled or measured. Every run is a log you can replay to re-check each result. |
 
@@ -771,6 +772,45 @@ When a review has an `EV-AWS-RATE` item attached that covers every instance clas
 prices the options with those on-demand AWS prices, keeping only the storage rate from the scenario's rate card. If any
 class is missing, it keeps the scenario's rate card and says which classes were missing. The scenario and run pages
 name the prices they used, and the cost check tells the agents the same.
+
+### What a cluster actually does, accumulated
+
+An import answers "what does this cluster look like right now". Collecting answers "what does this cluster *do*",
+which is the question a decision taken before an event depends on.
+
+```bash
+capacitylab history collect aws --instance orders-primary --hours 3 --label "evening cluster" --live
+capacitylab history status
+capacitylab history envelope CL-9F2A41C0B7D3 --metric CPUUtilization --out runs/imports/envelope.yaml
+```
+
+`history collect` runs the same read-only path as the import and appends the metrics to a local SQLite file
+(`runs/history.db`). Run it from cron every few minutes: writes are idempotent, so an overlapping window adds nothing
+and the same collection can run as often as you like. Identities still never land anywhere - a cluster is keyed by an
+HMAC of the identifiers under a salt generated in that file, so history accumulates for the right cluster while the
+key means nothing outside your machine.
+
+**Missing data is data.** Every collection is recorded with the window it asked for and how much came back, so a
+quiet stretch can be told from a stretch nobody collected. `history status` reports the gaps and warns when nothing
+has arrived for over an hour, because a collector that died is the alert you want first.
+
+**The envelope, not a forecast.** `history envelope` groups the samples into slots by hour and weekday and reports
+what that group reached: typically, at the high end (p95), and at worst. Three things keep it useful on a workload
+that changes:
+
+| | |
+|---|---|
+| **Recency** | samples are weighted by age with a 7-day half-life, so last week counts and last quarter barely does |
+| **Drift** | the last 24 h are compared with the baseline before them; once the level has clearly shifted, the envelope is rebuilt with a 1.5-day half-life so recent behaviour dominates. Fast change is detected, not predicted |
+| **Thin evidence** | every slot says how many observations and distinct days it rests on, and flags itself when that is too few to lean on |
+
+Nothing is trained and no future value is predicted; it is descriptive statistics recomputed on read, so every figure
+traces back to samples you collected. A capacity decision then sizes for the high end plus headroom, which errs
+towards spending money rather than dropping checkouts. Anything *planned* stays outside it: a campaign or release
+date beats anything inferred from history, so those remain scenario assumptions that multiply the envelope.
+
+With `--out` the envelope becomes evidence labelled `modeled`, carrying its own caveats, so the agents can cite it in
+a review next to the topology and the costs.
 
 ### From exported files
 
