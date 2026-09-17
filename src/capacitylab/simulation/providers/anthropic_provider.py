@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from capacitylab.simulation.providers.base import (
     PROMPT_VERSION,
+    SHORTER_TURN_NOTICE,
     ProviderError,
     ProviderResult,
     TurnContext,
@@ -27,11 +28,6 @@ def _common_prefix(a: str, b: str) -> int:
         i += 1
     return i
 STRUCTURED_OUTPUTS_BETA = "structured-outputs-2025-12-15"  # what the SDK's beta parse() adds
-SHORTER_TURN_NOTICE = (
-    '\n{"retry":"Your previous answer was cut off at the output limit and was discarded. Send a shorter turn: '
-    'at most 4 claims of one sentence each, at most 2 challenges, and no optimization proposal unless it is the '
-    'point of your turn."}'
-)
 
 
 def TURN_SCHEMA() -> dict:  # noqa: N802 - built lazily so importing this module does not require the SDK

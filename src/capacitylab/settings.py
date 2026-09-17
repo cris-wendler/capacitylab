@@ -49,8 +49,13 @@ class PostgresSettings:
 
 @dataclass(frozen=True)
 class Settings:
-    provider: str = "mock"
+    provider: str = "mock"  # mock | anthropic | openai (any OpenAI-compatible endpoint)
+    llm_provider: str = "anthropic"  # which LLM provider the web UI offers next to the scripted agents
     model: str = "claude-opus-5"
+    llm_base_url: str | None = None  # openai provider: endpoint (OpenAI, Gemini, Mistral, Groq, Ollama, vLLM, LiteLLM...)
+    llm_api_key_env: str = "OPENAI_API_KEY"  # openai provider: the environment variable holding the key
+    cached_input_multiplier: float = 1.0  # openai provider: price of cached input tokens relative to input tokens
+    reasoning_effort: str | None = None  # openai provider: sent only when set
     effort: str = "auto"  # per-role effort (see simulation.roles.EFFORT); low/medium/high applies to every role
     refusal_fallback: bool = True
     input_usd_per_mtok: float = 5.0
@@ -81,6 +86,13 @@ class Settings:
         )
         return cls(
             provider=env.get("CAPACITYLAB_PROVIDER", "mock"),
+            llm_provider=env.get("CAPACITYLAB_LLM_PROVIDER",
+                                 env.get("CAPACITYLAB_PROVIDER") if env.get("CAPACITYLAB_PROVIDER") not in (None, "", "mock")
+                                 else "anthropic"),
+            llm_base_url=env.get("CAPACITYLAB_LLM_BASE_URL") or None,
+            llm_api_key_env=env.get("CAPACITYLAB_LLM_API_KEY_ENV", "OPENAI_API_KEY"),
+            cached_input_multiplier=float(env.get("CAPACITYLAB_CACHED_INPUT_MULTIPLIER", "1.0")),
+            reasoning_effort=env.get("CAPACITYLAB_REASONING_EFFORT") or None,
             model=env.get("CAPACITYLAB_MODEL", "claude-opus-5"),
             effort=env.get("CAPACITYLAB_EFFORT", "auto"),
             refusal_fallback=_bool(env.get("CAPACITYLAB_REFUSAL_FALLBACK"), True),
@@ -110,3 +122,11 @@ class Settings:
     @staticmethod
     def anthropic_credentials_present() -> bool:
         return bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+    def credentials_present(self, provider: str) -> bool:
+        if provider == "anthropic":
+            return self.anthropic_credentials_present()
+        if provider == "openai":
+            local = (self.llm_base_url or "").startswith(("http://127.0.0.1", "http://localhost", "http://[::1]"))
+            return local or bool(os.environ.get(self.llm_api_key_env))
+        return True

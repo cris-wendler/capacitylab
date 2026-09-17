@@ -26,8 +26,8 @@
         <legend>Who plays the five agents</legend>
         <label class="option"><input type="radio" name="provider" value="mock" checked>
           <span><strong>Scripted agents</strong><span class="muted small">Fixed rules in code. Offline and free. Good for trying the workflow.</span></span></label>
-        <label class="option"><input type="radio" name="provider" value="anthropic">
-          <span><strong>LLM agents</strong><span class="muted small">{{ settings.model }} through the Anthropic API. {% if anthropic_ready %}API key found.{% else %}No API key found in the environment.{% endif %} Uses the model budget (${{ '%.2f' % budget.spent }} of ${{ '%.2f' % budget.total }} used).</span></span></label>
+        <label class="option"><input type="radio" name="provider" value="{{ settings.llm_provider }}">
+          <span><strong>LLM agents</strong><span class="muted small">{{ settings.model }} via {{ 'the Anthropic API' if settings.llm_provider == 'anthropic' else (settings.llm_base_url or 'the OpenAI API') }}. {% if llm_ready %}Credentials found.{% else %}No API key found in the environment.{% endif %} Uses the model budget (${{ '%.2f' % budget.spent }} of ${{ '%.2f' % budget.total }} used).</span></span></label>
       </fieldset>
       <fieldset>
         <legend>Where experiments run</legend>

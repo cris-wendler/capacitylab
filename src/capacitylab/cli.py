@@ -71,6 +71,9 @@ def cmd_run(args, settings) -> int:
     provider_name = args.provider or settings.provider
     if provider_name == "anthropic" and not Settings.anthropic_credentials_present():
         print("note: ANTHROPIC_API_KEY is not set; the SDK will try other credential sources.", file=sys.stderr)
+    if provider_name == "openai" and not settings.credentials_present("openai"):
+        print(f"note: {settings.llm_api_key_env} is not set and CAPACITYLAB_LLM_BASE_URL is not a local server.",
+              file=sys.stderr)
     provider = make_provider(provider_name, settings)
     max_usd = args.max_usd if args.max_usd is not None else min(scenario.budgets.max_usd, settings.max_usd_per_run)
     ledger = _ledger(settings)
@@ -443,7 +446,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("run", help="run a stakeholder simulation")
     p.add_argument("scenario")
-    p.add_argument("--provider", choices=["mock", "anthropic"])
+    p.add_argument("--provider", choices=["mock", "anthropic", "openai"], help="mock (scripted), anthropic, or openai (any OpenAI-compatible endpoint)")
     p.add_argument("--evidence", action="append", help="extra evidence YAML (from `lab run` or `import`); repeatable")
     p.add_argument("--max-rounds", type=int)
     p.add_argument("--max-usd", type=float, help="cap for this run (the total budget still applies)")
@@ -465,7 +468,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("evaluate", help="compare the five-role review with a single reviewer and simple rules")
     p.add_argument("scenario")
-    p.add_argument("--provider", choices=["mock", "anthropic"])
+    p.add_argument("--provider", choices=["mock", "anthropic", "openai"], help="mock (scripted), anthropic, or openai (any OpenAI-compatible endpoint)")
     p.add_argument("--evidence", action="append")
     p.add_argument("--sandbox", choices=["sqlite", "mysql"])
     p.add_argument("--out")
