@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/multi--agent-LLM-7a5ad6?style=for-the-badge" alt="Multi-agent LLM">
-  <img src="https://img.shields.io/badge/Claude-Anthropic%20API-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude, Anthropic API">
+  <img src="https://img.shields.io/badge/LLM-any%20provider-D97757?style=for-the-badge" alt="LLM, any provider">
   <img src="https://img.shields.io/badge/capacity-planning-2d6cdf?style=for-the-badge" alt="Capacity planning">
   <img src="https://img.shields.io/badge/SRE-reliability-c98a00?style=for-the-badge" alt="SRE, reliability">
   <img src="https://img.shields.io/badge/FinOps-cost-1b9b6d?style=for-the-badge" alt="FinOps, cost">
@@ -66,7 +66,7 @@ experiments are deterministic Python, and every number an agent quotes is checke
 
 | Layer | Built with | What it does here |
 |---|---|---|
-| ![](https://img.shields.io/badge/LLM%20agents-D97757?style=flat-square) | Claude Opus 5 and Sonnet 5 through the Anthropic Python SDK | Each agent's turn is one Messages API call that returns JSON matching a Pydantic schema (structured outputs). Prompt caching on the evidence block, token counting before every call, reasoning effort set per role, one retry when a turn is cut off. |
+| ![](https://img.shields.io/badge/LLM%20agents-D97757?style=flat-square) | Any LLM: the Anthropic API natively, or any OpenAI-compatible endpoint (OpenAI, Gemini, Mistral, Groq, Ollama, vLLM, a LiteLLM proxy for Bedrock, Vertex or Azure). The recorded runs used Claude Opus 5 and Sonnet 5 | Each agent's turn is one Messages API call that returns JSON matching a Pydantic schema (structured outputs). Prompt caching on the evidence block, token counting before every call, reasoning effort set per role, one retry when a turn is cut off. |
 | ![](https://img.shields.io/badge/orchestration-7a5ad6?style=flat-square) | Plain Python, no agent framework | Rounds, what each role is allowed to see, checks requested between rounds, stopping when positions settle, and a run log that can be replayed. |
 | ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to the role, every number must appear in the cited evidence, requested checks must be allowed for the role, spend must fit the limits. |
 | ![](https://img.shields.io/badge/capacity%20planning-2d6cdf?style=flat-square) | M/M/c queueing model | CPU utilisation per 15 or 60 minute slot, SLO breach slots, instance options scored against each other. |
@@ -698,17 +698,42 @@ id, or by a name you choose: `capacitylab import slowlog peak.log --label "eveni
 
 ## Using an LLM for the agents
 
-Put your key in `.env` (git-ignored) and set the total you are willing to spend:
+CapacityLab is not tied to one model vendor. The agents talk to the model through a small provider interface, and two
+providers ship:
+
+| Provider | Reaches | Extras |
+|---|---|---|
+| `anthropic` | The Anthropic API | Prompt caching of the evidence block, exact token counts before each call, reasoning effort per role |
+| `openai` | Any OpenAI-compatible chat completions endpoint: OpenAI, Google Gemini's OpenAI endpoint, Mistral, Groq, DeepSeek, local models through Ollama, vLLM or LM Studio, and Bedrock, Vertex or Azure behind a LiteLLM proxy | JSON schema output, automatic prefix caching where the endpoint offers it, optional `reasoning_effort` |
+
+Both send the same system prompt and evidence, ask for the same turn format, and go through the same checks and spend
+limit. Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 
 ```bash
-ANTHROPIC_API_KEY=...               # a key created inside a workspace
-CAPACITYLAB_MAX_USD_TOTAL=3.00
+# Anthropic
+CAPACITYLAB_PROVIDER=anthropic
+CAPACITYLAB_MODEL=claude-sonnet-5
+ANTHROPIC_API_KEY=...
+
+# or any OpenAI-compatible endpoint, for example a local model through Ollama
+CAPACITYLAB_PROVIDER=openai
+CAPACITYLAB_LLM_BASE_URL=http://localhost:11434/v1
+CAPACITYLAB_MODEL=llama3.1
+CAPACITYLAB_INPUT_USD_PER_MTOK=0          # prices drive the spend limit; set your vendor's rates
+CAPACITYLAB_OUTPUT_USD_PER_MTOK=0
+
+CAPACITYLAB_MAX_USD_TOTAL=10.00
 ```
 
 ```bash
-capacitylab run campaign-overlap --provider anthropic --max-rounds 3 --evidence runs/lab/campaign.yaml
+capacitylab run campaign-overlap --max-rounds 3 --evidence runs/lab/campaign.yaml
 capacitylab spend
 ```
+
+> [!NOTE]
+> The recorded real runs used the Anthropic API. The OpenAI-compatible provider is tested against recorded responses
+> (request shape, retries, refusals, cached-token pricing, the spend limit), not yet against a live endpoint. Small
+> local models may not follow the turn format well; a turn that does not match it fails cleanly and is recorded.
 
 The LLM receives the same evidence and rules as the scripted agents and must return the same structured turn. Spend is
 recorded in `runs/spend-ledger.json`.
@@ -829,10 +854,13 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted agents) or `anthropic` (LLM agents) |
+| `CAPACITYLAB_PROVIDER` | `mock` | `mock` (scripted agents), `anthropic`, or `openai` (any OpenAI-compatible endpoint) |
+| `CAPACITYLAB_LLM_PROVIDER` | the provider above, else `anthropic` | Which LLM provider the web UI offers next to the scripted agents |
+| `CAPACITYLAB_LLM_BASE_URL` / `CAPACITYLAB_LLM_API_KEY_ENV` | *(empty)* / `OPENAI_API_KEY` | `openai` provider: endpoint, and the variable that holds its key (local servers need none) |
+| `CAPACITYLAB_CACHED_INPUT_MULTIPLIER` / `CAPACITYLAB_REASONING_EFFORT` | `1.0` / *(unset)* | `openai` provider: price of cached input relative to input; `reasoning_effort` sent only when set |
 | `ANTHROPIC_API_KEY` | *(empty)* | Only needed for `anthropic` |
 | `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for keys not scoped to a workspace; sent as the `anthropic-workspace-id` header |
-| `CAPACITYLAB_MODEL` | `claude-opus-5` | Model used for the roles |
+| `CAPACITYLAB_MODEL` | `claude-opus-5` | Model used by the agents, for whichever provider is selected |
 | `CAPACITYLAB_EFFORT` | `auto` | Per-role reasoning effort; `low`/`medium`/`high` applies one value to every role |
 | `CAPACITYLAB_MAX_USD_TOTAL` | `3.00` | Spend limit across all runs |
 | `CAPACITYLAB_MAX_USD_PER_RUN` | `3.00` (`.env.example`: `2.00`) | Spend limit per run |
@@ -863,14 +891,15 @@ src/capacitylab/
   diagnostics/     experiment databases, retail dataset, index and rewrite experiments, evidence analysis
   lab/             labs: workload driver for both engines, performance_schema and pg_stat_statements collectors,
                    EXPLAIN ANALYZE and JSON plan parsers, Percona Toolkit
-  simulation/      roles, turn format, checks, turn validation, scripted and LLM answers, rounds, decision record
+  simulation/      roles, turn format, checks, turn validation, rounds, decision record; providers for scripted
+                   agents, the Anthropic API and OpenAI-compatible endpoints
   evaluation/      replay and comparison
   importers.py     slow log, digest, plan, CloudWatch, and Percona Toolkit importers
   aws_import.py    RDS, CloudWatch, Pricing and Cost Explorer through boto3; emulator by default, --live for AWS
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             147 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+tests/             155 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data

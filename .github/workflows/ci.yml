@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
-        run: pip install -e ".[dev,anthropic,mysql,aws]"
+        run: pip install -e ".[dev,anthropic,openai,mysql,aws]"
       - name: Lint
         run: ruff check src tests scripts
       - name: Unit, integration, and end-to-end tests (mock provider, SQLite sandbox)

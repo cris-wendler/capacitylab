@@ -313,7 +313,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         return page(request, "scenario.html", scenario=scenario, bundle=bundle, grouped=grouped,
                     issues=validate_scenario(scenario, bundle), contradictions=bundle.contradictions(),
                     sliders=what_if_sliders(scenario, bundle), **options_view(scenario, bundle),
-                    anthropic_ready=Settings.anthropic_credentials_present(),
+                    llm_ready=settings.credentials_present(settings.llm_provider),
                     findings=review_findings(scenario, bundle),
                     files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario))
 
@@ -326,7 +326,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
             max_rounds = int(form.get("max_rounds", 4))
         except ValueError as exc:
             raise HTTPException(400, "invalid rounds") from exc
-        if provider not in {"mock", "anthropic"} or sandbox not in {"sqlite", "mysql"} or not 1 <= max_rounds <= 6:
+        if provider not in {"mock", settings.llm_provider} or sandbox not in {"sqlite", "mysql"} or not 1 <= max_rounds <= 6:
             raise HTTPException(400, "invalid run parameters")
         extra_paths = resolve_evidence([str(v) for v in form.getlist("evidence")])
         scenario, bundle = scenario_or_404(sid, extra_paths)

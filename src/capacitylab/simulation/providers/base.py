@@ -19,6 +19,14 @@ PROMPT_TEMPLATE = (resources.files("capacitylab") / "simulation" / "prompts" / "
 PROMPT_VERSION = "stakeholder-v1-" + hashlib.sha256(PROMPT_TEMPLATE.encode()).hexdigest()[:8]
 
 
+LLM_PROVIDERS = ("anthropic", "openai")  # "openai" means any OpenAI-compatible chat completions endpoint
+SHORTER_TURN_NOTICE = (
+    '\n{"retry":"Your previous answer was cut off at the output limit and was discarded. Send a shorter turn: '
+    'at most 4 claims of one sentence each, at most 2 challenges, and no optimization proposal unless it is the '
+    'point of your turn."}'
+)
+
+
 class ProviderError(RuntimeError):
     """A turn could not be produced. A call that reached the model still carries its cost, so spend stays accurate."""
 
