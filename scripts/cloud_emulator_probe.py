@@ -62,7 +62,7 @@ def azure():
                            "storage": {"storageSizeGB": 32}, "highAvailability": {"mode": "Disabled"}}}
     path = f"{base}/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.DBforMySQL/flexibleServers"
     show("az create", lambda: http.put(f"{path}/demo-mysql", body, {"api-version": "2023-12-30"}))
-    for _ in range(40):
+    for _ in range(3):
         got = show("az get 2023-12-30", lambda: http.get(f"{path}/demo-mysql", {"api-version": "2023-12-30"}))
         state = ((got or {}).get("properties") or {}).get("state")
         if state and state.lower() == "ready":
@@ -71,6 +71,12 @@ def azure():
     show("az get preview", lambda: http.get(f"{path}/demo-mysql", {"api-version": "2021-12-01-preview"}))
     show("az list", lambda: http.get(path, {"api-version": "2023-12-30"}))
     show("az replicas", lambda: http.get(f"{path}/demo-mysql/replicas", {"api-version": "2023-12-30"}))
+    pg = f"{base}/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.DBforPostgreSQL/flexibleServers"
+    pg_body = {"location": "eastus", "sku": {"name": "Standard_D4ds_v4", "tier": "GeneralPurpose"},
+               "properties": {"administratorLogin": "capadmin", "administratorLoginPassword": "Local-only-123!",
+                              "version": "16", "storage": {"storageSizeGB": 64}}}
+    show("az pg create", lambda: http.put(f"{pg}/demo-pg", pg_body, {"api-version": "2024-08-01"}))
+    show("az pg get", lambda: http.get(f"{pg}/demo-pg", {"api-version": "2024-08-01"}))
     rid = f"/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.DBforMySQL/flexibleServers/demo-mysql"
     show("az metrics", lambda: http.get(f"{base}{rid}/providers/Microsoft.Insights/metrics",
                                         {"api-version": "2023-10-01", "metricnames": "cpu_percent", "interval": "PT5M"}))
