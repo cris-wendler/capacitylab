@@ -6,28 +6,42 @@
   <title>{% block title %}CapacityLab{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
-  <header class="top">
-    <div class="top-inner">
-      <a class="brand" href="/" aria-label="CapacityLab home">
-        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="12" width="4" height="8" rx="1.5"/><rect x="9" y="7" width="4" height="13" rx="1.5"/><rect x="16" y="3" width="4" height="17" rx="1.5"/></svg>
-        CapacityLab
-      </a>
-      <nav>
-        <a href="/">Scenarios</a>
-        <a href="/lab">Lab</a>
-        <a href="/aws">AWS</a>
-        <a href="/runs">Runs</a>
-      </nav>
-      <span class="budget" title="Language-model spend recorded in the runs directory">
-        Model budget: <strong>${{ '%.2f' % budget.spent }}</strong> of ${{ '%.2f' % budget.total }} used
-      </span>
+{% set path = request.url.path %}
+{% macro nav_item(href, label, icon, active) -%}
+<a class="nav-item{% if active %} active{% endif %}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}>
+  <svg viewBox="0 0 24 24" aria-hidden="true">{{ icon|safe }}</svg><span>{{ label }}</span>
+</a>
+{%- endmacro %}
+<body class="app">
+  <aside class="sidebar" aria-label="Main">
+    <a class="brand" href="/" aria-label="CapacityLab home">
+      <span class="brand-mark"><svg width="20" height="20" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="12" width="4" height="8" rx="1.5"/><rect x="9" y="7" width="4" height="13" rx="1.5"/><rect x="16" y="3" width="4" height="17" rx="1.5"/></svg></span>
+      <span class="brand-text">CapacityLab<small>LLM capacity reviews</small></span>
+    </a>
+    <nav class="nav">
+      <div class="nav-label">Decide</div>
+      {{ nav_item("/", "Overview", '<path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z"/>', path == "/" or path.startswith("/scenarios")) }}
+      {{ nav_item("/runs", "Reviews", '<path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4z"/>', path.startswith("/runs") or path.startswith("/jobs")) }}
+      <div class="nav-label">Measure</div>
+      {{ nav_item("/lab", "Database lab", '<path d="M9 2h6v2h-1v5.2l5.6 9.7A2 2 0 0 1 17.9 22H6.1a2 2 0 0 1-1.7-3.1L10 9.2V4H9z"/>', path.startswith("/lab")) }}
+      {{ nav_item("/aws", "AWS import", '<path d="M6.5 19a4.5 4.5 0 0 1-.7-8.9A6 6 0 0 1 17.4 8.6 5 5 0 0 1 17 19z"/>', path.startswith("/aws")) }}
+    </nav>
+    <div class="sidebar-foot">
+      {% set pct = (100 * budget.spent / budget.total) if budget.total else 0 %}
+      <div class="budget" title="Language-model spend recorded in the runs directory">
+        <div class="budget-row"><span>Model budget</span><strong>${{ '%.2f' % budget.spent }}</strong></div>
+        <div class="meter{% if pct >= 90 %} meter-hot{% elif pct >= 70 %} meter-warm{% endif %}"><span style="width: {{ [pct, 100]|min }}%"></span></div>
+        <div class="budget-row small"><span>of ${{ '%.2f' % budget.total }} used</span><span>{{ '%.0f' % pct }}%</span></div>
+      </div>
+      <div class="sidebar-note">{{ settings.model }} · synthetic data</div>
     </div>
-  </header>
-  <main>
-    {% block content %}{% endblock %}
-  </main>
-  <footer>CapacityLab · scenarios, tenants, and lab data are synthetic · modeled and locally measured results are labeled as such</footer>
+  </aside>
+  <div class="workspace">
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <footer>CapacityLab · scenarios, tenants, and lab data are synthetic · modeled and locally measured results are labeled as such</footer>
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>
