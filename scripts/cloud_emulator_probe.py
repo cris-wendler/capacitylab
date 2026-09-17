@@ -6,7 +6,7 @@ import time
 
 from capacitylab.cloud_common import CloudApiError, JsonClient
 
-http = JsonClient(lambda: "test-token")
+http = JsonClient(lambda: "test-token", timeout_s=600)
 
 
 def show(label, fn):
@@ -44,12 +44,12 @@ def gcp():
             show(f"gcp write {prefix} {metric}", lambda p=prefix, b=series: http.post(f"{base}{p}/projects/{project}/timeSeries", b))
     start = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 3600))
     end = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 60))
-    for aligner in ("ALIGN_MEAN", None):
+    for prefix, aligner in (("/v3", "ALIGN_MEAN"), ("/v3", None)):
         params = {"filter": f'metric.type = "cloudsql.googleapis.com/database/cpu/utilization" AND resource.labels.database_id = "{project}:demo-pg"',
                   "interval.startTime": start, "interval.endTime": end}
         if aligner:
             params.update({"aggregation.alignmentPeriod": "300s", "aggregation.perSeriesAligner": aligner})
-        show(f"gcp list series {aligner}", lambda p=params: http.get(f"{base}/monitoring/v3/projects/{project}/timeSeries", p))
+        show(f"gcp list series {aligner}", lambda p=params, x=prefix: http.get(f"{base}{x}/projects/{project}/timeSeries", p))
 
 
 def azure():
@@ -61,8 +61,7 @@ def azure():
             "properties": {"administratorLogin": "capadmin", "administratorLoginPassword": "Local-only-123!", "version": "8.0.21",
                            "storage": {"storageSizeGB": 32}, "highAvailability": {"mode": "Disabled"}}}
     path = f"{base}/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.DBforMySQL/flexibleServers"
-    for version in ("2023-12-30", "2021-12-01-preview"):
-        show(f"az create {version}", lambda v=version: http.put(f"{path}/demo-mysql", body, {"api-version": v}))
+    show("az create", lambda: http.put(f"{path}/demo-mysql", body, {"api-version": "2023-12-30"}))
     for _ in range(40):
         got = show("az get 2023-12-30", lambda: http.get(f"{path}/demo-mysql", {"api-version": "2023-12-30"}))
         state = ((got or {}).get("properties") or {}).get("state")

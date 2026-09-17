@@ -131,7 +131,13 @@ def read_topology(http, target: AzureTarget, server_name: str) -> tuple[dict, li
     source = writer.get("properties", {}).get("sourceServerResourceId")
     if source:  # asked for a replica: read the source server it follows
         writer = http.get(f"{path}/{source.rstrip('/').split('/')[-1]}", params)
-    readers = sorted(http.get(f"{path}/{writer['name']}/replicas", params).get("value", []), key=lambda s: s["name"])
+    try:
+        readers = sorted(http.get(f"{path}/{writer['name']}/replicas", params).get("value", []), key=lambda s: s["name"])
+        replicas_listed = True
+    except CloudApiError as exc:
+        if exc.status != 404:
+            raise
+        readers, replicas_listed = [], False  # the emulator has no replicas endpoint
     props = writer.get("properties", {})
     storage = props.get("storage", {})
     data = {
@@ -142,6 +148,7 @@ def read_topology(http, target: AzureTarget, server_name: str) -> tuple[dict, li
         "readers": [_node(r, f"reader-{n}") for n, r in enumerate(readers, start=1)],
         "storage": {"type": storage.get("type") or storage.get("tier"), "allocated_gib": storage.get("storageSizeGB")},
         "high_availability": (props.get("highAvailability") or {}).get("mode", "Disabled"),
+        "replicas_listed": replicas_listed,
         "unknown_instance_classes": sorted({s.get("sku", {}).get("name", "") for s in [writer, *readers]
                                             if not sku_shape(s.get("sku", {}).get("name", ""))}),
     }
@@ -236,6 +243,8 @@ def import_azure(target: AzureTarget, server_name: str, hours: float = 24.0, per
         source=f"{target.kind}:{ENGINES[target.engine][0]}:flexibleServers.get", method="identifiers not stored",
         data=topology, **common))
 
+    if not topology["replicas_listed"]:
+        result.skipped.append("read replicas: the replicas endpoint answered 404, so readers are not listed")
     names = ["writer"] + [f"reader-{n}" for n in range(1, len(servers))]
     metrics_by_node: dict[str, dict] = {}
     writer_cpu: list[dict] = []

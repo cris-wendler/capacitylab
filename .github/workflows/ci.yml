@@ -156,8 +156,18 @@ jobs:
         run: python scripts/cloud_emulator_probe.py gcp
       - name: Probe floci-az (temporary)
         run: python scripts/cloud_emulator_probe.py azure
+      - name: Import gcp (probe)
+        if: always()
+        run: |
+          capacitylab import gcp --project floci-local --instance demo-pg --hours 2 --label emulator-check --out gcp-check.yaml || true
+          cat gcp-check.yaml || true
+      - name: Import azure (probe)
+        if: always()
+        run: |
+          capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo --instance demo-mysql --label emulator-check --out az-check.yaml || true
+          cat az-check.yaml || true
       - name: Emulator logs
         if: always()
         run: |
-          docker logs capacitylab-floci-gcp 2>&1 | tail -40
-          docker logs capacitylab-floci-az 2>&1 | tail -40
+          docker logs capacitylab-floci-gcp 2>&1 | grep -v health | tail -60
+          docker logs capacitylab-floci-az 2>&1 | grep -v health | head -80
