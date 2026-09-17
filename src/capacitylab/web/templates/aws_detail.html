@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ file_name }} · aws · CapacityLab{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="/aws">AWS</a> / <span class="mono">{{ file_name }}</span></div>
+{% set emulator = topo.source.startswith('floci') %}
+<h1>AWS import · {{ topo.title.removeprefix("RDS topology (").removesuffix(")") }}</h1>
+<div class="meta">
+  <span class="pill {{ 'pill-ok' if emulator else 'pill-warn' }}">{{ 'local emulator (Floci)' if emulator else 'AWS account' }}</span>
+  <span>{{ topo.data.engine }} {{ topo.data.engine_version }}</span>
+  <span>{{ topo.method }}</span>
+  {% if cpu %}<span>{{ cpu.window_start.strftime('%Y-%m-%d %H:%M') }} to {{ cpu.window_end.strftime('%Y-%m-%d %H:%M') }} UTC</span>{% endif %}
+</div>
+<div class="actions">
+  {% for s in scenarios %}
+  <a class="{{ 'btn-primary' if loop.first else 'btn-secondary' }}" href="/scenarios/{{ s.id }}?evidence={{ rel_path|urlencode }}">Use in a review: {{ s.title }}</a>
+  {% endfor %}
+</div>
+<p class="small muted">or <span class="mono">capacitylab run &lt;scenario&gt; --evidence runs/{{ rel_path }}</span> · evidence ids:
+  {% for i in item_ids %}<span class="mono">{{ i }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+
+{% if emulator %}
+<section class="callout callout-gap">
+  <h3>Emulator data</h3>
+  <p class="small">{{ topo.caveats[0] }}</p>
+</section>
+{% endif %}
+{% if topo.data.get('not_imported') %}
+<section class="callout callout-disputed">
+  <h3>Not imported</h3>
+  <ul class="plain small">{% for r in topo.data.not_imported %}<li>{{ r }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<h2>Topology</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Node</th><th>Instance class</th><th class="num">vCPU</th><th class="num">Memory GiB</th><th class="num">Availability zones</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for n in [topo.data.writer] + topo.data.readers %}
+    <tr><td><strong>{{ n.role }}</strong>{% if n.get('promotion_tier') is not none %} <span class="tag">tier {{ n.promotion_tier }}</span>{% endif %}</td>
+      <td class="mono">{{ n.instance_class }}</td><td class="num">{{ n.get('vcpu', '—') }}</td><td class="num">{{ n.get('memory_gib', '—') }}</td>
+      <td class="num">{{ n.availability_zone_count }}</td>
+      <td><span class="pill {{ 'pill-ok' if n.status == 'available' else 'pill-warn' }}">{{ n.status }}</span></td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="small muted">{% if not topo.data.readers %}No readers: a failover would have no promotion target in this topology. {% endif %}
+Storage {{ topo.data.storage.type }}, {{ topo.data.storage.allocated_gib }} GiB.{% if topo.data.aurora_cluster %} Aurora cluster.{% endif %}</p>
+
+{% if charts %}
+<h2>Writer CPU <span class="muted small">{{ cpu.id }}</span></h2>
+<div class="multiples aws-charts">
+{% for c in charts %}
+  <figure class="panel">
+    <figcaption><strong>{{ c.title }}</strong></figcaption>
+    {{ c.svg|safe }}
+  </figure>
+{% endfor %}
+</div>
+<p class="small muted">{{ cpu.method }}. The dashed line is the 80% threshold the scenarios use.</p>
+{% endif %}
+
+{% if metrics %}
+<h2>CloudWatch metrics <span class="muted small">{{ metrics.id }}</span></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Node</th><th>Metric</th><th class="num">Mean</th><th class="num">p95 of period averages</th><th class="num">Maximum</th><th class="num">Data points</th></tr></thead>
+  <tbody>
+  {% for node, ms in metrics.data.nodes.items() %}{% for m, v in ms.items() %}
+    <tr><td>{{ node }}</td><td class="mono">{{ m }} <span class="muted small">{{ v.unit }}</span></td>
+    {% if v.data_points %}
+      <td class="num">{{ v.mean_of_period_averages }}</td><td class="num">{{ v.p95_of_period_averages }}</td>
+      <td class="num"><strong>{{ v.max_of_period_maxima }}</strong></td><td class="num">{{ v.data_points }}</td>
+    {% else %}
+      <td class="num muted" colspan="3">no data points</td><td class="num">0</td>
+    {% endif %}</tr>
+  {% endfor %}{% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+
+<div class="split">
+  <section>
+    <h2>Prices {% if rate %}<span class="muted small">{{ rate.id }}</span>{% endif %}</h2>
+    {% if rate %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Instance class</th><th class="num">USD per hour</th><th class="num">USD per month</th></tr></thead>
+      <tbody>
+      {% for k, v in rate.data.instance_hourly.items() %}
+        <tr{% if k == topo.data.writer.instance_class %} class="sep"{% endif %}><td class="mono">{{ k }}{% if k == topo.data.writer.instance_class %} <span class="tag">current</span>{% endif %}</td>
+          <td class="num">{{ '%.3f' % v }}</td><td class="num">{{ '%.0f' % (v * rate.data.hours_per_month) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="small muted">{{ rate.method }}. {{ rate.data.source_note }}</p>
+    {% else %}
+    <div class="empty">No prices in this import.</div>
+    {% endif %}
+  </section>
+  <section>
+    <h2>Cost this month {% if cost %}<span class="muted small">{{ cost.id }}</span>{% endif %}</h2>
+    {% if cost %}
+    <dl class="facts-list">
+      <dt>RDS so far</dt><dd><strong>{{ '%.2f' % cost.data.month_to_date }} {{ cost.data.currency }}</strong></dd>
+      <dt>Period</dt><dd>{{ cost.data.period_start }} to {{ cost.data.period_end_exclusive }} (exclusive)</dd>
+      <dt>Metric</dt><dd>{{ cost.data.metric }}, whole account, RDS only</dd>
+    </dl>
+    {% else %}
+    <div class="empty">Cost was not included in this import.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

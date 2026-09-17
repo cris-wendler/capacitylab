@@ -63,6 +63,9 @@ class Settings:
     sandbox: str = "sqlite"
     mysql: MySQLSettings | None = None
     postgres: PostgresSettings = PostgresSettings()
+    aws_region: str = "us-east-1"
+    aws_endpoint: str = "http://127.0.0.1:4566"  # local emulator (Floci)
+    aws_live: bool = False  # the web UI reads a real AWS account only when this is set explicitly
     runs_dir: Path = Path("runs")
 
     @classmethod
@@ -98,6 +101,9 @@ class Settings:
                 password=env.get("CAPACITYLAB_POSTGRES_PASSWORD", "change-me-local-only"),
                 database=env.get("CAPACITYLAB_POSTGRES_DATABASE", "capacitylab_sandbox"),
             ),
+            aws_region=env.get("CAPACITYLAB_AWS_REGION", "us-east-1"),
+            aws_endpoint=env.get("CAPACITYLAB_AWS_ENDPOINT", "http://127.0.0.1:4566"),
+            aws_live=_bool(env.get("CAPACITYLAB_AWS_LIVE"), False),
             runs_dir=Path(env.get("CAPACITYLAB_RUNS_DIR", "runs")),
         )
 

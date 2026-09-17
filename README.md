@@ -621,8 +621,8 @@ capacitylab import aws --instance demo-writer --label "floci demo" --out runs/im
 capacitylab run campaign-overlap --evidence runs/imports/aws.yaml
 ```
 
-`capacitylab import aws` reads one RDS instance and its readers through the AWS APIs and turns them into evidence the
-agents can cite:
+`capacitylab import aws` (or the **AWS** page in the web UI) reads one RDS instance and its readers through the AWS APIs
+and turns them into evidence the agents can cite:
 
 | Evidence | From | Who sees it |
 |---|---|---|
@@ -648,6 +648,8 @@ collection path working end to end, not how a real database behaves.
 > `--live` reads a real account with your normal AWS credentials. Only the five read calls above are made. Cost
 > Explorer bills per request on AWS, so pass `--no-cost` to skip it. No account id, ARN, endpoint, instance or cluster
 > name, or tag is stored: nodes become `writer` and `reader-1`, and the import is named by `--label` or a short hash.
+
+![AWS import page: topology and a day of writer CPU read from the Floci emulator](docs/media/aws-import.png)
 
 The scenario's own rate card still drives the capacity model's option costs; the AWS prices sit next to it as evidence
 the FinOps agent can cite and compare.
@@ -826,6 +828,8 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 | `CAPACITYLAB_MYSQL_*` | `127.0.0.1:3307` | Local MySQL container (placeholder password) |
 | `CAPACITYLAB_POSTGRES_*` | `127.0.0.1:5433` | Local PostgreSQL container (placeholder password) |
 | `CAPACITYLAB_PERCONA_IMAGE` / `CAPACITYLAB_LAB_CONTAINER` | `percona/percona-toolkit:latest` / `capacitylab-sandbox-mysql` | Percona Toolkit image and the lab container it attaches to (must be named `capacitylab-*`) |
+| `CAPACITYLAB_AWS_ENDPOINT` / `CAPACITYLAB_AWS_REGION` | `http://127.0.0.1:4566` / `us-east-1` | AWS emulator and region used by the web UI's AWS page |
+| `CAPACITYLAB_AWS_LIVE` | `false` | `true` lets the web UI read a real AWS account with your normal credentials (read calls only) |
 | `CAPACITYLAB_RUNS_DIR` | `runs` | Run logs, lab results, imports, spend ledger |
 
 </details>

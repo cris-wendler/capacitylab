@@ -65,20 +65,36 @@ class AwsTarget:
     def kind(self) -> str:
         return "aws" if self.live else "floci"
 
-    def client(self, service: str, region: str | None = None):
+    def client(self, service: str, region: str | None = None, quick: bool = False):
         import boto3  # optional dependency
+        from botocore.config import Config
 
+        # quick: one attempt and short timeouts, for status checks that must not hang a page
+        config = Config(connect_timeout=1, read_timeout=3, retries={"max_attempts": 1}) if quick else None
         if self.live:
-            return boto3.client(service, region_name=region or self.region)
+            return boto3.client(service, region_name=region or self.region, config=config)
         # Placeholder credentials: the emulator accepts any non-empty value.
         return boto3.client(service, region_name=region or self.region, endpoint_url=self.endpoint_url,
-                            aws_access_key_id="test", aws_secret_access_key="test")
+                            aws_access_key_id="test", aws_secret_access_key="test", config=config)
 
 
 @dataclass
 class AwsImport:
     items: list[EvidenceItem] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)  # parts that could not be read, with the reason
+
+
+def list_instances(target: AwsTarget, rds=None) -> list[dict]:
+    """DB instances the target can see, for choosing one to import. Identifiers are shown, never stored."""
+    rds = rds or target.client("rds", quick=True)
+    out = []
+    for page in rds.get_paginator("describe_db_instances").paginate():
+        for i in page["DBInstances"]:
+            out.append({"id": i["DBInstanceIdentifier"], "instance_class": i["DBInstanceClass"],
+                        "engine": i.get("Engine"), "status": i.get("DBInstanceStatus"),
+                        "cluster": bool(i.get("DBClusterIdentifier")),
+                        "replica_of": bool(i.get("ReadReplicaSourceDBInstanceIdentifier"))})
+    return sorted(out, key=lambda i: (i["replica_of"], i["id"]))
 
 
 def _tag(label: str | None, identifiers: list[str]) -> tuple[str, str]:
@@ -290,4 +306,6 @@ def import_aws(target: AwsTarget, instance_id: str, hours: float = 24.0, period_
                 data=cost, **common))
         except Exception as exc:
             result.skipped.append(f"month-to-date cost: {type(exc).__name__}")
+    # Recorded with the topology so anyone reading the evidence file sees what the import could not read.
+    result.items[0].data["not_imported"] = list(result.skipped)
     return result

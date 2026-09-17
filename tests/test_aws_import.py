@@ -99,7 +99,7 @@ def test_import_builds_topology_metrics_prices_and_cost_without_identifiers():
     for secret in ("orders-prod", ACCOUNT, ARN, RDS_HOST, "abc123"):
         assert secret not in dumped
     assert all(i.synthetic and i.environment == "import" and i.source.startswith("floci:") for i in result.items)
-    assert result.skipped == []
+    assert result.skipped == [] and by_id["EV-AWS-TOPO-ORDERS-EVENING"].data["not_imported"] == []
 
 
 def test_unlabelled_import_is_named_by_a_hash_and_missing_prices_are_reported():

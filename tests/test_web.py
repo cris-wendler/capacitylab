@@ -1,4 +1,6 @@
 import re
+import shutil
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -73,6 +75,9 @@ def runs_dir(tmp_path_factory):
     path = tmp_path_factory.mktemp("runs")
     write_evidence([LAB_ITEM, *PERCONA_ITEMS], path / "lab" / "campaign-overlap-test.yaml")
     write_evidence(PG_ITEMS, path / "lab" / "campaign-overlap-pg.yaml")
+    (path / "imports").mkdir()
+    # A real import from the Floci emulator, captured in CI.
+    shutil.copy(Path(__file__).parent / "data" / "aws" / "floci-import.yaml", path / "imports" / "aws-floci-demo-test.yaml")
     return path
 
 
@@ -80,7 +85,8 @@ def runs_dir(tmp_path_factory):
 def client(runs_dir):
     # Non-local hosts keep the lab status checks offline and exercise the refusal path.
     settings = Settings(runs_dir=runs_dir, mysql=MySQLSettings("db.example.invalid", 3306, "u", "p", "capacitylab_sandbox"),
-                        postgres=PostgresSettings(host="db.example.invalid"))
+                        postgres=PostgresSettings(host="db.example.invalid"),
+                        aws_endpoint="https://rds.example.invalid")
     with TestClient(create_app(settings, inline_jobs=True)) as c:
         yield c
 
@@ -153,3 +159,21 @@ def test_postgres_lab_page(client):
 def test_comparison_page(client):
     page = client.get("/scenarios/downsize-reader/evaluate")
     assert page.status_code == 200 and "Simple rules" in page.text and "Single reviewer" in page.text
+
+
+def test_aws_pages(client):
+    page = client.get("/aws")
+    assert page.status_code == 200 and "Import from AWS" in page.text
+    assert "refusing endpoint" in page.text, "a non-local endpoint is refused without CAPACITYLAB_AWS_LIVE"
+    assert "aws-floci-demo-test.yaml" in page.text and "emulator" in page.text and "built-in method" not in page.text
+    detail = client.get("/aws/aws-floci-demo-test.yaml")
+    assert detail.status_code == 200 and "AWS import · floci demo" in detail.text
+    assert "db.r6g.2xlarge" in detail.text and "No readers" in detail.text and "local emulator (Floci)" in detail.text
+    assert detail.text.count('<svg class="viz"') == 2 and "peak 69.0%" in detail.text
+    assert "DatabaseConnections" in detail.text and "no data points" in detail.text
+    assert "No prices in this import." in detail.text and "0.00 USD" in detail.text
+    assert "/scenarios/campaign-overlap?evidence=imports/aws-floci-demo-test.yaml" in detail.text
+    assert client.get("/aws/..%2Fsecrets.yaml").status_code == 404
+    assert client.get("/aws/campaign-overlap-pg.yaml").status_code == 404
+    assert client.post("/aws/import", data={"instance": "demo-writer"}).status_code == 400
+    assert client.post("/aws/import", data={"instance": "demo-writer", "hours": 0}).status_code == 400
