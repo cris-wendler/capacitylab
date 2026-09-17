@@ -66,23 +66,27 @@ def seed_gcp(endpoint: str) -> None:
     ts = (now - timedelta(hours=24)).replace(minute=0, second=0, microsecond=0)
     resource = {"type": "cloudsql_database", "labels": {"project_id": GCP_PROJECT, "region": "us-central1",
                                                         "database_id": f"{GCP_PROJECT}:{GCP_INSTANCE}"}}
-    sent = 0
+    sent, read_ops, write_ops = 0, 0, 0
+    counting_since = (ts - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
     while ts < now:
         average, _ = cpu_at(ts, rng)
         gauges = {"cpu/utilization": average / 100, "memory/utilization": 0.55 + average / 400,
                   "postgresql/num_backends": float(round(40 + average * 3))}
-        # disk operations are DELTA counts per sampling window in Cloud SQL; the import reads them with ALIGN_RATE
-        deltas = {"disk/read_ops_count": round((900 + average * 60) * 300),
-                  "disk/write_ops_count": round((300 + average * 25) * 300)}
-        start, stamp = ((ts - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ"), ts.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        # Cloud SQL reports disk operations as DELTA counts; floci-gcp only accepts GAUGE or CUMULATIVE for metrics it
+        # creates, so they are written as running counters. The import's ALIGN_RATE turns either kind into operations/s.
+        read_ops += round((900 + average * 60) * 300)
+        write_ops += round((300 + average * 25) * 300)
+        counters = {"disk/read_ops_count": read_ops, "disk/write_ops_count": write_ops}
+        stamp = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
         series = [{"metric": {"type": f"cloudsql.googleapis.com/database/{metric}"}, "resource": resource,
                    "metricKind": "GAUGE", "valueType": "DOUBLE",
                    "points": [{"interval": {"endTime": stamp}, "value": {"doubleValue": value}}]}
                   for metric, value in gauges.items()]
         series += [{"metric": {"type": f"cloudsql.googleapis.com/database/{metric}"}, "resource": resource,
-                    "metricKind": "DELTA", "valueType": "INT64",
-                    "points": [{"interval": {"startTime": start, "endTime": stamp}, "value": {"int64Value": str(value)}}]}
-                   for metric, value in deltas.items()]
+                    "metricKind": "CUMULATIVE", "valueType": "INT64",
+                    "points": [{"interval": {"startTime": counting_since, "endTime": stamp},
+                                "value": {"int64Value": str(value)}}]}
+                   for metric, value in counters.items()]
         http.post(f"{base}/v3/projects/{GCP_PROJECT}/timeSeries", {"timeSeries": series})
         sent += len(series)
         ts += timedelta(minutes=5)
