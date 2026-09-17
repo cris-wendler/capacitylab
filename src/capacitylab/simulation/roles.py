@@ -52,7 +52,7 @@ ROLES: dict[RoleId, RoleDefinition] = {
                                   K.EXPERIMENT_RESULT, K.CALCULATION}),
         tools=frozenset({"top_queries", "tenant_skew", "explain_query", "index_experiment", "rewrite_equivalence",
                          "row_estimate_check", "table_growth_review", "bottleneck_classifier", "capacity_forecast",
-                         "lab_load_test", "percona_duplicate_keys"}),
+                         "load_attribution", "lab_load_test", "percona_duplicate_keys"}),
         priorities=("fix the workload before buying capacity", "correctness of any rewrite", "measured evidence"),
     ),
     RoleId.APPLICATION_OWNER: RoleDefinition(
@@ -71,7 +71,7 @@ ROLES: dict[RoleId, RoleDefinition] = {
                                   K.QUERY_DIGEST, K.WORKLOAD_FORECAST, K.TENANT_PROFILE, K.TENANT_ENTITLEMENTS,
                                   K.CALCULATION}),
         tools=frozenset({"top_queries", "batch_reschedule_check", "capacity_forecast", "cost_estimate",
-                         "tenant_entitlement_review"}),
+                         "load_attribution", "tenant_entitlement_review"}),
         priorities=("keep commitments to tenants", "respect change freezes", "minimal operational churn"),
     ),
     RoleId.RELIABILITY_ENGINEER: RoleDefinition(
@@ -89,7 +89,7 @@ ROLES: dict[RoleId, RoleDefinition] = {
                                   K.RELIABILITY_HISTORY, K.EVENT_CALENDAR, K.RELEASE_CALENDAR, K.BATCH_SCHEDULE,
                                   K.BATCH_RUN_LOG, K.EXPERIMENT_RESULT, K.TENANT_ENTITLEMENTS, K.CALCULATION}),
         tools=frozenset({"tenant_skew", "bottleneck_classifier", "batch_reschedule_check", "capacity_forecast",
-                         "cost_estimate", "lab_load_test", "tenant_entitlement_review"}),
+                         "cost_estimate", "load_attribution", "lab_load_test", "tenant_entitlement_review"}),
         priorities=("zero SLO breaches with margin", "fewest unmeasured risks", "reversibility"),
     ),
     RoleId.FINOPS_ANALYST: RoleDefinition(
@@ -106,7 +106,7 @@ ROLES: dict[RoleId, RoleDefinition] = {
         evidence_kinds=frozenset({K.TOPOLOGY, K.METRIC_SUMMARY, K.WORKLOAD_FORECAST, K.RATE_CARD, K.BUDGET, K.TABLE_STATS,
                                   K.EVENT_CALENDAR, K.EXPERIMENT_RESULT, K.TENANT_ENTITLEMENTS, K.CALCULATION}),
         tools=frozenset({"tenant_skew", "table_growth_review", "capacity_forecast", "cost_estimate",
-                         "tenant_entitlement_review"}),
+                         "load_attribution", "tenant_entitlement_review"}),
         priorities=("lowest recurring cost that meets objectives", "budget headroom", "avoid permanent drift"),
     ),
     RoleId.TENANT_REPRESENTATIVE: RoleDefinition(

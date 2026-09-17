@@ -131,6 +131,7 @@ is free, offline and repeatable.
 |---|---|
 | 📝 **A decision record** | What each agent recommends and why, open disagreements, unanswered challenges, evidence nobody has, and checks that were requested but never ran. |
 | 🩺 **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates. `capacitylab findings <scenario>` or the scenario page. |
+| 🔎 **Why a slot breaches** | Each breaching slot broken down by statement, by tenant and by batch job, so the remedy follows the cause: a job that can move, a statement worth an index or a rewrite, a tenant taking more than they pay for, or load spread evenly, which is the only case where buying capacity is the honest answer. |
 | 🧪 **Measurements from a real engine** | A local MySQL 8.0 or PostgreSQL 17 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
 | 💸 **Costs next to the risk** | Every option priced from the scenario's rate card, and each tenant's share of the cluster compared with what it pays for. |
 | 📈 **What your cluster actually does** | `history collect` appends each window of metrics to a local store, and `history envelope` reports what every hour of every weekday reaches - typically, at the high end and at worst - weighted towards recent days, with level shifts detected and thin evidence flagged. |
@@ -221,6 +222,38 @@ compares it with the CPU share each tenant's workload takes, modeled from calls 
 
 The review is available to the application owner, reliability engineer and cost analyst as
 `tenant_entitlement_review`; the tenant representative sees only its own plan.
+
+### Who is actually causing it
+
+"The writer saturates at 19:00" is a symptom, and the remedies differ by an order of magnitude in cost, so the first
+question is what is behind it. Every breaching slot is decomposed into the same CPU demand the capacity model used:
+
+```
+What is driving the busiest slots: loyalty-recalculation 18.5%, alder 68.5%
+  Across 12 slots (18:00 to 20:45), the worst is 19:00 at 115% of the node.
+  By statement: QF-OTHER 28.3%, QF-ORDER-HISTORY 24%, QF-AUDIENCE 20.7%.
+  By tenant:    alder 64.8%, birch 7.1%.
+  what to do: move the batch job (loyalty-recalculation, 18.5%);
+              check this tenant's share against what they pay for (alder, 68.5%)
+```
+
+The shares are of modeled demand, not a second estimate: they add up to the same utilization the option table shows.
+Four shapes get four different answers:
+
+| What the slot looks like | What it argues for |
+|---|---|
+| A batch job holds a large share while it runs | Move it. Work with a deadline but no audience is the cheapest thing to move, if the deadline still holds |
+| One statement dominates | An index experiment or a rewrite equivalence check. Either is cheaper than capacity |
+| One tenant dominates | An entitlement question, not a capacity one: compare their share with what they pay for |
+| Nothing dominates | Capacity is the honest remedy, because there is nothing cheaper to fix first |
+
+It attributes under any option, not just today's, so "what would still be driving this after we move the batch job"
+is answerable before deciding. Agents can call it as the `load_attribution` tool, and it reports the thresholds it
+applied rather than hiding them.
+
+Two limits stated in the output itself: the shares are only as good as the forecast rates and the cost per execution
+they rest on, and **attribution stops at the statement and the tenant**. Which service or code path issues a statement
+is not in this evidence, so it cannot tell you which team owns the fix.
 
 ### What the capacity model says
 

@@ -52,3 +52,20 @@ def test_every_finding_cites_evidence_that_exists(campaign):
         assert finding.evidence_ids, f"{finding.id} cites nothing"
         for eid in finding.evidence_ids:
             assert eid in bundle, f"{finding.id} cites missing {eid}"
+
+
+def test_the_cause_of_the_busiest_slots_is_a_finding_of_its_own():
+    """A saturation finding says what to do; this one says why, so the remedy can follow the cause."""
+    scenario, bundle = load_scenario("campaign-overlap")
+    cause = next(f for f in review_findings(scenario, bundle) if f.id == "FND-CAP-CAUSE")
+    assert cause.area == "capacity" and cause.severity == "medium"
+    assert "loyalty-recalculation" in cause.headline and "alder" in cause.headline
+    assert "19:00" in cause.detail and "QF-" in cause.detail
+    assert "move the batch job" in cause.recommendation
+    assert "check this tenant's share" in cause.recommendation
+    assert cause.evidence_ids
+
+
+def test_a_scenario_with_no_breach_gets_no_cause_finding():
+    scenario, bundle = load_scenario("downsize-reader")
+    assert not [f for f in review_findings(scenario, bundle) if f.id == "FND-CAP-CAUSE"]
