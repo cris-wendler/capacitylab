@@ -29,7 +29,7 @@ preference; changing it changes the reference.
 | Metric | Definition |
 |---|---|
 | Breach-slot regret | SLO breach slots of the recommendation minus those of the reference best |
-| Cost regret | (one-off + monthly) cost of the recommendation minus the reference best |
+| Cost regret | 12-month cost (one-off + 12 × monthly) of the recommendation minus that of the reference best |
 | Root cause found | An optimization proposal targets a root-cause fingerprint |
 | Gap recall | Share of expected gap flags present in the final missing-evidence list |
 | Citation errors | Invalid or inaccessible citations across all turns |
@@ -45,10 +45,10 @@ output is the set of positions, not a vote. A tie is reported and broken alphabe
 |---|---|---|---|---|---|---|---|---|---|
 | campaign-overlap | five-role review | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 7 |
 | campaign-overlap | single reviewer | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 0 |
-| campaign-overlap | rule-based | OPT-SCALE-TEMP | 0 | 129.84 | no | 0.0 | 0 | 0 | 0 |
+| campaign-overlap | rule-based | OPT-SCALE-TEMP | 0 | 128.96 | no | 0.0 | 0 | 0 | 0 |
 | downsize-reader | five-role review | OPT-KEEP | 0 | 0.00 | n/a | 1.0 | 0 | 0 | 6 |
 | downsize-reader | single reviewer | OPT-KEEP | 0 | 0.00 | n/a | 1.0 | 0 | 0 | 0 |
-| downsize-reader | rule-based | OPT-DOWNSIZE-16XL | 0 | −6,774.40 | n/a | 0.0 | 0 | 0 | 0 |
+| downsize-reader | rule-based | OPT-DOWNSIZE-16XL | 0 | −81,292.80 | n/a | 0.0 | 0 | 0 | 0 |
 
 ### What these results do and do not show
 

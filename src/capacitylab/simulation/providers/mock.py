@@ -338,7 +338,7 @@ def _database_engineer(ctx: TurnContext, t: _Turn) -> None:
         best_index = bool(experiment)
         candidates = [o for o in outcomes.values() if _safe(o) and o["slots_over_threshold"] == 0]
         candidates.sort(key=lambda o: (0 if (best_index and _uses_index(o)) else 1, len(o["unknowns"]),
-                                       o["cost_delta_month_usd"] + o["cost_delta_event_usd"], o["peak_utilization_pct"]))
+                                       _twelve_months(o), o["peak_utilization_pct"]))
         if candidates:
             chosen = candidates[0]
             t.claim(_describe(chosen) + ".", [forecast.id], "modeled")
@@ -511,6 +511,11 @@ def _reliability_engineer(ctx: TurnContext, t: _Turn) -> None:
     t.gaps()
 
 
+def _twelve_months(o: dict) -> float:
+    """One-off cost once plus the monthly change twelve times, so one-off and recurring amounts compare in one unit."""
+    return round(o["cost_delta_event_usd"] + 12 * o["cost_delta_month_usd"], 2)
+
+
 def _finops_analyst(ctx: TurnContext, t: _Turn) -> None:
     budget = _first(ctx, EvidenceKind.BUDGET)
     if budget:
@@ -552,7 +557,7 @@ def _finops_analyst(ctx: TurnContext, t: _Turn) -> None:
             t.claim(f"{o['option_id']} puts ${o['revenue_at_risk_usd']:,.0f} of sale revenue at risk across "
                     f"{o['revenue_at_risk_slots']} breached sale slots.", [forecast.id], "modeled")
         # Twelve-month view: recurring monthly deltas plus the one-off cost of this event.
-        ok.sort(key=lambda o: (round(12 * o["cost_delta_month_usd"] + o["cost_delta_event_usd"], 2), o["slots_over_threshold"]))
+        ok.sort(key=lambda o: (_twelve_months(o), o["slots_over_threshold"]))
         if ok:
             chosen = ok[0]
             t.decide(chosen["option_id"], "Cheapest option with zero modeled SLO breaches"
@@ -563,7 +568,7 @@ def _finops_analyst(ctx: TurnContext, t: _Turn) -> None:
             for role, pos in _latest_positions(ctx).items():
                 if pos in outcomes and pos != chosen["option_id"] and role != ctx.role.id.value:
                     other = outcomes[pos]
-                    if other["cost_delta_event_usd"] + other["cost_delta_month_usd"] > chosen["cost_delta_event_usd"] + chosen["cost_delta_month_usd"]:
+                    if _twelve_months(other) > _twelve_months(chosen):
                         t.challenge(RoleId(role), f"Position {pos}",
                                     f"{chosen['option_id']} models zero SLO breaches at ${chosen['cost_delta_event_usd']} one-off "
                                     f"and ${chosen['cost_delta_month_usd']} per month, versus ${other['cost_delta_event_usd']} and "
@@ -627,7 +632,7 @@ def _single_agent(ctx: TurnContext, t: _Turn) -> None:
     t.position, t.rationale, t.confidence = "undecided", "Waiting for a forecast.", "low"
     if forecast:
         ok = [o for o in _outcomes(forecast).values() if _safe(o) and o["slots_over_threshold"] == 0]
-        ok.sort(key=lambda o: (len(o["unknowns"]), o["cost_delta_month_usd"] + o["cost_delta_event_usd"], o["peak_utilization_pct"]))
+        ok.sort(key=lambda o: (len(o["unknowns"]), _twelve_months(o), o["peak_utilization_pct"]))
         if ok:
             t.decide(ok[0]["option_id"], "Meets objectives with the fewest unknowns, then lowest cost.", "medium")
 

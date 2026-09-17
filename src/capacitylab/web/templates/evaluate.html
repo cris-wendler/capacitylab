@@ -10,7 +10,7 @@ assumptions the roles never saw (for example the real campaign multiplier). That
 {% for o in report.approaches[0].reference_best %}<strong>{{ labels.get(o, o) }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}.</p>
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Approach</th><th>Recommendation</th><th class="num">Extra SLO breach slots</th><th class="num">Extra cost</th><th>Found the root cause</th><th class="num">Known gaps raised</th><th class="num">Bad citations</th><th class="num">Unsupported numbers</th><th class="num">Checks run</th><th class="num">Open disagreements</th></tr></thead>
+  <thead><tr><th>Approach</th><th>Recommendation</th><th class="num">Extra SLO breach slots</th><th class="num">Extra cost over 12 months</th><th>Found the root cause</th><th class="num">Known gaps raised</th><th class="num">Bad citations</th><th class="num">Unsupported numbers</th><th class="num">Checks run</th><th class="num">Open disagreements</th></tr></thead>
   <tbody>
   {% for a in report.approaches %}
   <tr>

@@ -113,18 +113,22 @@ run from scripted rules, which is free, offline and repeatable.
 ## Example: a flash sale meets a batch job
 
 The `campaign-overlap` scenario: Tenant Alder runs a sale from 18:00 to 21:00 on `demo-cluster-a`, a shared
-production cluster with a writer and a reader on `db.r6i.16xlarge` (64 vCPU each, about $13,500 a month in instances
-against a $16,500 budget). Other tenants peak at the same time, a release raises order-history traffic, and the
+production cluster with a writer and a reader on `db.r6i.16xlarge` (64 vCPU each; $9.28 an hour × 730 hours × 2 nodes =
+$13,548.80 a month in instances, against a $16,500 budget). Other tenants peak at the same time, a release raises order-history traffic, and the
 loyalty recalculation job starts at 19:00. Alder's previous sale earned $2.9 million in two hours.
 
-| On the table | |
+| On the table | How it is calculated |
 |---|---|
-| ![sale](https://img.shields.io/badge/sale%20revenue-%244.35M%20over%203%20h-1b9b6d?style=flat-square) | $1.45M an hour, based on the previous sale |
-| ![risk](https://img.shields.io/badge/doing%20nothing-%24304%2C500%20at%20risk-b42318?style=flat-square) | 7 sale slots where checkout or order history misses its SLO, each losing 12% of that slot's revenue |
-| ![evening](https://img.shields.io/badge/scale%20up%20tonight-%24130-c75b3b?style=flat-square) | writer and reader on `db.r6i.32xlarge` from 16:00 to 23:00, plus failovers of unknown length |
-| ![season](https://img.shields.io/badge/scale%20up%20for%20the%20season-%2418%2C708-c75b3b?style=flat-square) | the same for the 6-week peak season |
-| ![resize](https://img.shields.io/badge/resize%20permanently-%2413%2C549%2Fmonth-c75b3b?style=flat-square) | $162,586 a year, and over the monthly budget |
-| ![move](https://img.shields.io/badge/move%20the%20batch%20job-%240-127a55?style=flat-square) | keeps every SLO in the model, but runs at 95% CPU at the peak |
+| ![sale](https://img.shields.io/badge/sale%20revenue-%244%2C350%2C000-1b9b6d?style=flat-square) | previous sale $2,900,000 ÷ 2 h = $1,450,000 an hour; × 3 h of sale = $4,350,000 |
+| ![risk](https://img.shields.io/badge/doing%20nothing-%24304%2C500%20at%20risk-b42318?style=flat-square) | 7 breached 15-minute sale slots × 0.25 h × $1,450,000 an hour × 12% lost = $304,500 |
+| ![evening](https://img.shields.io/badge/scale%20up%20tonight-%24129.92-c75b3b?style=flat-square) | 32xlarge $18.56 − 16xlarge $9.28 = $9.28 more an hour × 7 h (16:00 to 23:00) × 2 nodes = $129.92 |
+| ![season](https://img.shields.io/badge/scale%20up%20for%20the%20season-%2418%2C708.48-c75b3b?style=flat-square) | $9.28 more an hour × 24 h × 42 days × 2 nodes = $18,708.48 |
+| ![resize](https://img.shields.io/badge/resize%20permanently-%2413%2C548.80%20a%20month-c75b3b?style=flat-square) | $9.28 more an hour × 730 h × 2 nodes = $13,548.80 a month; × 12 = $162,585.60 a year |
+| ![move](https://img.shields.io/badge/move%20the%20batch%20job-%240-127a55?style=flat-square) | no instance change; keeps every SLO in the model, but runs at 95% CPU at the peak |
+
+Every instance price is $0.145 per vCPU-hour ($9.28 = 64 vCPU × $0.145), and a month is 730 hours. The sale's revenue
+per hour is held at the previous sale's rate rather than raised with the 5× traffic plan, so the revenue at risk is a
+conservative figure.
 
 ```mermaid
 gantt
@@ -196,16 +200,21 @@ From the scripted run, with the index effect measured in the SQLite experiment d
 | Option | Peak CPU | Slots over 80% | SLO breach slots | One-off | Monthly | Revenue at risk |
 |---|---:|---:|---:|---:|---:|---:|
 | Keep capacity | 115.0% | 12 | ![14](https://img.shields.io/badge/-14-b42318?style=flat-square) | $0 | $0 | **$304,500** |
-| Scale to 32xlarge, 16:00–23:00 | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $130 | $0 | $0 |
-| Scale to 32xlarge for the 6-week season | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $18,708 | $0 | $0 |
-| Resize to 32xlarge permanently | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $13,549 | $0 |
+| Scale to 32xlarge, 16:00–23:00 | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $129.92 | $0 | $0 |
+| Scale to 32xlarge for the 6-week season | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $18,708.48 | $0 | $0 |
+| Resize to 32xlarge permanently | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $13,548.80 | $0 |
 | Add the index | 97.7% | 8 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
 | Move the batch job to 01:00 | 95.0% | 11 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0 | $0 |
 | Index and move the batch job | 77.7% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
-| Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $130 | $0 | $0 |
+| Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $129.92 | $0 | $0 |
 
 Every scale option also carries writer failovers of unknown length. The scripted FinOps agent reads this table on a
-12-month view, which is why a $130 evening beats a $13,549-a-month resize even though both keep every SLO.
+12-month view, which is why a $129.92 evening beats a $13,548.80-a-month resize even though both keep every SLO.
+
+*SLO breach slots* counts each SLO separately: when nothing changes, checkout and order history each miss their SLO in
+the same 7 sale slots, so 7 × 2 = 14. *Revenue at risk* counts the slot once. The index costs $0.08 a month: the
+candidate measured 1,835,008 bytes on 122,675 local rows, which scales to 0.802 GiB at 57,600,000 production rows, and
+0.802 GiB × $0.10 = $0.08.
 
 Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
 the evidence bundle, and a scenario without one fails validation. An AWS import with prices replaces the instance
@@ -376,10 +385,11 @@ Every proposed index or rewrite must include evidence, why it should help and ho
 ![A database change proposed in the Sonnet run, with evidence, tradeoffs, validation, and rollback](docs/media/run-proposal.png)
 
 `downsize-reader` covers the opposite question. The cluster runs a writer and a reader on `db.r6i.32xlarge` (128 vCPU,
-about $27,100 a month against a $25,000 budget), and the reader peaks at 18.7% CPU. Downsizing it to `16xlarge` saves
-$6,774 a month ($81,293 a year); to `8xlarge`, $10,162 a month ($121,939 a year). CPU would allow either, but the
+$18.56 × 730 h × 2 nodes = $27,097.60 a month against a $25,000 budget), and the reader peaks at 18.7% CPU. Downsizing
+it to `16xlarge` saves ($18.56 − $9.28) × 730 h = $6,774.40 a month ($81,292.80 a year); to `8xlarge`, ($18.56 − $4.64)
+× 730 h = $10,161.60 a month ($121,939.20 a year). CPU would allow either, but the
 working set (568 GiB) is larger than the smaller instance's modeled buffer pool, and the reader is the failover
-target. Four agents keep the reader; the cost analyst holds out for the $81,293 a year.
+target. Four agents keep the reader; the cost analyst holds out for the $81,292.80 a year.
 
 </details>
 
@@ -834,7 +844,7 @@ Four runs so far on `campaign-overlap` with the lab file attached. The last two 
   decided in round 2. Unanimity is not agreement about truth. None of these runs requested an index experiment, so the
   index options show no benefit in their forecasts.
 - **Money changed the conversation.** In the production-scale run the agents quote the $304,500 of sale revenue at risk
-  if nothing changes, the $18,708 season scale-up and the $13,549-a-month resize against a $16,500 monthly budget, and
+  if nothing changes, the $18,708.48 season scale-up and the $13,548.80-a-month resize against a $16,500 monthly budget, and
   settle on the $0 option that keeps every SLO in the model.
 - **What the checks caught in the production-scale run:** the FinOps analyst quoted the $16,500 budget while citing
   the cost estimate instead of the budget evidence, and worked out a -$18,408.48 headroom itself instead of quoting it;
@@ -854,16 +864,21 @@ Four runs so far on `campaign-overlap` with the lab file attached. The last two 
 and all checks, and simple capacity rules. It then scores each recommendation inside the capacity model using
 assumptions no role saw (for example the real multiplier, 4.2×).
 
-| Scenario | Approach | Recommendation | Extra breach slots | Extra cost | Root cause found | Known gaps raised |
+| Scenario | Approach | Recommendation | Extra breach slots | Extra cost over 12 months | Root cause found | Known gaps raised |
 |---|---|---|---:|---:|:---:|---:|
 | campaign-overlap | five-role review | index and move batch job *(4 of 5)* | 0 | $0.00 | yes | 100% |
 | campaign-overlap | single reviewer | index and move batch job | 0 | $0.00 | yes | 100% |
-| campaign-overlap | simple rules | scale up for the evening | 0 | $129.84 | **no** | **0%** |
+| campaign-overlap | simple rules | scale up for the evening | 0 | $128.96 | **no** | **0%** |
 | downsize-reader | five-role review | keep *(4 of 5)* | 0 | $0.00 | n/a | 100% |
 | downsize-reader | single reviewer | keep | 0 | $0.00 | n/a | 100% |
-| downsize-reader | simple rules | downsize to 16xlarge | 0 | −$6,774.40/month | n/a | **0%** |
+| downsize-reader | simple rules | downsize to 16xlarge | 0 | −$81,292.80 | n/a | **0%** |
 
 ![Comparison page](docs/media/evaluation.png)
+
+*Extra cost over 12 months* compares one-off and monthly costs in one unit: one-off cost + 12 × monthly cost, minus the
+same for the best option under the hidden assumptions. The evening scale-up is $129.92 + 12 × $0 = $129.92; the best
+option (index and move the batch job) is $0 + 12 × $0.08 = $0.96; so $129.92 − $0.96 = $128.96. Downsizing the reader
+is $0 + 12 × −$6,774.40 = −$81,292.80 against keeping it at $0.
 
 > [!NOTE]
 > With scripted roles, the five-role review and the single reviewer reach the same answer; the five-role review
@@ -927,7 +942,7 @@ src/capacitylab/
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             156 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+tests/             162 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data

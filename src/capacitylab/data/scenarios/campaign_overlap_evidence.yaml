@@ -305,7 +305,7 @@ items:
     cluster_id: demo-cluster-a
     data:
       monthly_budget_usd: 16500
-      month_to_date_usd: 7980
+      month_to_date_usd: 7838.71
       forecast_month_usd: 16200
       current_monthly_instance_cost_usd: 13548.8
 

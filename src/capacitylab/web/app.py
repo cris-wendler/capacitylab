@@ -35,14 +35,14 @@ HERE = Path(__file__).parent
 
 
 def usd(value) -> str:
-    """$129.92 below a thousand, $18,708 above it; negative amounts are savings and keep their sign."""
+    """Exact to the cent ($18,708.48), whole dollars only when there are no cents ($304,500); savings keep their sign."""
     if value is None:
         return "not modeled"
-    sign = "-" if value < 0 else ""
-    amount = abs(float(value))
+    amount = round(abs(float(value)), 2)
     if amount == 0:
         return "$0"
-    return f"{sign}${amount:,.0f}" if amount >= 1000 else f"{sign}${amount:,.2f}"
+    sign = "-" if value < 0 else ""
+    return f"{sign}${amount:,.0f}" if amount == int(amount) else f"{sign}${amount:,.2f}"
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LAB_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+\.yaml$")
 AWS_DIR = "imports"
