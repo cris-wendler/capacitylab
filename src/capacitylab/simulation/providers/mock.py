@@ -518,7 +518,8 @@ def _finops_analyst(ctx: TurnContext, t: _Turn) -> None:
                 [budget.id], "observed")
     rate = _first(ctx, EvidenceKind.RATE_CARD)
     if rate:
-        t.claim("The rate card is illustrative, not provider pricing; amounts show relative cost only.", [rate.id], "observed")
+        t.claim("The rate card uses on-demand rates without reserved-instance or savings-plan discounts; it is not a "
+                "provider quote.", [rate.id], "observed")
     else:
         t.missing.append("No rate card; costs cannot be calculated.")
     t.request("cost_estimate", {}, "Cost every option against the budget.")
@@ -546,6 +547,10 @@ def _finops_analyst(ctx: TurnContext, t: _Turn) -> None:
         outcomes = _outcomes(forecast)
         strict = bool(_challenged_by(ctx, RoleId.RELIABILITY_ENGINEER))
         ok = [o for o in outcomes.values() if _safe(o) and (o["slots_over_threshold"] == 0 or not strict)]
+        at_risk = [o for o in outcomes.values() if o.get("revenue_at_risk_usd")]
+        for o in sorted(at_risk, key=lambda o: -o["revenue_at_risk_usd"])[:2]:
+            t.claim(f"{o['option_id']} puts ${o['revenue_at_risk_usd']:,.0f} of sale revenue at risk across "
+                    f"{o['revenue_at_risk_slots']} breached sale slots.", [forecast.id], "modeled")
         # Twelve-month view: recurring monthly deltas plus the one-off cost of this event.
         ok.sort(key=lambda o: (round(12 * o["cost_delta_month_usd"] + o["cost_delta_event_usd"], 2), o["slots_over_threshold"]))
         if ok:

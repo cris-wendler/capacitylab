@@ -54,6 +54,8 @@ class OptionOutcome(BaseModel):
     total_slo_breach_slots: int
     cost_delta_event_usd: float
     cost_delta_month_usd: float
+    revenue_at_risk_usd: float | None = None  # modeled from named assumptions; None when the scenario has none
+    revenue_at_risk_slots: int = 0
     operational_events: list[str]
     batch_deadline_ok: bool | None
     unknowns: list[str]
@@ -233,21 +235,30 @@ def _resolve(option: OptionSpec, ctx: ModelContext, effects: dict[str, Optimizat
                 plan.cost_event += resize_delta_for_hours(card, current, target, hours)
         plan.events.append(f"{2 * len(nodes)} instance class modifications ({', '.join(nodes)}: up at "
                            f"{p['window_start']}, down at {p['window_end']})")
-        if "writer" in nodes:
-            failover = ctx.assumptions.get(p.get("failover_assumption", ""), None)
-            if failover in (None, ""):
-                plan.unknowns.append("Writer modification requires failover; failover duration is not measured.")
-                plan.events.append("2 writer failovers (duration unknown)")
-            else:
-                plan.events.append(f"2 writer failovers (assumed {failover} s each)")
+        _writer_failover(plan, ctx, p, nodes, count=2)
+    elif kind == "scale_season":
+        target = p["target_instance"]
+        plan.instance_by_slot = [target] * n
+        nodes = p.get("nodes", ["writer"])
+        days = float(p["days"])
+        if card:
+            for node in nodes:
+                current = scenario.cluster.writer_instance if node == "writer" else scenario.cluster.reader_instances[0]
+                plan.cost_event += resize_delta_for_hours(card, current, target, 24 * days)
+        plan.events.append(f"{2 * len(nodes)} instance class modifications ({', '.join(nodes)}: up for {days:g} days, "
+                           "then back)")
+        _writer_failover(plan, ctx, p, nodes)
     elif kind == "resize_permanent":
         target = p["target_instance"]
-        node = p.get("node", "writer")
+        nodes = p.get("nodes", [p.get("node", "writer")])
+        node = nodes[0]
         plan.instance_by_slot = [target] * n
-        current = scenario.cluster.writer_instance if node == "writer" else scenario.cluster.reader_instances[0]
-        if card:
-            plan.cost_month += monthly_resize_delta(card, current, target)
-        plan.events.append(f"1 permanent instance class modification ({node}: {current} -> {target})")
+        for each in nodes:
+            current = scenario.cluster.writer_instance if each == "writer" else scenario.cluster.reader_instances[0]
+            if card:
+                plan.cost_month += monthly_resize_delta(card, current, target)
+            plan.events.append(f"1 permanent instance class modification ({each}: {current} -> {target})")
+        _writer_failover(plan, ctx, p, nodes)
         ws = scenario.cluster.working_set_gib
         if ws is not None:
             pool = buffer_pool_gib(get_instance(target), scenario.cluster.buffer_pool_fraction_assumption)
@@ -307,6 +318,36 @@ def _resolve(option: OptionSpec, ctx: ModelContext, effects: dict[str, Optimizat
     return plan
 
 
+def _writer_failover(plan: _Plan, ctx: ModelContext, params: dict, nodes: list[str], count: int | None = None) -> None:
+    """A writer instance class change fails over. Say how many, and flag the duration when it is not measured."""
+    if "writer" not in nodes:
+        return
+    count = count if count is not None else (2 if params.get("days") else 1)
+    failover = ctx.assumptions.get(params.get("failover_assumption", ""), None)
+    noun = "failover" if count == 1 else "failovers"
+    if failover in (None, ""):
+        plan.unknowns.append("Writer modification requires failover; failover duration is not measured.")
+        plan.events.append(f"{count} writer {noun} (duration unknown)")
+    else:
+        plan.events.append(f"{count} writer {noun} (assumed {failover} s each)")
+
+
+def _revenue_at_risk(ctx: ModelContext, breached_by_slot: list[set[str]]) -> tuple[float | None, int]:
+    config = ctx.scenario.revenue_at_risk
+    if config is None:
+        return None, 0
+    per_hour = ctx.assumptions.get(config.revenue_per_hour_assumption)
+    share = ctx.assumptions.get(config.loss_share_assumption)
+    event = next((e for e in ctx.scenario.events if e.id == config.event_id), None)
+    if not isinstance(per_hour, int | float) or not isinstance(share, int | float) or event is None:
+        return None, 0
+    start, end = hhmm_to_minutes(event.start), hhmm_to_minutes(event.end)
+    slot = ctx.scenario.horizon.slot_minutes
+    slots = sum(1 for minute, breached in zip(ctx.slot_starts, breached_by_slot, strict=True)
+                if start <= minute < end and breached & set(config.slo_ids))
+    return round(slots * slot / 60 * float(per_hour) * float(share), 2), slots
+
+
 def evaluate_option(
     ctx: ModelContext, option_id: str, effects: dict[str, OptimizationEffect] | None = None
 ) -> OptionOutcome:
@@ -330,6 +371,7 @@ def evaluate_option(
     if ctx.batch and plan.batch_start_minutes is not None and not plan.batch_next_day:
         batch_window = (plan.batch_start_minutes, plan.batch_start_minutes + (ctx.batch_duration_minutes or 0))
 
+    breached_by_slot: list[set[str]] = []
     for i, minute in enumerate(ctx.slot_starts):
         batch_active = batch_window is not None and minute < batch_window[1] and minute + slot > batch_window[0]
         loads = []
@@ -343,11 +385,14 @@ def evaluate_option(
         utilization.append(result.utilization_pct)
         saturated += int(result.saturated)
         over += int(result.utilization_pct > scenario.utilization_threshold_pct)
+        breached_here: set[str] = set()
         for sid, slo in ctx.slos.items():
             slot_worst = max(result.p95_latency_ms.get(fid, 0.0) for fid in slo["fingerprint_ids"])
             worst[sid] = max(worst[sid], slot_worst)
             if slot_worst > slo["p95_ms"]:
                 breaches[sid] += 1
+                breached_here.add(sid)
+        breached_by_slot.append(breached_here)
 
     peak_i = max(range(len(utilization)), key=utilization.__getitem__)
     slo_out = {
@@ -359,6 +404,7 @@ def evaluate_option(
         for sid in ctx.slos
     }
     used = {k: v for k, v in ctx.assumptions.items()}
+    at_risk, at_risk_slots = _revenue_at_risk(ctx, breached_by_slot)
     return OptionOutcome(
         option_id=option.id,
         option_kind=option.kind,
@@ -371,6 +417,8 @@ def evaluate_option(
         total_slo_breach_slots=sum(breaches.values()),
         cost_delta_event_usd=round(plan.cost_event, 2),
         cost_delta_month_usd=round(plan.cost_month, 2),
+        revenue_at_risk_usd=at_risk,
+        revenue_at_risk_slots=at_risk_slots,
         operational_events=plan.events,
         batch_deadline_ok=plan.batch_deadline_ok,
         unknowns=plan.unknowns,

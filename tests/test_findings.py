@@ -36,7 +36,7 @@ def test_downsize_scenario_reports_headroom_and_the_reader_doing_double_duty():
 
     oversized = found["FND-CAP-OVERSIZED"]
     assert oversized.area == "capacity" and "smaller class" in oversized.recommendation
-    assert "71" in oversized.detail, "the working set is weighed against the modeled buffer pool"
+    assert "568 GiB" in oversized.detail, "the working set is weighed against the modeled buffer pool"
 
     double_duty = found["FND-HA-READER-DOUBLE-DUTY"]
     assert double_duty.severity == "medium" and len(double_duty.evidence_ids) == 2

@@ -1,20 +1,31 @@
 {% from "_macros.html" import options_table %}
+{% set keep = panels|map(attribute='outcome')|selectattr('option_kind', 'equalto', 'keep')|first %}
 <div class="whatif-summary">
   <span class="big-number{% if safe_count == 0 %} none{% endif %}">{{ safe_count }}<small>/{{ option_count }}</small></span>
   <div>
     <div><strong>options keep every SLO</strong>{% if safe_count == 0 %}: none does at this traffic.{% endif %}</div>
     {% if safe_count %}<div class="small muted">
       {{ free_safe|length }} of them cost nothing{% if free_safe %} ({{ free_safe|map(attribute='label')|join('; ') }}){% endif %}.
-      {{ headroom_safe|length }} also stay under the {{ scenario.utilization_threshold_pct|int }}% CPU threshold{% if headroom_safe %} ({{ headroom_safe|map(attribute='label')|join('; ') }}){% endif %}.
+      {{ headroom_safe|length }} also stay under the {{ scenario.utilization_threshold_pct|int }}% CPU threshold.
     </div>{% endif %}
   </div>
+  {% if keep and keep.revenue_at_risk_usd is not none %}
+  <div class="risk-callout {{ 'risk-on' if keep.revenue_at_risk_usd > 0 else 'risk-off' }}">
+    <span class="risk-label">Doing nothing puts at risk</span>
+    <span class="risk-number">{{ keep.revenue_at_risk_usd|usd }}</span>
+    <span class="small muted">of sale revenue ({{ keep.revenue_at_risk_slots }} breached sale slot{{ '' if keep.revenue_at_risk_slots == 1 else 's' }})</span>
+  </div>
+  {% endif %}
 </div>
 <div class="multiples">
-{% for p in panels %}
-  <figure class="panel{% if p.outcome.total_slo_breach_slots == 0 %} panel-safe{% else %} panel-breach{% endif %}">
-    <figcaption><strong>{{ p.outcome.label }}</strong>
-      <div class="supporters"><span class="pill {{ 'pill-ok' if p.outcome.total_slo_breach_slots == 0 else 'pill-bad' }}">{{ p.outcome.total_slo_breach_slots }} SLO breach slot{{ '' if p.outcome.total_slo_breach_slots == 1 else 's' }}</span>
-        <span class="mono muted">{{ p.outcome.option_id }}</span></div></figcaption>
+{% for p in panels %}{% set o = p.outcome %}
+  <figure class="panel{% if o.total_slo_breach_slots == 0 %} panel-safe{% else %} panel-breach{% endif %}">
+    <figcaption><strong>{{ o.label }}</strong>
+      <div class="supporters"><span class="pill {{ 'pill-ok' if o.total_slo_breach_slots == 0 else 'pill-bad' }}">{{ o.total_slo_breach_slots }} SLO breach slot{{ '' if o.total_slo_breach_slots == 1 else 's' }}</span>
+        {% if o.cost_delta_event_usd %}<span class="pill pill-cost">{{ o.cost_delta_event_usd|usd }} one-off</span>{% endif %}
+        {% if o.cost_delta_month_usd %}<span class="pill {{ 'pill-ok' if o.cost_delta_month_usd < 0 else 'pill-cost' }}">{{ o.cost_delta_month_usd|usd }}/month</span>{% endif %}
+        {% if o.revenue_at_risk_usd %}<span class="pill pill-bad">{{ o.revenue_at_risk_usd|usd }} at risk</span>{% endif %}
+        <span class="mono muted">{{ o.option_id }}</span></div></figcaption>
     {{ p.svg|safe }}
   </figure>
 {% endfor %}

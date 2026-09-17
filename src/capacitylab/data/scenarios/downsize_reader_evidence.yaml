@@ -8,8 +8,8 @@ items:
     cluster_id: demo-cluster-b
     data:
       cluster_id: demo-cluster-b
-      writer: {instance_class: db.r6g.4xlarge, vcpu: 16, memory_gib: 128}
-      readers: [{instance_class: db.r6g.4xlarge, vcpu: 16, memory_gib: 128, promotion_tier: 0}]
+      writer: {instance_class: db.r6i.32xlarge, vcpu: 128, memory_gib: 1024}
+      readers: [{instance_class: db.r6i.32xlarge, vcpu: 128, memory_gib: 1024, promotion_tier: 0}]
       tenants: [fir, hazel, juniper]
       reader_receives_application_reads: true
       writer_peak_cpu_pct_14d: 58
@@ -22,10 +22,10 @@ items:
     cluster_id: demo-cluster-b
     data:
       CPUUtilization: {p95_of_5min_averages_pct: 17, max_1min_pct: 38}
-      BufferPoolPagesInUseGiB: {p95: 71, max: 73}
+      BufferPoolPagesInUseGiB: {p95: 568, max: 584}
       BufferPoolHitRatioPct: {min: 99.8}
-      ReadIOPS: {p95: 900}
-      DatabaseConnections: {max: 260}
+      ReadIOPS: {p95: 7200}
+      DatabaseConnections: {max: 2080}
 
   - id: EV-DIG-001
     kind: query_digest
@@ -35,8 +35,8 @@ items:
     cluster_id: demo-cluster-b
     data:
       fingerprints:
-        - {fingerprint_id: QF-REPORT-SUMMARY, label: Tenant reporting summary, calls_per_s: 36, avg_latency_ms: 95, p95_latency_ms: 310, avg_cpu_ms: 38, avg_rows_examined: 52000, share_of_cpu_pct: 46.6, by_tenant: {fir: {share_of_calls_pct: 16.7}, hazel: {share_of_calls_pct: 61.1}, juniper: {share_of_calls_pct: 22.2}}}
-        - {fingerprint_id: QF-READ-OTHER, label: Other reader statements, calls_per_s: 1050, avg_latency_ms: 2.4, avg_cpu_ms: 1.5, share_of_cpu_pct: 53.4}
+        - {fingerprint_id: QF-REPORT-SUMMARY, label: Tenant reporting summary, calls_per_s: 288, avg_latency_ms: 95, p95_latency_ms: 310, avg_cpu_ms: 38, avg_rows_examined: 52000, share_of_cpu_pct: 46.6, by_tenant: {fir: {share_of_calls_pct: 16.7}, hazel: {share_of_calls_pct: 61.1}, juniper: {share_of_calls_pct: 22.2}}}
+        - {fingerprint_id: QF-READ-OTHER, label: Other reader statements, calls_per_s: 8400, avg_latency_ms: 2.4, avg_cpu_ms: 1.5, share_of_cpu_pct: 53.4}
 
   - id: EV-SLO-001
     kind: slo
@@ -69,10 +69,10 @@ items:
     source: fixture:rate_card
     data:
       currency: USD
-      instance_hourly: {db.r6g.large: 0.30, db.r6g.xlarge: 0.60, db.r6g.2xlarge: 1.20, db.r6g.4xlarge: 2.40, db.r6g.8xlarge: 4.80, db.r6g.12xlarge: 7.20, db.r6g.16xlarge: 9.60}
+      instance_hourly: {db.r6i.large: 0.29, db.r6i.xlarge: 0.58, db.r6i.2xlarge: 1.16, db.r6i.4xlarge: 2.32, db.r6i.8xlarge: 4.64, db.r6i.12xlarge: 6.96, db.r6i.16xlarge: 9.28, db.r6i.24xlarge: 13.92, db.r6i.32xlarge: 18.56}
       storage_gib_month: 0.10
       hours_per_month: 730
-      source_note: "Illustrative synthetic rates for the demo. Not provider pricing; replace with your own rate card."
+      source_note: "Illustrative on-demand rates per instance-hour at production scale, without reserved-instance or savings-plan discounts. Not a provider quote; replace with your own rate card or import prices from AWS."
 
   - id: EV-BUD-001
     kind: budget
@@ -81,9 +81,9 @@ items:
     source: fixture:finance
     cluster_id: demo-cluster-b
     data:
-      monthly_budget_usd: 3200
-      forecast_month_usd: 3650
-      current_monthly_instance_cost_usd: 3504
+      monthly_budget_usd: 25000
+      forecast_month_usd: 28400
+      current_monthly_instance_cost_usd: 27097.6
 
   - id: EV-TEN-HAZEL-001
     kind: tenant_profile
@@ -106,6 +106,6 @@ items:
       basis: Share of cluster CPU each plan guarantees when tenants compete for it.
       source_note: "Synthetic plan values for the demo. Replace with your own plans and contract terms."
       by_tenant:
-        hazel: {tier: premium, monthly_contract_usd: 3900, entitled_cpu_share_pct: 50}
-        fir: {tier: standard, monthly_contract_usd: 1600, entitled_cpu_share_pct: 25}
-        juniper: {tier: standard, monthly_contract_usd: 1500, entitled_cpu_share_pct: 25}
+        hazel: {tier: premium, monthly_contract_usd: 142000, entitled_cpu_share_pct: 50}
+        fir: {tier: standard, monthly_contract_usd: 58000, entitled_cpu_share_pct: 25}
+        juniper: {tier: standard, monthly_contract_usd: 54000, entitled_cpu_share_pct: 25}

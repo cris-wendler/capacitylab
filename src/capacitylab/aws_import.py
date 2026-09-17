@@ -36,7 +36,7 @@ METRICS = {  # CloudWatch metric -> unit used in the summary
     "ReadIOPS": "Count/Second",
     "WriteIOPS": "Count/Second",
 }
-SIZES = ("large", "xlarge", "2xlarge", "4xlarge", "8xlarge", "12xlarge", "16xlarge")
+SIZES = ("large", "xlarge", "2xlarge", "4xlarge", "8xlarge", "12xlarge", "16xlarge")  # used for families not in the catalog
 PRICING_ENGINE = {"mysql": "MySQL", "postgres": "PostgreSQL", "mariadb": "MariaDB",
                   "aurora-mysql": "Aurora MySQL", "aurora-postgresql": "Aurora PostgreSQL"}
 EMULATOR_CAVEAT = ("Read from a local AWS emulator (Floci). Its metrics are whatever was loaded into it, so this shows "
@@ -107,7 +107,10 @@ def _tag(label: str | None, identifiers: list[str]) -> tuple[str, str]:
 
 def _family_classes(instance_class: str) -> list[str]:
     match = re.match(r"^(db\.[a-z0-9]+)\.", instance_class)
-    return [f"{match.group(1)}.{size}" for size in SIZES] if match else [instance_class]
+    if not match:
+        return [instance_class]
+    known = [name for name in CATALOG if name.startswith(match.group(1) + ".")]
+    return known or [f"{match.group(1)}.{size}" for size in SIZES]
 
 
 def _node(instance: dict, role: str) -> dict:

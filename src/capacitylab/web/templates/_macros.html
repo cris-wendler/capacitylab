@@ -21,7 +21,8 @@
 {% macro options_table(outcomes) -%}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Option</th><th class="num">Peak CPU</th><th class="num">Slots over threshold</th><th class="num">Saturated slots</th><th class="num">SLO breach slots</th><th class="num">One-off cost</th><th class="num">Monthly cost</th><th>Not measured</th></tr></thead>
+  {% set show_risk = outcomes|selectattr('revenue_at_risk_usd', 'ne', none)|list %}
+  <thead><tr><th>Option</th><th class="num">Peak CPU</th><th class="num">Slots over threshold</th><th class="num">Saturated slots</th><th class="num">SLO breach slots</th><th class="num">One-off cost</th><th class="num">Monthly cost</th><th class="num">12 months</th>{% if show_risk %}<th class="num">Revenue at risk</th>{% endif %}<th>Not measured</th></tr></thead>
   <tbody>
   {% for o in outcomes %}
     <tr>
@@ -30,8 +31,11 @@
       <td class="num">{{ o.slots_over_threshold }}</td>
       <td class="num">{{ o.saturated_slots }}</td>
       <td class="num">{{ o.total_slo_breach_slots }}</td>
-      <td class="num">${{ '%.2f' % o.cost_delta_event_usd }}</td>
-      <td class="num">${{ '%.2f' % o.cost_delta_month_usd }}</td>
+      <td class="num">{{ o.cost_delta_event_usd|usd }}</td>
+      <td class="num">{{ o.cost_delta_month_usd|usd }}</td>
+      {% set year = o.cost_delta_event_usd + 12 * o.cost_delta_month_usd %}
+      <td class="num"><span class="money {{ 'money-save' if year < 0 else ('money-spend' if year > 0 else '') }}">{{ year|usd }}</span></td>
+      {% if show_risk %}<td class="num">{% if o.revenue_at_risk_usd is none %}<span class="muted">not modeled</span>{% else %}<span class="money {{ 'money-risk' if o.revenue_at_risk_usd > 0 else 'money-safe' }}">{{ o.revenue_at_risk_usd|usd }}</span>{% if o.revenue_at_risk_slots %}<div class="muted small">{{ o.revenue_at_risk_slots }} sale slot{{ '' if o.revenue_at_risk_slots == 1 else 's' }}</div>{% endif %}{% endif %}</td>{% endif %}
       <td class="small">{% for u in o.unknowns %}<div>{{ u }}</div>{% else %}<span class="muted">nothing flagged</span>{% endfor %}</td>
     </tr>
   {% endfor %}
