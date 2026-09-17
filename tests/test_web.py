@@ -197,8 +197,8 @@ def test_aws_pages(client):
 def test_what_if_options_recompute_on_the_server(client):
     page = client.get("/scenarios/campaign-overlap")
     assert 'data-whatif' in page.text and 'id="options-live"' in page.text and "3.1× in EV-CAL-002" in page.text
-    assert "6<small>/8</small>" in page.text and "$304,500" in page.text and "$18,708 one-off" in page.text
-    assert "$13,549/month" in page.text and "$162,586" in page.text, "12-month view of a permanent resize"
+    assert "6<small>/8</small>" in page.text and "$304,500" in page.text and "$18,708.48 one-off" in page.text
+    assert "$13,548.80/month" in page.text and "$162,585.60" in page.text, "12-month view of a permanent resize"
     lower = client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "3.1"})
     assert lower.status_code == 200 and "8<small>/8</small>" in lower.text and "<svg class=\"viz\"" in lower.text
     assert 'risk-off' in lower.text

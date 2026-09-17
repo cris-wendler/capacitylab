@@ -57,7 +57,8 @@ class ComparisonReport(BaseModel):
 
 
 def _cost(o) -> float:
-    return o.cost_delta_event_usd + o.cost_delta_month_usd
+    """Cost over the next 12 months: one-off amounts once, monthly amounts twelve times, so the two are comparable."""
+    return o.cost_delta_event_usd + 12 * o.cost_delta_month_usd
 
 
 def _reference_effects(scenario: Scenario, bundle: EvidenceBundle, sandbox_factory: Callable[[], Sandbox]) \
