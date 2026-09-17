@@ -134,43 +134,78 @@ jobs:
         if: failure()
         run: docker logs capacitylab-floci 2>&1 | tail -80
 
-  cloud-emulators:
-    name: GCP and Azure import (floci-gcp, floci-az)
+  gcp-import:
+    name: GCP import (floci-gcp emulator)
     runs-on: ubuntu-latest
+    env:
+      CAPACITYLAB_TEST_FLOCI_GCP: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+      - name: Start floci-gcp
+        run: |
+          docker run -d --name capacitylab-floci-gcp -p 127.0.0.1:4588:4588 \
+            -v /var/run/docker.sock:/var/run/docker.sock floci/floci-gcp:0.9.0
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4588/health > /dev/null && break; sleep 2; done
       - name: Install
         run: pip install -e ".[dev]"
-      - name: Start floci-gcp and floci-az
+      - name: Seed the emulator
+        run: python scripts/cloud_emulator_seed.py gcp
+      - name: GCP import tests
+        run: pytest -m gcp tests/test_gcp_azure_import.py
+      - name: Import through the CLI and use it in a review
         run: |
-          docker run -d --name capacitylab-floci-gcp -p 127.0.0.1:4588:4588 -v /var/run/docker.sock:/var/run/docker.sock floci/floci-gcp:latest
-          docker network create floci-net
-          docker run -d --name capacitylab-floci-az --network floci-net -p 127.0.0.1:4577:4577 -v /var/run/docker.sock:/var/run/docker.sock floci/floci-az:latest
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4588/health > /dev/null && break; sleep 2; done
-          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:4577/ && break; sleep 2; done
-          sleep 5
-      - name: Probe floci-gcp (temporary)
-        run: python scripts/cloud_emulator_probe.py gcp
-      - name: Probe floci-az (temporary)
-        run: python scripts/cloud_emulator_probe.py azure
-      - name: Import gcp (probe)
-        if: always()
+          capacitylab import gcp --project floci-local --instance demo-pg --label "floci-gcp demo" --out runs/ci-gcp.yaml
+          capacitylab run campaign-overlap --provider mock --evidence runs/ci-gcp.yaml --out runs/ci-gcp-run.json --quiet
+      - name: Keep the imported evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: floci-gcp-import
+          path: runs/ci-gcp.yaml
+          retention-days: 14
+      - name: floci-gcp logs on failure
+        if: failure()
+        run: docker logs capacitylab-floci-gcp 2>&1 | grep -v health | tail -80
+
+  azure-import:
+    name: Azure import (floci-az emulator)
+    runs-on: ubuntu-latest
+    env:
+      CAPACITYLAB_TEST_FLOCI_AZ: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Start floci-az
+        # A user-defined network: floci-az reaches the database containers it starts by container name, which the
+        # default bridge network does not resolve.
         run: |
-          capacitylab import gcp --project floci-local --instance demo-pg --hours 2 --label emulator-check --out gcp-check.yaml || true
-          cat gcp-check.yaml || true
-      - name: Import azure (probe)
-        if: always()
+          docker network create floci
+          docker run -d --name capacitylab-floci-az --network floci -p 127.0.0.1:4577:4577 \
+            -v /var/run/docker.sock:/var/run/docker.sock floci/floci-az:0.13.0
+          for i in $(seq 1 60); do docker logs capacitylab-floci-az 2>&1 | grep -q "Listening on" && break; sleep 2; done
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Seed the emulator
+        run: python scripts/cloud_emulator_seed.py azure
+      - name: Azure import tests
+        run: pytest -m azure tests/test_gcp_azure_import.py
+      - name: Import through the CLI and use it in a review
         run: |
-          capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo --instance demo-mysql --label emulator-check --out az-check.yaml || true
-          cat az-check.yaml || true
-          capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo --db-engine postgres --instance demo-pg --label emulator-pg --out az-pg.yaml || true
-          cat az-pg.yaml || true
-      - name: Emulator logs
-        if: always()
-        run: |
-          docker logs capacitylab-floci-gcp 2>&1 | grep -v health | tail -60
-          docker logs capacitylab-floci-az 2>&1 | grep -v health | grep -v Dispatching | head -60
+          capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo \
+            --instance demo-mysql --label "floci-az demo" --out runs/ci-azure.yaml
+          capacitylab run campaign-overlap --provider mock --evidence runs/ci-azure.yaml --out runs/ci-azure-run.json --quiet
+      - name: Keep the imported evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: floci-az-import
+          path: runs/ci-azure.yaml
+          retention-days: 14
+      - name: floci-az logs on failure
+        if: failure()
+        run: docker logs capacitylab-floci-az 2>&1 | grep -v -e health -e Dispatching | tail -80

@@ -675,7 +675,7 @@ read calls only. Nothing that identifies the account is stored.
 | **On-demand prices** | ✅ Pricing API | ⚪ not read yet (Cloud Billing Catalog) | ✅ public Retail Prices API |
 | **Cost this month** | ✅ Cost Explorer | ⚪ needs a BigQuery billing export | ✅ Cost Management |
 | **Local emulator** | [Floci](https://github.com/floci-io/floci), port 4566 | [floci-gcp](https://github.com/floci-io/floci-gcp), port 4588 | [floci-az](https://github.com/floci-io/floci-az), port 4577 |
-| **Tested** | recorded responses, and against Floci in CI | recorded responses | recorded responses |
+| **Tested** | recorded responses, and against Floci in CI | recorded responses, and against floci-gcp in CI | recorded responses, and against floci-az in CI (MySQL and PostgreSQL) |
 
 ```bash
 capacitylab import gcp --project my-project --instance orders-primary --label "evening" --out runs/imports/gcp.yaml
@@ -684,11 +684,25 @@ capacitylab import azure --subscription <id> --resource-group <group> --instance
 ```
 
 > [!NOTE]
-> The Google Cloud and Azure imports have not been run against their emulators or a real account yet; they are tested
-> against recorded API responses in the shape the providers document. The emulators do not serve everything: floci-gcp
-> has Cloud SQL (PostgreSQL) and Cloud Monitoring but no price catalog, and floci-az has flexible servers but no metrics,
-> prices or cost, so those parts are skipped with the reason written into the evidence. `pip install -e ".[gcp]"` or
-> `".[azure]"` adds the credential libraries `--live` needs.
+> Every push runs each import against its emulator in CI, then feeds the evidence into a review. None of them has
+> been run against a real account yet. The emulators do not serve everything, and what is missing is skipped with the
+> reason written into the evidence:
+>
+> - **floci-gcp 0.9.0** serves Cloud SQL and Cloud Monitoring, so a GCP import yields topology, the CPU series and
+>   metrics. It has no price catalog, and Google Cloud has no cost API outside a BigQuery billing export.
+> - **floci-az 0.13.0** serves flexible servers only, so an Azure import yields topology. Replicas, Azure Monitor
+>   metrics, prices and cost are skipped; the metrics, price and cost parsing is tested against recorded responses.
+>
+> `pip install -e ".[gcp]"` or `".[azure]"` adds the credential libraries `--live` needs.
+
+```bash
+docker compose --profile gcp up -d floci-gcp && python scripts/cloud_emulator_seed.py gcp
+capacitylab import gcp --project floci-local --instance demo-pg --label "floci-gcp demo" --out runs/imports/gcp.yaml
+
+docker compose --profile azure up -d floci-az && python scripts/cloud_emulator_seed.py azure
+capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo --instance demo-mysql \
+  --label "floci-az demo" --out runs/imports/azure.yaml
+```
 
 #### AWS in detail
 

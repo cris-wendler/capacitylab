@@ -46,6 +46,8 @@ markers = [
   "mysql: requires the local MySQL sandbox (docker compose up -d --wait sandbox-mysql)",
   "postgres: requires the local PostgreSQL sandbox (docker compose up -d --wait sandbox-postgres)",
   "aws: requires a seeded local AWS emulator (docker compose --profile aws up -d floci; python scripts/floci_seed.py)",
+  "gcp: requires a seeded floci-gcp (docker compose --profile gcp up -d floci-gcp; python scripts/cloud_emulator_seed.py gcp)",
+  "azure: requires a seeded floci-az (docker compose --profile azure up -d floci-az; python scripts/cloud_emulator_seed.py azure)",
   "live: calls a real model provider and spends money",
 ]
 

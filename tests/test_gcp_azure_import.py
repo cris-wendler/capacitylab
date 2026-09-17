@@ -1,6 +1,7 @@
 """GCP and Azure imports against recorded API responses: no network, no cloud account, no spend."""
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -225,3 +226,42 @@ def test_cli_explains_missing_arguments_unsafe_endpoints_and_a_stopped_emulator(
     assert "needs --project" in err
     assert "needs --subscription and --resource-group" in err and "refusing endpoint" in err
     assert "Start it: docker compose --profile gcp up -d floci-gcp" in err
+
+
+@pytest.mark.gcp
+@pytest.mark.skipif(os.environ.get("CAPACITYLAB_TEST_FLOCI_GCP") != "1",
+                    reason="set CAPACITYLAB_TEST_FLOCI_GCP=1 with floci-gcp running and seeded "
+                           "(scripts/cloud_emulator_seed.py gcp)")
+def test_import_against_floci_gcp():
+    from scripts.cloud_emulator_seed import GCP_INSTANCE, GCP_PROJECT, GCP_TIER
+
+    result = import_gcp(GcpTarget(GCP_PROJECT), GCP_INSTANCE, hours=24, label="floci-gcp demo")
+    items = {i.id: i for i in result.items}
+    topo = items["EV-GCP-TOPO-FLOCI-GCP-DEMO"].data
+    assert topo["engine"] == "postgres" and topo["writer"]["instance_class"] == GCP_TIER
+    assert topo["writer"]["vcpu"] == 8 and topo["high_availability"] is True
+    cpu = items["EV-GCP-CPU-FLOCI-GCP-DEMO"].data
+    assert len(cpu["slots"]) >= 90 and max(cpu["max_by_slot"]) > 40  # a day of 15-minute slots with the evening peak
+    writer = items["EV-GCP-MET-FLOCI-GCP-DEMO"].data["nodes"]["writer"]
+    assert all(writer[m]["data_points"] > 200 for m in ("cpu/utilization", "memory/utilization",
+                                                        "postgresql/num_backends", "disk/read_ops_count"))
+    assert [s.split(":")[0] for s in result.skipped] == ["prices", "month-to-date cost"]
+    assert GCP_INSTANCE not in json.dumps([i.model_dump(mode="json") for i in result.items])
+
+
+@pytest.mark.azure
+@pytest.mark.skipif(os.environ.get("CAPACITYLAB_TEST_FLOCI_AZ") != "1",
+                    reason="set CAPACITYLAB_TEST_FLOCI_AZ=1 with floci-az running and seeded "
+                           "(scripts/cloud_emulator_seed.py azure)")
+@pytest.mark.parametrize("engine", ["mysql", "postgres"])
+def test_import_against_floci_az(engine):
+    from scripts.cloud_emulator_seed import AZ_GROUP, AZ_SERVERS, AZ_SUBSCRIPTION
+
+    name, sku, _ = AZ_SERVERS[engine]
+    result = import_azure(AzureTarget(AZ_SUBSCRIPTION, AZ_GROUP, engine), name, label="floci-az demo")
+    assert [i.id for i in result.items] == ["EV-AZ-TOPO-FLOCI-AZ-DEMO"]
+    topo = result.items[0].data
+    assert topo["engine"] == engine and topo["writer"]["instance_class"] == sku
+    assert topo["writer"]["vcpu"] == int(sku.split("_D")[1].split("ds")[0]) and topo["storage"]["allocated_gib"] == 512
+    assert [s.split(":")[0] for s in result.skipped] == ["read replicas", "metrics", "prices", "month-to-date cost"]
+    assert name not in json.dumps(result.items[0].model_dump(mode="json"))

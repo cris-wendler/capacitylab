@@ -51,19 +51,22 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   # Local Google Cloud emulator (floci-gcp, MIT): Cloud SQL for PostgreSQL and Cloud Monitoring, for `capacitylab import gcp`.
-  # Only started with: docker compose --profile gcp up -d floci-gcp
+  # It runs Cloud SQL instances as real database containers, so it needs the Docker socket. Only started with:
+  # docker compose --profile gcp up -d floci-gcp
   floci-gcp:
-    image: floci/floci-gcp:latest
+    image: floci/floci-gcp:0.9.0
     container_name: capacitylab-floci-gcp
     profiles: [gcp]
     ports:
       - "127.0.0.1:4588:4588"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   # Local Azure emulator (floci-az, MIT): MySQL and PostgreSQL flexible servers, for `capacitylab import azure`.
   # It runs flexible servers as real database containers, so it needs the Docker socket. Only started with:
   # docker compose --profile azure up -d floci-az
   floci-az:
-    image: floci/floci-az:latest
+    image: floci/floci-az:0.13.0
     container_name: capacitylab-floci-az
     profiles: [azure]
     ports:
