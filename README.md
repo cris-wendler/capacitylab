@@ -99,6 +99,8 @@ run from scripted rules, which is free, offline and repeatable.
 
 ## What you get
 
+![The CapacityLab overview: decisions on the table with revenue at risk, cheapest option that keeps SLOs and instance cost, recent reviews and the agents](docs/media/home.png)
+
 | | |
 |---|---|
 | 📝 **A decision record** | What each agent recommends and why, open disagreements, unanswered challenges, evidence nobody has, and checks that were requested but never ran. |

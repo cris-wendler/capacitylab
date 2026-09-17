@@ -544,3 +544,17 @@ button { background: linear-gradient(135deg, #2d6cdf, #5a4fd6); }
 .details-card { padding-bottom: 18px; }
 .details-card .facts-list { margin-top: 0; }
 @media (max-width: 900px) { .section-nav { position: static; } }
+
+.brand-logo { width: 38px; height: 38px; border-radius: 11px; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 6px 16px rgba(110, 168, 255, .25);
+  transition: transform .3s; }
+.brand:hover .brand-logo { transform: rotate(-8deg) scale(1.05); }
+@media (prefers-reduced-motion: reduce) { .brand:hover .brand-logo { transform: none; } }
+
+/* --- review page ------------------------------------------------------------------------------------------ */
+.run-hero-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 24px; }
+.run-hero-head h1 { margin: 2px 0 0; }
+.run-hero-status { display: flex; align-items: center; gap: 16px; }
+.run-spend { display: grid; justify-items: end; font: 750 22px/1.1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.run-spend small { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.chip-who { background: rgba(155, 123, 255, .22); border-color: rgba(155, 123, 255, .4); }
+.page-head h1 { margin-top: 2px; }

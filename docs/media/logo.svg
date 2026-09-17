@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CapacityLab">
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ea8ff"/>
+      <stop offset="1" stop-color="#9b7bff"/>
+    </linearGradient>
+    <linearGradient id="liquid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fd1a1"/>
+      <stop offset="1" stop-color="#1b9b6d"/>
+    </linearGradient>
+    <clipPath id="inside"><path d="M26 8h12v16l14 24a6 6 0 0 1-5.2 9H17.2a6 6 0 0 1-5.2-9l14-24z"/></clipPath>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#101a33"/>
+  <!-- liquid with a small bar chart inside -->
+  <g clip-path="url(#inside)">
+    <path d="M8 38c8-3 14 3 24 0s16-3 24 0v22H8z" fill="url(#liquid)"/>
+    <rect x="22" y="46" width="4.5" height="8" rx="1.2" fill="#ffffff" opacity=".9"/>
+    <rect x="29.75" y="42" width="4.5" height="12" rx="1.2" fill="#ffffff" opacity=".9"/>
+    <rect x="37.5" y="44" width="4.5" height="10" rx="1.2" fill="#ffd27a"/>
+  </g>
+  <!-- flask outline -->
+  <path d="M26 8h12v16l14 24a6 6 0 0 1-5.2 9H17.2a6 6 0 0 1-5.2-9l14-24z" fill="none" stroke="url(#glass)" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M23 8h18" stroke="url(#glass)" stroke-width="3" stroke-linecap="round"/>
+  <!-- bubbles and a sparkle -->
+  <circle cx="30" cy="31" r="2" fill="#6ea8ff"/>
+  <circle cx="35" cy="24" r="1.4" fill="#9b7bff"/>
+  <path d="M47 14l1.2 2.8L51 18l-2.8 1.2L47 22l-1.2-2.8L43 18l2.8-1.2z" fill="#ffd27a"/>
+</svg>

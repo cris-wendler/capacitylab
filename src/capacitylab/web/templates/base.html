@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}CapacityLab{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 {% set path = request.url.path %}
@@ -15,7 +16,7 @@
 <body class="app">
   <aside class="sidebar" aria-label="Main">
     <a class="brand" href="/" aria-label="CapacityLab home">
-      <span class="brand-mark"><svg width="20" height="20" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="12" width="4" height="8" rx="1.5"/><rect x="9" y="7" width="4" height="13" rx="1.5"/><rect x="16" y="3" width="4" height="17" rx="1.5"/></svg></span>
+      <img class="brand-logo" src="/static/logo.svg" alt="" width="38" height="38">
       <span class="brand-text">CapacityLab<small>LLM capacity reviews</small></span>
     </a>
     <nav class="nav">

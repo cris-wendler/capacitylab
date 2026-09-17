@@ -1,6 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Runs · CapacityLab{% endblock %}
+{% block title %}Reviews · CapacityLab{% endblock %}
 {% block content %}
-<h1>Runs</h1>
-{% if runs %}{% include "_runs_table.html" %}{% else %}<p class="muted">No runs yet.</p>{% endif %}
+<header class="page-title">
+  <div>
+    <div class="eyebrow">Decide</div>
+    <h1>Reviews</h1>
+    <p class="lead">Every review that has run, by LLM agents or scripted rules. Open one to watch it round by round, verify
+    it by replay, or read its decision record.</p>
+  </div>
+</header>
+{% if runs %}{% include "_runs_table.html" %}{% else %}<div class="empty">No reviews yet. Open a scenario and start one.</div>{% endif %}
 {% endblock %}
