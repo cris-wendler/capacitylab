@@ -30,13 +30,14 @@
 # CapacityLab
 
 **CapacityLab is a multi-agent LLM simulation for database capacity planning, reliability and FinOps decisions.**
-Five agents built on Claude play the people who normally argue about a busy database: a database engineer, an
-application owner, a reliability engineer (SRE), a FinOps analyst and a tenant representative. They read the same
-evidence, take turns over several rounds, ask for checks, and finish with a decision record: what was decided, what
-is still disputed, and what nobody has measured.
+CapacityLab uses Claude to simulate the five people who usually have a say when a busy database needs a capacity
+decision: a database engineer, an application owner, a reliability engineer (SRE), a FinOps analyst and a tenant
+representative. Each one is an AI agent with its own role and its own view of the evidence. Over several rounds they
+discuss the options, ask for checks and give a recommendation, and the result is a decision record: what was decided,
+what is still disputed, and what nobody has measured.
 
-The agents do the arguing. The maths is done in code: the queueing model, costs, lab measurements and query
-experiments are deterministic Python, and every number an agent states is checked against the evidence it cites.
+The agents discuss and recommend; the numbers come from code. The queueing model, costs, lab measurements and query
+experiments are deterministic Python, and every number an agent quotes is checked against the evidence it cites.
 
 > **The question in the demo.** A tenant is about to run a flash sale on a cluster that already runs hot in the
 > evening, and a batch job starts halfway through. Scale up for the night, add an index, move the job, or a mix?
