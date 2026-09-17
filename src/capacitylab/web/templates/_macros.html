@@ -1,3 +1,7 @@
+{% macro avatar(role, size='') -%}
+<span class="avatar role-{{ role }}{% if size %} avatar-{{ size }}{% endif %}" title="{{ role_titles.get(role, role) }}" aria-hidden="true">{{ role_initials.get(role, role[:2]|upper) }}</span>
+{%- endmacro %}
+
 {% macro prov(value) -%}
 <span class="prov prov-{{ value }}"><i></i>{{ value }}</span>
 {%- endmacro %}

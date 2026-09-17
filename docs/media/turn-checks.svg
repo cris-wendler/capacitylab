@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 270" width="900" height="270" role="img" aria-labelledby="t d">
   <title id="t">Checks on every agent turn</title>
-  <desc id="d">A FinOps analyst turn from Claude goes through four checks. Citations exist and are visible to the role, requested checks are allowed, and spend is within limits. One claim quotes $16.80, which is not in the rate card it cites, so it is flagged in the decision record.</desc>
+  <desc id="d">An illustrative FinOps analyst turn from an LLM agent goes through four checks. Citations exist and are visible to the role, requested checks are allowed, and spend is within limits. One claim quotes $16.80, which is not in the rate card it cites, so it is flagged in the decision record.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#101a33"/>
@@ -30,7 +30,7 @@
   <rect x="24" y="24" width="408" height="222" rx="12" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.15"/>
   <rect x="40" y="40" width="112" height="24" rx="12" fill="#c75b3b"/>
   <text x="96" y="56" class="chip">FinOps analyst</text>
-  <text x="162" y="56" class="hs">round 2 · Claude Sonnet 5</text>
+  <text x="162" y="56" class="hs">round 2 · LLM agent · example</text>
 
   <text x="40" y="92" class="k">POSITION</text>
   <text x="40" y="110" class="v">index and move the batch job</text>
@@ -49,7 +49,7 @@
 
   <!-- the checks CapacityLab runs on it -->
   <text x="460" y="48" class="h">Checked by code, not by the model</text>
-  <text x="460" y="68" class="hs">Runs after every turn, from scripted roles or Claude.</text>
+  <text x="460" y="68" class="hs">Runs after every turn, from scripted agents or the LLM.</text>
 
   <g transform="translate(460 92)">
     <circle cx="13" cy="13" r="13" fill="#ffffff" fill-opacity="0.08"/>

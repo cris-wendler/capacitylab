@@ -108,7 +108,9 @@ def test_run_flow_with_attached_lab_evidence(client):
     started = client.post("/scenarios/campaign-overlap/run",
                           data={"provider": "mock", "max_rounds": 4, "sandbox": "sqlite", "evidence": "lab/campaign-overlap-test.yaml"})
     assert started.status_code == 200 and "Scripted run" in started.text
-    assert "Where each role landed" in started.text and "Proposed database changes" in started.text
+    assert "Where each agent landed" in started.text and "Proposed database changes" in started.text
+    assert 'id="player-data"' in started.text and "Watch the review" in started.text and 'class="filter-chip' in started.text
+    assert started.text.count('class="agent-tile') == 5 and 'class="avatar role-database_engineer' in started.text
     assert "Lab measurements used" in started.text and "137.85" in started.text
     run_path = started.url.path
     evidence_id = re.search(r'/evidence/(EV-TOOL-\d+)"', started.text).group(1)
@@ -190,3 +192,20 @@ def test_aws_pages(client):
     assert client.get("/aws/campaign-overlap-pg.yaml").status_code == 404
     assert client.post("/aws/import", data={"instance": "demo-writer"}).status_code == 400
     assert client.post("/aws/import", data={"instance": "demo-writer", "hours": 0}).status_code == 400
+
+
+def test_what_if_options_recompute_on_the_server(client):
+    page = client.get("/scenarios/campaign-overlap")
+    assert 'data-whatif' in page.text and 'id="options-live"' in page.text and "3.1× in EV-CAL-002" in page.text
+    assert "4<small>/6</small>" in page.text
+    lower = client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "3.1"})
+    assert lower.status_code == 200 and "6<small>/6</small>" in lower.text and "<svg class=\"viz\"" in lower.text
+    higher = client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "6"})
+    assert "2<small>/6</small>" in higher.text and "0 of them cost nothing" in higher.text
+    assert client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "60"}).status_code == 400
+    assert client.get("/scenarios/campaign-overlap/options", params={"A-CAMPAIGN-MULT": "lots"}).status_code == 400
+    assert client.get("/scenarios/campaign-overlap/options", params={"A-FAILOVER-SECONDS": "5"}).status_code == 400
+
+
+def test_job_status_json(client):
+    assert client.get("/jobs/nope.json").status_code == 404

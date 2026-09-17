@@ -144,6 +144,16 @@ def main() -> int:
             full = FRAMES / "scenario-full.png"
             page.screenshot(path=str(full), full_page=True)
             crop(full, span(page, "#options", ".multiples + .table-wrap"), MEDIA / "scenario-options.png")
+            # The what-if slider moved to the tenant's last real peak, recomputed by the capacity model.
+            page.click("button.mark >> nth=1")
+            page.wait_for_function("!document.getElementById('options-live').classList.contains('updating')")
+            page.wait_for_timeout(400)
+            page.locator(".whatif").scroll_into_view_if_needed()
+            frame("what-if")
+            full = FRAMES / "scenario-whatif-full.png"
+            page.screenshot(path=str(full), full_page=True)
+            crop(full, span(page, ".whatif", "#options-live .multiples"), MEDIA / "scenario-whatif.png", max_height=900)
+            page.goto(BASE + "/scenarios/campaign-overlap")
             if lab_source.is_file():
                 page.check("input[name=evidence]")
             page.screenshot(path=str(MEDIA / "scenario.png"))
@@ -154,6 +164,13 @@ def main() -> int:
             full = FRAMES / "run-full.png"
             page.screenshot(path=str(full), full_page=True)
             crop(full, span(page, ".outcome", "#decision"), MEDIA / "run-positions.png")
+            page.click(".round-tab >> nth=1")
+            page.wait_for_timeout(700)
+            full_player = FRAMES / "run-player-full.png"
+            page.screenshot(path=str(full_player), full_page=True)
+            crop(full_player, span(page, "#player", "#player"), MEDIA / "run-player.png")
+            page.locator("#player").scroll_into_view_if_needed()
+            frame("player")
             if lab_source.is_file():
                 crop(full, span(page, "#lab-measurements", ".lab-table"), MEDIA / "run-lab.png")
             crop(full, span(page, "#options", ".multiples + .table-wrap"), MEDIA / "run-options.png")
