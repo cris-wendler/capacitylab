@@ -54,12 +54,16 @@ experiments are deterministic Python, and every number an agent quotes is checke
 
 Because autoscaling reacts, and a known event needs a decision made before it starts.
 
-Automatic scaling, Aurora Serverless v2 included, watches the database and adds capacity after load arrives, in steps.
-How fast it reaches the size a sharp ramp needs depends on the workload, and scaling down is deliberately slower than
-scaling up. For a flash sale that multiplies traffic inside one 15-minute slot, "it will scale" is a hope, not a plan:
-while capacity is still catching up, checkout is already missing its SLO, and that is the part customers feel. The
-`campaign-overlap` scenario carries this as an assumption nobody has measured (`A-AUTOSCALE-LAG`) and as an evidence
-gap (`GAP-AUTOSCALE-RESPONSE`), so the agents have to argue about it instead of assuming it away.
+Automatic scaling, Aurora Serverless v2 included, watches the database and adds capacity only after the load is
+already there. **Scaling up is the problem, not just scaling down.** The traffic arrives, the scaler starts climbing
+behind it, and it spends the event chasing a target it never quite reaches: it is still adding capacity while
+checkout is already queueing, timing out and retrying. By the time it has caught up, the sale is half over and the
+carts are already abandoned. The retries make it worse, because the scaler reads them as yet more load. Scaling back
+down afterwards is slow too, so you also pay for the overshoot.
+
+For an event you know is coming, "it will scale" is a hope, not a plan. The `campaign-overlap` scenario carries this
+as an assumption nobody has measured (`A-AUTOSCALE-LAG`) and as an evidence gap (`GAP-AUTOSCALE-RESPONSE`), so the
+agents have to argue about it instead of assuming it away.
 
 The second half is *what* the scaling decision looks at. An autoscaler sees CPU, connections and I/O. It does not know
 that a campaign starts at 18:00, that the storefront earns $1.45 million an hour while it runs, that a batch job lands
@@ -1073,7 +1077,10 @@ source can be fetched, and the web UI will link to it in the footer.
 
 **Commercial use.** If the AGPL does not suit you, for example to embed CapacityLab in a closed product or to offer it
 as a hosted service without publishing your changes, a separate commercial license is available. The copyright is held
-by one author, so it can be granted: open an issue on this repository to get in touch.
+by one author, so it can be granted.
+
+**Contact.** Open an issue on this repository for questions about the project, or use the contact details on the
+owner's GitHub profile for licensing.
 
 Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and PostgreSQL (PostgreSQL License) run
 from their own Docker images as separate programs and are not included or modified here. The Floci, floci-gcp and

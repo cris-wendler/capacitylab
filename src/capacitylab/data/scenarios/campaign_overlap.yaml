@@ -152,8 +152,9 @@ assumptions:
   - id: A-AUTOSCALE-LAG
     statement: >
       Time automatic scaling (Aurora Serverless v2 ACUs, or any reactive autoscaler) would need to reach the capacity
-      this ramp asks for. It reacts to load after the load arrives and raises capacity in steps, so it may or may not
-      keep up with a 5x ramp inside one 15-minute slot. Never measured on this cluster.
+      this ramp asks for. It only adds capacity once the load is already there, so during a 5x ramp it climbs behind
+      the traffic: requests queue and time out while it is still scaling up, and the retries it triggers look like
+      further load. Never measured on this cluster, which is why pre-scaling is evaluated as its own option.
     value: null
     unit: s
   - id: A-FAILOVER-SECONDS
