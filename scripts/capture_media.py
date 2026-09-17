@@ -63,7 +63,7 @@ def main() -> int:
     FRAMES.mkdir(parents=True, exist_ok=True)
     runs_dir = tempfile.mkdtemp(prefix="capacitylab-media-")
     # Run pages are captured from a recorded review with a real model, not a scripted one.
-    live_source = ROOT / "runs" / os.environ.get("CAPTURE_RUN", "live-campaign-overlap-4.json")
+    live_source = ROOT / "runs" / os.environ.get("CAPTURE_RUN", "live-campaign-overlap-6.json")
     if not live_source.is_file():
         raise SystemExit(f"{live_source} not found: record a run with --provider anthropic, or set CAPTURE_RUN")
     # Derived parts of the decision record are rebuilt with the current code from the run's recorded turns (no model
@@ -99,7 +99,8 @@ def main() -> int:
         wait_for_server()
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            page = browser.new_page(viewport=VIEWPORT, color_scheme="light")
+            # Reduced motion turns off the entrance animation, so cards below the fold are not captured mid-fade.
+            page = browser.new_page(viewport=VIEWPORT, color_scheme="light", reduced_motion="reduce")
 
             def frame(name: str) -> None:
                 path = FRAMES / f"{len(frames):02d}-{name}.png"

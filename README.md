@@ -213,7 +213,7 @@ rates for that review (see [Straight from AWS](#straight-from-aws)). The numbers
 labelled as an assumption: on-demand rates at production scale ($0.145 per vCPU-hour) without reserved-instance or
 savings-plan discounts. Replacing that one evidence item with your provider's rates re-prices every option.
 
-![Each option's modeled utilization over the evening, at the end of the Sonnet run](docs/media/run-options.png)
+![Each option's modeled utilization over the evening, with cost and revenue at risk, at the end of the LLM run](docs/media/run-options.png)
 
 On the scenario page, drag the traffic assumption and every option is re-modeled on the spot. At the 3.1× the tenant
 actually reached last time, all eight options keep every SLO and doing nothing risks $0; at the 5× planning value, six
@@ -222,10 +222,9 @@ $522,000:
 
 ![What-if slider set to 3.1x: all eight options keep every SLO, doing nothing risks $0, and which options cost nothing](docs/media/scenario-whatif.png)
 
-The chart above comes from the three-round LLM review, not the scripted run. Its index options show no
-benefit because that run's database engineer measured a different index (`tenant_id, customer_id, created_day`, 16.7%
-less work) from the one those options propose; with no measurement for the proposed index, the model credits it with
-nothing. The table above comes from the scripted run, which measured the proposed index.
+The chart above comes from the two-round LLM review, not the scripted run. Its index options show no benefit because
+no agent in that run asked for an index experiment, and the model credits an index with nothing until one is measured.
+The table above comes from the scripted run, which measured the proposed index.
 
 ### What the lab measured
 
@@ -359,9 +358,9 @@ flowchart LR
 Step through the rounds, or press play, to watch each agent's position change and see the checks that ran between
 rounds:
 
-![Round 2 of the LLM run in the round-by-round player: the database engineer has changed position, with challenges and requested checks](docs/media/run-player.png)
+![Round 2 of the LLM run in the round-by-round player: three agents decide, with their challenges, requested checks and the checks that ran](docs/media/run-player.png)
 
-*Screenshots of runs are from the three-round LLM review described [below](#runs-with-a-real-model),
+*Screenshots of runs are from the two-round LLM review described [below](#runs-with-a-real-model),
 where every role converged; the rounds above describe the scripted run, which split 4–1.*
 
 > [!NOTE]
@@ -512,7 +511,7 @@ capacitylab run campaign-overlap \
 capacitylab spend
 ```
 
-About $1–2 for three rounds; the run stops at your limit.
+About $2.40 for two rounds with Sonnet on this scenario; the run stops at your limit.
 
 </td>
 <td valign="top">
@@ -807,34 +806,41 @@ earlier rounds.
 
 Rough cost of a full review, using the live run's average turn length and the prices in `.env.example`:
 
-| Rounds | Model | Estimated cost |
-|---:|---|---:|
-| 2 | Sonnet | $0.74 |
-| 2 | Opus | $1.24 |
-| 3 | Sonnet | $1.09 |
-| 3 | Opus | $1.81 |
+| Review of `campaign-overlap` with the lab file | Cost |
+|---|---:|
+| 2 rounds with Sonnet, production-scale numbers (measured, 2026-09-17) | $2.40 |
+| 3 rounds with Sonnet, production-scale numbers (estimated from that run) | about $4 |
+| 3 rounds with Sonnet, before the production-scale numbers (measured, 2026-09-16) | $2.28 |
 
-Output is more than half of it, so the rest depends on how long the turns are, not on how much evidence is attached.
+Output is more than half of it, so cost depends on how long the turns are, not on how much evidence is attached. The
+production-scale scenario has more options and more money to argue about, and its turns run longer.
 
 ### Runs with a real model
 
-Two runs so far on `campaign-overlap` with the lab file attached:
+Four runs so far on `campaign-overlap` with the lab file attached. The last two use the production-scale numbers
+(clusters, options, revenue at risk); the screenshots come from the last one.
 
-| | Opus, 2026-09-15 | Sonnet, 2026-09-16 |
-|---|---|---|
-| **Outcome** | ![stopped](https://img.shields.io/badge/-stopped%20by%20the%20%242.00%20limit-9a6700?style=flat-square) 9 of 15 turns | ![complete](https://img.shields.io/badge/-3%20rounds%20complete-127a55?style=flat-square) 15 turns |
-| **Cost** | $1.94 | $2.28 |
-| **Outcome of the review** | 3–2 split: index and move the batch job, against scale up and move it | all five roles: move the batch job |
-| **Violations caught** | 8 (plus 3 checker mistakes, since fixed) | 4, all in round 1 |
+| | Opus, 09-15 | Sonnet, 09-16 | Sonnet, 09-17 | Sonnet, 09-17 |
+|---|---|---|---|---|
+| **Numbers** | small cluster | small cluster | production scale | production scale |
+| **Run** | ![stopped by the $2.00 limit](https://img.shields.io/badge/-stopped%20by%20the%20%242.00%20limit-9a6700?style=flat-square) 9 of 15 turns | ![3 rounds complete](https://img.shields.io/badge/-3%20rounds%20complete-127a55?style=flat-square) 15 turns | ![stopped by the $2.50 limit](https://img.shields.io/badge/-stopped%20by%20the%20%242.50%20limit-9a6700?style=flat-square) 9 of 15 turns | ![2 rounds complete](https://img.shields.io/badge/-2%20rounds%20complete-127a55?style=flat-square) 10 turns |
+| **Cost** | $1.94 | $2.28 | $2.37 | $2.40 |
+| **Outcome of the review** | 3–2 split: index and move the batch job, against scale up and move it | all five: move the batch job | four chose, all but one on moving the batch job; the tenant representative never got a round-2 turn | all five: move the batch job |
+| **Violations caught** | 8 (plus 3 checker mistakes, since fixed) | 4, all in round 1 | 10 | 6, all in round 2 |
 
-- **The two models disagreed about the answer.** Opus split 3–2, as the scripted roles do. Sonnet converged: after the
-  forecasts arrived, its database engineer moved to "index and move the batch job" in round 2, then back to "move the
-  batch job" in round 3, and the others followed. Unanimity is not agreement about truth; both runs used the same
-  evidence. Both also predate the three-pass lab run, which supports an audience-query benefit from the index but
-  cannot resolve what it does to checkout writes.
-- **What the checks caught in the Sonnet run:** two numbers quoted from the scenario summary instead of from cited
-  evidence, one proposal marked as measured without citing an experiment, and one role citing a gap id as if it were
-  evidence. The prompt now addresses the last two directly.
+- **The models disagreed about the answer.** Opus split 3–2. Sonnet converged twice on moving the batch job: in the
+  earlier run its database engineer went to "index and move the batch job" in round 2 and back in round 3; in the
+  production-scale run it chose the move in round 1 and the application owner, FinOps analyst and tenant representative
+  decided in round 2. Unanimity is not agreement about truth. None of these runs requested an index experiment, so the
+  index options show no benefit in their forecasts.
+- **Money changed the conversation.** In the production-scale run the agents quote the $304,500 of sale revenue at risk
+  if nothing changes, the $18,708 season scale-up and the $13,549-a-month resize against a $16,500 monthly budget, and
+  settle on the $0 option that keeps every SLO in the model.
+- **What the checks caught in the production-scale run:** the FinOps analyst quoted the $16,500 budget while citing
+  the cost estimate instead of the budget evidence, and worked out a -$18,408.48 headroom itself instead of quoting it;
+  the reliability engineer quoted 95% and 5× without citing where they came from. In the stopped run two agents cited
+  assumption names as if they were evidence; the prompt now says they are not, and the next run had no invalid
+  citations.
 - **One turn hit the output limit** and was retried with a request for a shorter turn, which saved the run. Both
   attempts were charged.
 - **Round 1 costs almost nothing in input** because the whole pack is written to the cache; rounds 2 and 3 re-send
@@ -939,7 +945,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Importers, AWS import against Floci, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%203%20rounds%2C%20Sonnet%205-127a55?style=flat-square) |
+| Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%20production--scale%2C%202%20rounds-127a55?style=flat-square) |
 | CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**

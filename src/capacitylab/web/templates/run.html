@@ -179,7 +179,11 @@ real engine at small scale; they are not production numbers.</p>
 {% for p in panels %}
   <figure class="panel">
     <figcaption><strong>{{ p.outcome.label }}</strong>
-      <div class="supporters">{% for pos in d.final_positions if pos.position == p.outcome.option_id %}{{ role_titles[pos.role] }}{% if not loop.last %}, {% endif %}{% else %}no role chose this{% endfor %}</div></figcaption>
+      <div class="supporters">{% for pos in d.final_positions if pos.position == p.outcome.option_id %}{{ role_titles[pos.role] }}{% if not loop.last %}, {% endif %}{% else %}no agent chose this{% endfor %}</div>
+      <div class="supporters">{% set o = p.outcome %}
+        {% if o.cost_delta_event_usd %}<span class="pill pill-cost">{{ o.cost_delta_event_usd|usd }} one-off</span>{% endif %}
+        {% if o.cost_delta_month_usd %}<span class="pill {{ 'pill-ok' if o.cost_delta_month_usd < 0 else 'pill-cost' }}">{{ o.cost_delta_month_usd|usd }}/month</span>{% endif %}
+        {% if o.revenue_at_risk_usd %}<span class="pill pill-bad">{{ o.revenue_at_risk_usd|usd }} at risk</span>{% endif %}</div></figcaption>
     {{ p.svg|safe }}
   </figure>
 {% endfor %}
