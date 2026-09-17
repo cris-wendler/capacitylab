@@ -78,6 +78,27 @@ def runs_dir(tmp_path_factory):
     (path / "imports").mkdir()
     # A real import from the Floci emulator, captured in CI.
     shutil.copy(Path(__file__).parent / "data" / "aws" / "floci-import.yaml", path / "imports" / "aws-floci-demo-test.yaml")
+    from capacitylab.azure_import import AzureTarget, import_azure
+    from capacitylab.gcp_import import GcpTarget, import_gcp
+    from tests.test_gcp_azure_import import (
+        GROUP,
+        NOW,
+        PROJECT,
+        RETAIL_PAGE,
+        SERVER,
+        SUBSCRIPTION,
+        WRITER,
+        Recorded,
+        azure_routes,
+        gcp_routes,
+    )
+
+    gcp = import_gcp(GcpTarget(project=PROJECT), WRITER, hours=2, now=NOW, http=Recorded(gcp_routes()), label="gcp test")
+    write_evidence(gcp.items, path / "imports" / "gcp-test.yaml")
+    azure = import_azure(AzureTarget(subscription=SUBSCRIPTION, resource_group=GROUP, live=True, endpoint_url=None), SERVER,
+                         hours=2, now=NOW, http=Recorded(azure_routes()),
+                         prices_http=Recorded([("GET", "prices.azure.com", RETAIL_PAGE)]), label="azure test")
+    write_evidence(azure.items, path / "imports" / "azure-test.yaml")
     return path
 
 
@@ -86,7 +107,8 @@ def client(runs_dir):
     # Non-local hosts keep the lab status checks offline and exercise the refusal path.
     settings = Settings(runs_dir=runs_dir, mysql=MySQLSettings("db.example.invalid", 3306, "u", "p", "capacitylab_sandbox"),
                         postgres=PostgresSettings(host="db.example.invalid"),
-                        aws_endpoint="https://rds.example.invalid")
+                        aws_endpoint="https://rds.example.invalid", gcp_endpoint="https://sqladmin.example.invalid",
+                        azure_endpoint="https://management.example.invalid")
     with TestClient(create_app(settings, inline_jobs=True)) as c:
         yield c
 
@@ -211,3 +233,22 @@ def test_what_if_options_recompute_on_the_server(client):
 
 def test_job_status_json(client):
     assert client.get("/jobs/nope.json").status_code == 404
+
+
+def test_gcp_and_azure_pages(client):
+    for key, heading, emulator in (("gcp", "Import from Google Cloud", "floci-gcp"), ("azure", "Import from Azure", "floci-az")):
+        page = client.get(f"/{key}")
+        assert page.status_code == 200 and heading in page.text and "refusing endpoint" in page.text
+        assert f"{key}-test.yaml" in page.text and emulator in page.text
+        assert client.post(f"/{key}/import", data={"instance": "x"}).status_code == 400
+        assert client.get(f"/{key}/aws-floci-demo-test.yaml").status_code == 404
+    gcp = client.get("/gcp/gcp-test.yaml")
+    assert gcp.status_code == 200 and "GCP import · gcp test" in gcp.text and "db-custom-16-65536" in gcp.text
+    assert "Cloud Monitoring metrics" in gcp.text and "postgresql/num_backends" in gcp.text
+    assert "Cloud SQL prices are in the Cloud Billing Catalog" in gcp.text and "No prices in this import." in gcp.text
+    azure = client.get("/azure/azure-test.yaml")
+    assert azure.status_code == 200 and "Azure import · azure test" in azure.text and "Azure account" in azure.text
+    assert "Standard_D16ds_v4" in azure.text and "$1.40" in azure.text and "$1,022" in azure.text  # 1.40 x 730 h
+    assert "21430.56 USD" in azure.text and "Azure Monitor metrics" in azure.text
+    nav = client.get("/").text
+    assert 'href="/gcp"' in nav and 'href="/azure"' in nav

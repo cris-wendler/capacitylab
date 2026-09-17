@@ -25,7 +25,10 @@
       {{ nav_item("/runs", "Reviews", '<path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4z"/>', path.startswith("/runs") or path.startswith("/jobs")) }}
       <div class="nav-label">Measure</div>
       {{ nav_item("/lab", "Database lab", '<path d="M9 2h6v2h-1v5.2l5.6 9.7A2 2 0 0 1 17.9 22H6.1a2 2 0 0 1-1.7-3.1L10 9.2V4H9z"/>', path.startswith("/lab")) }}
-      {{ nav_item("/aws", "AWS import", '<path d="M6.5 19a4.5 4.5 0 0 1-.7-8.9A6 6 0 0 1 17.4 8.6 5 5 0 0 1 17 19z"/>', path.startswith("/aws")) }}
+      <div class="nav-label">Import</div>
+      {{ nav_item("/aws", "AWS", '<path d="M6.5 19a4.5 4.5 0 0 1-.7-8.9A6 6 0 0 1 17.4 8.6 5 5 0 0 1 17 19z"/>', path.startswith("/aws")) }}
+      {{ nav_item("/gcp", "Google Cloud", '<path d="M6.5 19a4.5 4.5 0 0 1-.7-8.9A6 6 0 0 1 17.4 8.6 5 5 0 0 1 17 19zm2.5-3h6v-2H9z"/>', path.startswith("/gcp")) }}
+      {{ nav_item("/azure", "Azure", '<path d="M6.5 19a4.5 4.5 0 0 1-.7-8.9A6 6 0 0 1 17.4 8.6 5 5 0 0 1 17 19zM11 11v4h2v-4z"/>', path.startswith("/azure")) }}
     </nav>
     <div class="sidebar-foot">
       {% set pct = (100 * budget.spent / budget.total) if budget.total else 0 %}

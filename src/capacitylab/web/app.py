@@ -46,7 +46,6 @@ def usd(value) -> str:
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LAB_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+\.yaml$")
 AWS_DIR = "imports"
-AWS_NAME_RE = re.compile(r"^aws-[A-Za-z0-9_.-]+\.yaml$")
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 STATUS_LABELS = {
@@ -559,47 +558,114 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         return page(request, "lab_detail.html", file_name=name, cmp=cmp, phases=phases, latency=latency, plans=plans,
                     digests=digests, tables=tables, percona=percona, rel_path=str(path.relative_to(runs_dir)))
 
-    # --- AWS import --------------------------------------------------------------------------------
+    # --- cloud imports (AWS, GCP, Azure) -----------------------------------------------------------
 
-    aws_dir = runs_dir / AWS_DIR
+    imports_dir = runs_dir / AWS_DIR
+    clouds = {
+        "aws": {
+            "key": "aws", "name": "AWS", "heading": "Import from AWS", "prefix": "EV-AWS-", "database": "RDS database",
+            "intro": "Read one RDS database through the AWS APIs and turn it into evidence the agents can cite: its writer "
+                     "and readers, a day of CloudWatch metrics, on-demand prices for its instance family, and RDS cost this "
+                     "month so far.",
+            "apis": [("Topology", "rds:DescribeDBInstances, rds:DescribeDBClusters"),
+                     ("CPU, connections, memory, IOPS", "cloudwatch:GetMetricStatistics"),
+                     ("Prices and cost", "pricing:GetProducts, ce:GetCostAndUsage")],
+            "emulator": "Floci", "start": "docker compose --profile aws up -d floci\npython scripts/floci_seed.py",
+            "live_env": "CAPACITYLAB_AWS_LIVE", "metrics_title": "CloudWatch metrics", "cost_label": "RDS",
+            "cost_scope": "whole account, RDS only", "item_label": "DB instance", "ok_states": {"available"},
+            "cli": "capacitylab import aws --instance demo-writer --out runs/imports/aws-demo.yaml",
+        },
+        "gcp": {
+            "key": "gcp", "name": "GCP", "heading": "Import from Google Cloud", "prefix": "EV-GCP-", "database": "Cloud SQL instance",
+            "intro": "Read one Cloud SQL instance and its read replicas and turn them into evidence the agents can cite: "
+                     "topology, high availability, and a day of Cloud Monitoring metrics. Prices and month-to-date cost are "
+                     "not read yet, and the import says so.",
+            "apis": [("Topology", "sqladmin instances.get, instances.list"),
+                     ("CPU, memory, connections, disk operations", "monitoring projects.timeSeries.list")],
+            "emulator": "floci-gcp", "start": "docker compose --profile gcp up -d floci-gcp",
+            "live_env": "CAPACITYLAB_GCP_LIVE", "metrics_title": "Cloud Monitoring metrics", "cost_label": "Cloud SQL",
+            "cost_scope": "", "item_label": "Cloud SQL instance", "ok_states": {"runnable"},
+            "cli": "capacitylab import gcp --project my-project --instance orders-primary --out runs/imports/gcp-demo.yaml",
+        },
+        "azure": {
+            "key": "azure", "name": "Azure", "heading": "Import from Azure", "prefix": "EV-AZ-", "database": "flexible server",
+            "intro": "Read one Azure Database for MySQL or PostgreSQL flexible server and its read replicas: topology, a day "
+                     "of Azure Monitor metrics, the on-demand compute price from the public retail price list, and the "
+                     "database service's cost this month so far.",
+            "apis": [("Topology", "flexibleServers get, list, replicas"),
+                     ("CPU, memory, connections, IO", "Microsoft.Insights metrics"),
+                     ("Prices and cost", "Retail Prices API, Microsoft.CostManagement query")],
+            "emulator": "floci-az", "start": "docker compose --profile azure up -d floci-az",
+            "live_env": "CAPACITYLAB_AZURE_LIVE", "metrics_title": "Azure Monitor metrics", "cost_label": "Database service",
+            "cost_scope": "whole subscription, this database service only", "item_label": "flexible server", "ok_states": {"ready"},
+            "cli": "capacitylab import azure --subscription <id> --resource-group <group> --instance orders-mysql --out runs/imports/azure-demo.yaml",
+        },
+    }
+    name_patterns = {key: re.compile(rf"^{key}-[A-Za-z0-9_.-]+\.yaml$") for key in clouds}
 
-    def aws_target():
-        from capacitylab.aws_import import AwsTarget
+    def cloud_or_404(key: str) -> dict:
+        if key not in clouds:
+            raise HTTPException(404, "unknown cloud")
+        return clouds[key]
 
-        if settings.aws_live:
-            return AwsTarget(region=settings.aws_region, live=True, endpoint_url=None)
-        return AwsTarget(region=settings.aws_region, endpoint_url=settings.aws_endpoint)
+    def cloud_target(key: str):
+        if key == "aws":
+            from capacitylab.aws_import import AwsTarget
 
-    def aws_status() -> dict:
+            if settings.aws_live:
+                return AwsTarget(region=settings.aws_region, live=True, endpoint_url=None)
+            return AwsTarget(region=settings.aws_region, endpoint_url=settings.aws_endpoint)
+        if key == "gcp":
+            from capacitylab.gcp_import import GcpTarget
+
+            return GcpTarget(project=settings.gcp_project, live=settings.gcp_live,
+                             endpoint_url=None if settings.gcp_live else settings.gcp_endpoint)
+        from capacitylab.azure_import import AzureTarget
+
+        return AzureTarget(subscription=settings.azure_subscription, resource_group=settings.azure_resource_group,
+                           engine=settings.azure_engine, live=settings.azure_live,
+                           endpoint_url=None if settings.azure_live else settings.azure_endpoint)
+
+    def cloud_status(key: str) -> dict:
+        from capacitylab.cloud_common import UnsafeCloudTarget
+
+        if key == "aws":
+            try:
+                import boto3  # noqa: F401
+            except ImportError:
+                return {"ok": False, "detail": "boto3 is not installed (pip install -e '.[aws]').", "instances": []}
+        from capacitylab.aws_import import UnsafeAwsTarget
+
         try:
-            import boto3  # noqa: F401
-        except ImportError:
-            return {"ok": False, "detail": "boto3 is not installed (pip install -e '.[aws]').", "instances": []}
-        from capacitylab.aws_import import UnsafeAwsTarget, list_instances
-
-        try:
-            target = aws_target()
-        except UnsafeAwsTarget as exc:
+            target = cloud_target(key)
+        except (UnsafeAwsTarget, UnsafeCloudTarget) as exc:
             return {"ok": False, "detail": str(exc), "instances": []}
-        where = f"AWS account, {settings.aws_region}" if target.live else f"emulator at {target.endpoint_url}"
+        cloud = clouds[key]
+        where = f"{cloud['name']} account" if target.live else f"emulator at {target.endpoint_url}"
         try:
+            if key == "aws":
+                from capacitylab.aws_import import list_instances
+            elif key == "gcp":
+                from capacitylab.gcp_import import list_instances
+            else:
+                from capacitylab.azure_import import list_servers as list_instances
             instances = list_instances(target)
         except Exception as exc:
             return {"ok": False, "detail": f"Not reachable: {where} ({type(exc).__name__}).", "instances": [],
                     "live": target.live}
-        return {"ok": True, "detail": f"{len(instances)} DB instance{'s' if len(instances) != 1 else ''} in the {where}",
-                "instances": instances, "live": target.live}
+        noun = cloud["item_label"] + ("s" if len(instances) != 1 else "")
+        return {"ok": True, "detail": f"{len(instances)} {noun} in the {where}", "instances": instances, "live": target.live}
 
-    def aws_files() -> list[dict]:
-        if not aws_dir.is_dir():
+    def cloud_files(key: str) -> list[dict]:
+        if not imports_dir.is_dir():
             return []
         out = []
-        for path in sorted(aws_dir.glob("aws-*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True):
+        for path in sorted(imports_dir.glob(f"{key}-*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True):
             try:
                 items = load_evidence_file(path)
             except Exception:
                 continue
-            topo = next((i for i in items if i.kind == EvidenceKind.TOPOLOGY and i.id.startswith("EV-AWS-")), None)
+            topo = next((i for i in items if i.kind == EvidenceKind.TOPOLOGY and i.id.startswith(clouds[key]["prefix"])), None)
             if topo is None:
                 continue
             out.append({"name": path.name, "title": topo.title, "item_count": len(items),
@@ -608,58 +674,87 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
                         "modified": datetime.fromtimestamp(path.stat().st_mtime, UTC).strftime("%Y-%m-%d %H:%M UTC")})
         return out
 
-    @app.get("/aws", response_class=HTMLResponse)
-    def aws_page(request: Request):
-        return page(request, "aws.html", status=aws_status(), files=aws_files())
+    def run_cloud_import(key: str, instance: str, hours: float, label: str | None, include_cost: bool):
+        target = cloud_target(key)
+        if key == "aws":
+            from capacitylab.aws_import import import_aws
 
-    @app.post("/aws/import")
-    def start_aws_import(instance: str = Form(...), label: str = Form(""), hours: float = Form(24),
-                         include_cost: bool = Form(False)):
+            return import_aws(target, instance, hours=hours, label=label, include_cost=include_cost)
+        if key == "gcp":
+            from capacitylab.gcp_import import import_gcp
+
+            return import_gcp(target, instance, hours=hours, label=label)
+        from capacitylab.azure_import import import_azure
+
+        return import_azure(target, instance, hours=hours, label=label, include_cost=include_cost)
+
+    def cloud_page(request: Request, key: str):
+        return page(request, "cloud.html", cloud=cloud_or_404(key), status=cloud_status(key), files=cloud_files(key))
+
+    def start_cloud_import(key: str, instance: str, label: str, hours: float, include_cost: bool):
+        cloud = cloud_or_404(key)
         if not (1 <= hours <= 24 * 14):
             raise HTTPException(400, "hours must be between 1 and 336")
-        status = aws_status()
+        status = cloud_status(key)
         if not status["ok"]:
-            raise HTTPException(400, f"AWS is not reachable: {status['detail']}")
+            raise HTTPException(400, f"{cloud['name']} is not reachable: {status['detail']}")
         if instance not in {i["id"] for i in status["instances"]}:
-            raise HTTPException(400, "unknown DB instance")
+            raise HTTPException(400, f"unknown {cloud['item_label']}")
 
         def work(job: Job) -> None:
-            from capacitylab.aws_import import import_aws
             from capacitylab.lab.runner import write_evidence
 
-            job.messages.append("reading topology, metrics, prices and cost")
-            result = import_aws(aws_target(), instance, hours=hours, label=label or None, include_cost=include_cost)
+            job.messages.append("reading topology and metrics" + (", prices and cost" if key != "gcp" else ""))
+            result = run_cloud_import(key, instance, hours, label or None, include_cost)
             for reason in result.skipped:
                 job.messages.append(f"skipped {reason}")
-            tag = result.items[0].id.removeprefix("EV-AWS-TOPO-").lower()
-            name = f"aws-{tag}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.yaml"
-            write_evidence(result.items, aws_dir / name)
-            job.target = f"/aws/{name}"
+            tag = result.items[0].id.removeprefix(f"{cloud['prefix']}TOPO-").lower()
+            name = f"{key}-{tag}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.yaml"
+            write_evidence(result.items, imports_dir / name)
+            job.target = f"/{key}/{name}"
 
-        return start_job(Job(id=uuid.uuid4().hex[:10], kind="aws", title="AWS import"), work)
+        return start_job(Job(id=uuid.uuid4().hex[:10], kind=key, title=f"{cloud['name']} import"), work)
 
-    @app.get("/aws/{name}", response_class=HTMLResponse)
-    def aws_detail(request: Request, name: str):
-        path = aws_dir / name
-        if not AWS_NAME_RE.match(name) or not path.is_file():
-            raise HTTPException(404, "unknown AWS import")
+    def cloud_detail(request: Request, key: str, name: str):
+        cloud = cloud_or_404(key)
+        path = imports_dir / name
+        if not name_patterns[key].match(name) or not path.is_file():
+            raise HTTPException(404, f"unknown {cloud['name']} import")
         items = {i.id: i for i in load_evidence_file(path)}
-        find = lambda prefix: next((i for k, i in items.items() if k.startswith(prefix)), None)  # noqa: E731
-        topo = find("EV-AWS-TOPO-")
+        find = lambda part: next((i for k, i in items.items() if k.startswith(cloud["prefix"] + part)), None)  # noqa: E731
+        topo = find("TOPO-")
         if topo is None:
-            raise HTTPException(404, "not an AWS import")
-        cpu = find("EV-AWS-CPU-")
+            raise HTTPException(404, f"not an {cloud['name']} import")
+        cpu = find("CPU-")
         charts = []
         if cpu:
             labels = [s[-5:] for s in cpu.data["slots"]]
-            for key, title in (("avg_by_slot", "Average CPU per 15 minutes"), ("max_by_slot", "Highest CPU per 15 minutes")):
-                outcome = {"option_id": title, "utilization_by_slot": cpu.data[key],
-                           "peak_utilization_pct": max(cpu.data[key])}
+            for key_name, title in (("avg_by_slot", "Average CPU per 15 minutes"), ("max_by_slot", "Highest CPU per 15 minutes")):
+                outcome = {"option_id": title, "utilization_by_slot": cpu.data[key_name],
+                           "peak_utilization_pct": max(cpu.data[key_name])}
                 y_max = shared_y_max([outcome], 80)
                 charts.append({"title": title, "svg": utilization_panel(outcome, labels, 80, y_max, [], width=560, height=190)})
         scenarios = [{"id": sid, "title": load_scenario(sid)[0].title} for sid in list_scenarios()]
-        return page(request, "aws_detail.html", file_name=name, topo=topo, cpu=cpu, charts=charts,
-                    metrics=find("EV-AWS-MET-"), rate=find("EV-AWS-RATE-"), cost=find("EV-AWS-COST-"),
-                    item_ids=list(items), scenarios=scenarios, rel_path=str(path.relative_to(runs_dir)))
+        return page(request, "cloud_detail.html", cloud=cloud, file_name=name, topo=topo, cpu=cpu, charts=charts,
+                    metrics=find("MET-"), rate=find("RATE-"), cost=find("COST-"), item_ids=list(items),
+                    scenarios=scenarios, rel_path=str(path.relative_to(runs_dir)))
+
+    def add_cloud_routes(key: str) -> None:
+        def get_page(request: Request):
+            return cloud_page(request, key)
+
+        def post_import(instance: str = Form(...), label: str = Form(""), hours: float = Form(24),
+                        include_cost: bool = Form(False)):
+            return start_cloud_import(key, instance, label, hours, include_cost)
+
+        def get_detail(request: Request, name: str):
+            return cloud_detail(request, key, name)
+
+        app.add_api_route(f"/{key}", get_page, methods=["GET"], response_class=HTMLResponse, name=f"{key}_page")
+        app.add_api_route(f"/{key}/import", post_import, methods=["POST"], name=f"{key}_import")
+        app.add_api_route(f"/{key}/{{name}}", get_detail, methods=["GET"], response_class=HTMLResponse, name=f"{key}_detail")
+
+    for cloud_key in clouds:
+        add_cloud_routes(cloud_key)
 
     return app

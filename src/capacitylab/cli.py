@@ -289,6 +289,8 @@ def cmd_import(args, settings) -> int:
 
     if args.kind == "aws":
         return _import_aws(args, write_evidence, load_evidence_file)
+    if args.kind in ("gcp", "azure"):
+        return _import_gcp_azure(args, write_evidence, load_evidence_file)
     if not args.file:
         print(f"error: import {args.kind} needs a file", file=sys.stderr)
         return 1
@@ -351,6 +353,10 @@ def _import_aws(args, write_evidence, load_evidence_file) -> int:
     except (botocore.exceptions.ClientError, botocore.exceptions.NoCredentialsError) as exc:
         print(f"error: AWS call failed ({type(exc).__name__}: {str(exc).splitlines()[0]})", file=sys.stderr)
         return 4
+    return _write_cloud_import(result, args, "AWS", write_evidence, load_evidence_file)
+
+
+def _write_cloud_import(result, args, cloud: str, write_evidence, load_evidence_file) -> int:
     out = Path(args.out)
     existing = load_evidence_file(out) if out.is_file() else []
     clash = {e.id for e in existing} & {i.id for i in result.items}
@@ -363,8 +369,53 @@ def _import_aws(args, write_evidence, load_evidence_file) -> int:
         print(f"{item.id}: {item.kind.value}, {item.title}")
     for reason in result.skipped:
         print(f"skipped {reason}")
-    print(f"{len(result.items)} items from {'AWS' if args.live else 'the emulator'} -> {out}")
+    print(f"{len(result.items)} items from {cloud if args.live else 'the emulator'} -> {out}")
     return 0
+
+
+def _import_gcp_azure(args, write_evidence, load_evidence_file) -> int:
+    from capacitylab.cloud_common import CloudApiError, UnsafeCloudTarget
+
+    if not args.instance:
+        print(f"error: import {args.kind} needs --instance (the Cloud SQL instance or flexible server name)", file=sys.stderr)
+        return 1
+    cloud, start = (("Google Cloud", "docker compose --profile gcp up -d floci-gcp") if args.kind == "gcp"
+                    else ("Azure", "docker compose --profile azure up -d floci-az"))
+    try:
+        if args.kind == "gcp":
+            from capacitylab.gcp_import import EMULATOR_ENDPOINT, GcpTarget, import_gcp
+
+            if not args.project:
+                print("error: import gcp needs --project", file=sys.stderr)
+                return 1
+            target = GcpTarget(project=args.project, live=args.live,
+                               endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+            result = import_gcp(target, args.instance, hours=args.hours, period_s=args.period or 300, label=args.label)
+        else:
+            from capacitylab.azure_import import EMULATOR_ENDPOINT, AzureTarget, import_azure
+
+            if not (args.subscription and args.resource_group):
+                print("error: import azure needs --subscription and --resource-group", file=sys.stderr)
+                return 1
+            target = AzureTarget(subscription=args.subscription, resource_group=args.resource_group,
+                                 engine=args.db_engine, live=args.live,
+                                 endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+            result = import_azure(target, args.instance, hours=args.hours, period_s=args.period or 300,
+                                  label=args.label, include_cost=not args.no_cost)
+    except UnsafeCloudTarget as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except ImportError as exc:
+        print(f"error: --live needs the {args.kind} extra: pip install -e '.[{args.kind}]' ({exc.name})", file=sys.stderr)
+        return 4
+    except CloudApiError as exc:
+        print(f"error: {args.kind} API call failed ({exc})", file=sys.stderr)
+        return 4
+    except OSError as exc:
+        print(f"error: could not reach the {'API' if args.live else 'emulator'} ({exc}). Start it: {start}",
+              file=sys.stderr)
+        return 4
+    return _write_cloud_import(result, args, cloud, write_evidence, load_evidence_file)
 
 
 def cmd_findings(args, settings) -> int:
@@ -493,7 +544,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("import", help="build evidence from your own exports")
     p.add_argument("kind", choices=["slowlog", "digest", "plan", "metrics", "pt-query-digest", "pt-duplicate-keys",
-                                    "pt-deadlocks", "aws"],
+                                    "pt-deadlocks", "aws", "gcp", "azure"],
                    help="pt-query-digest: --output json; pt-duplicate-keys: pt-duplicate-key-checker text; "
                         "pt-deadlocks: pt-deadlock-logger --tab; aws: read RDS, CloudWatch, Pricing and Cost Explorer "
                         "(a local emulator unless --live)")
@@ -508,13 +559,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fingerprint", help="plan: statement id the plan belongs to")
     p.add_argument("--unit", help="metrics: unit label")
     p.add_argument("--period", type=int, help="metrics and aws: period in seconds (default 60 for metrics, 300 for aws)")
-    p.add_argument("--instance", help="aws: DB instance identifier (used for the API calls only, never stored)")
+    p.add_argument("--instance", help="aws, gcp, azure: DB instance, Cloud SQL instance or flexible server name "
+                                      "(used for the API calls only, never stored)")
+    p.add_argument("--project", help="gcp: project id (never stored)")
+    p.add_argument("--subscription", help="azure: subscription id (never stored)")
+    p.add_argument("--resource-group", help="azure: resource group (never stored)")
+    p.add_argument("--db-engine", choices=["mysql", "postgres"], default="mysql", help="azure: flexible server engine")
     p.add_argument("--region", default="us-east-1", help="aws: region (default us-east-1)")
     p.add_argument("--hours", type=float, default=24.0, help="aws: metric window ending now (default 24)")
-    p.add_argument("--endpoint", default=None, help="aws: emulator endpoint (default http://127.0.0.1:4566)")
+    p.add_argument("--endpoint", default=None, help="emulator endpoint (default: 4566 Floci, 4588 floci-gcp, 4577 floci-az)")
     p.add_argument("--live", action="store_true",
-                   help="aws: read a real AWS account with your normal credentials; read-only calls")
-    p.add_argument("--no-cost", action="store_true", help="aws: skip Cost Explorer (it is billed per request on AWS)")
+                   help="aws, gcp, azure: read a real account with your normal credentials; read-only calls")
+    p.add_argument("--no-cost", action="store_true", help="aws, azure: skip the cost API (it may bill per request)")
     p.set_defaults(func=cmd_import)
 
     sub.add_parser("spend", help="show recorded model spend against the total budget").set_defaults(func=cmd_spend)
