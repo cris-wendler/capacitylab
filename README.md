@@ -74,7 +74,7 @@ experiments are deterministic Python, and every number an agent quotes is checke
 | ![](https://img.shields.io/badge/clouds-FF9900?style=flat-square) | AWS (boto3), Google Cloud and Azure (their REST APIs); Floci, floci-gcp and floci-az emulators | RDS topology, CloudWatch metrics, prices and cost pulled through the AWS APIs, against a local emulator by default or a real account with `--live`. |
 | ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 and PostgreSQL 17 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE` and `EXPLAIN (ANALYZE, BUFFERS)`, index and rewrite experiments, `pt-query-digest` and friends. |
 | ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI for scenarios, runs, lab results and comparisons; the same features on the command line. |
-| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests, MySQL and PostgreSQL jobs in CI, replay of a full run, and a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests on every change; the MySQL, PostgreSQL and cloud-emulator suites on request (`make check-containers` locally, or the Containers workflow); replay of a full run, and a scan for leftover identifiers. |
 
 ## The five agents
 
@@ -675,7 +675,7 @@ read calls only. Nothing that identifies the account is stored.
 | **On-demand prices** | ✅ Pricing API | ⚪ not read yet (Cloud Billing Catalog) | ✅ public Retail Prices API |
 | **Cost this month** | ✅ Cost Explorer | ⚪ needs a BigQuery billing export | ✅ Cost Management |
 | **Local emulator** | [Floci](https://github.com/floci-io/floci), port 4566 | [floci-gcp](https://github.com/floci-io/floci-gcp), port 4588 | [floci-az](https://github.com/floci-io/floci-az), port 4577 |
-| **Tested** | recorded responses, and against Floci in CI | recorded responses, and against floci-gcp in CI | recorded responses, and against floci-az in CI (MySQL and PostgreSQL) |
+| **Tested** | recorded responses, and against Floci | recorded responses, and one run against floci-gcp (standing check pending) | recorded responses, and against floci-az (MySQL and PostgreSQL) |
 
 ```bash
 capacitylab import gcp --project my-project --instance orders-primary --label "evening" --out runs/imports/gcp.yaml
@@ -684,8 +684,9 @@ capacitylab import azure --subscription <id> --resource-group <group> --instance
 ```
 
 > [!NOTE]
-> Every push runs each import against its emulator in CI, then feeds the evidence into a review. None of them has
-> been run against a real account yet. The emulators do not serve everything, and what is missing is skipped with the
+> Each import has been run against its emulator, with the evidence fed into a review; the Containers workflow and
+> `make check-containers` repeat that on request. The standing floci-gcp check is not green yet, and none of the
+> imports has been run against a real account. The emulators do not serve everything, and what is missing is skipped with the
 > reason written into the evidence:
 >
 > - **floci-gcp 0.9.0** serves Cloud SQL and Cloud Monitoring, so a GCP import yields topology, the CPU series and
@@ -1001,7 +1002,7 @@ tests/             172 run by default; 7 need the MySQL container (2 also the Pe
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data
-docs/              provenance and release checklist, evaluation method, screenshots
+docs/              evaluation method, screenshots
 ```
 
 </details>
@@ -1016,7 +1017,7 @@ docs/              provenance and release checklist, evaluation method, screensh
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Importers, AWS import against Floci, GCP and Azure imports against recorded responses, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%20production--scale%2C%202%20rounds-127a55?style=flat-square) |
-| CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
+| CI on GitHub: lint and tests (Python 3.11, 3.12) on every change; MySQL 8.0, PostgreSQL 17 and the three cloud emulators as an on-request workflow | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**
 
