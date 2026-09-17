@@ -69,13 +69,20 @@ def seed_gcp(endpoint: str) -> None:
     sent = 0
     while ts < now:
         average, _ = cpu_at(ts, rng)
-        values = {"cpu/utilization": average / 100, "memory/utilization": 0.55 + average / 400,
-                  "postgresql/num_backends": float(round(40 + average * 3)),
-                  "disk/read_ops_count": round(900 + average * 60, 1), "disk/write_ops_count": round(300 + average * 25, 1)}
-        stamp = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+        gauges = {"cpu/utilization": average / 100, "memory/utilization": 0.55 + average / 400,
+                  "postgresql/num_backends": float(round(40 + average * 3))}
+        # disk operations are DELTA counts per sampling window in Cloud SQL; the import reads them with ALIGN_RATE
+        deltas = {"disk/read_ops_count": round((900 + average * 60) * 300),
+                  "disk/write_ops_count": round((300 + average * 25) * 300)}
+        start, stamp = ((ts - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ"), ts.strftime("%Y-%m-%dT%H:%M:%SZ"))
         series = [{"metric": {"type": f"cloudsql.googleapis.com/database/{metric}"}, "resource": resource,
+                   "metricKind": "GAUGE", "valueType": "DOUBLE",
                    "points": [{"interval": {"endTime": stamp}, "value": {"doubleValue": value}}]}
-                  for metric, value in values.items()]
+                  for metric, value in gauges.items()]
+        series += [{"metric": {"type": f"cloudsql.googleapis.com/database/{metric}"}, "resource": resource,
+                    "metricKind": "DELTA", "valueType": "INT64",
+                    "points": [{"interval": {"startTime": start, "endTime": stamp}, "value": {"int64Value": str(value)}}]}
+                   for metric, value in deltas.items()]
         http.post(f"{base}/v3/projects/{GCP_PROJECT}/timeSeries", {"timeSeries": series})
         sent += len(series)
         ts += timedelta(minutes=5)
