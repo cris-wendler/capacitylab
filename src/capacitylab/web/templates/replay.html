@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Replay · CapacityLab{% endblock %}
 {% block content %}
-<div class="crumbs"><a href="/runs/{{ run.run_id }}">Run</a> / replay</div>
+<div class="crumbs"><a href="/runs">Reviews</a> / <a href="/runs/{{ run.run_id }}">{{ run.run_id }}</a> / replay</div>
 <h1>Replay verification</h1>
 {% set checks_reproduce = report.identical == report.tool_calls_replayed %}
 {% set scenario_edited = not report.scenario_match or not report.initial_evidence_match %}

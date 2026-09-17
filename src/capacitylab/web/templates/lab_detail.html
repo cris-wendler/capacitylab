@@ -2,7 +2,7 @@
 {% from "_macros.html" import lab_table %}
 {% block title %}{{ file_name }} · lab · CapacityLab{% endblock %}
 {% block content %}
-<div class="crumbs"><a href="/lab">Lab</a> / <span class="mono">{{ file_name }}</span></div>
+<div class="crumbs"><a href="/lab">Database lab</a> / <span class="mono">{{ file_name }}</span></div>
 {% set sid = cmp.data.get('scenario_id') %}
 {% set pg = (cmp.data.engine or '').startswith('PostgreSQL') %}
 <h1>{% if sid %}Lab run for {{ sid }}{% else %}Lab run{% endif %}</h1>

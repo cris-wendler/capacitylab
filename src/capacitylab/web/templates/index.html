@@ -1,66 +1,114 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status %}
+{% from "_macros.html" import status, avatar %}
 {% block content %}
-<section class="hero">
+<header class="page-title">
   <div>
+    <div class="eyebrow">Overview</div>
     <h1>Five AI agents review a database capacity decision</h1>
     <p class="lead">A database engineer, an application owner, a reliability engineer, a FinOps analyst and a tenant
-    representative, simulated by a large language model or by scripted rules, look at the same decision. Each sees the
-    evidence its role gives it, asks for checks, and takes a position. Code does the maths and checks every number they
-    quote. The result is a written record of what each agent recommends, what is still disputed, and what nobody has
-    measured yet.</p>
+    representative, simulated by a large language model or by scripted rules, weigh the same evidence. Code does the maths
+    and checks every number they quote.</p>
   </div>
-  <div class="hero-ring">{% include "_agents_ring.html" %}</div>
+  {% if cards %}<a class="btn-primary btn-lg" href="/scenarios/{{ cards[0].scenario.id }}#start">Start a review</a>{% endif %}
+</header>
+
+<section class="kpis" aria-label="At a glance">
+  <div class="kpi kpi-blue">
+    <span class="kpi-label">Scenarios</span>
+    <span class="kpi-value">{{ cards|length }}</span>
+    <span class="kpi-sub">{{ cards|map(attribute='option_count')|sum }} options to weigh</span>
+  </div>
+  <div class="kpi kpi-violet">
+    <span class="kpi-label">Reviews run</span>
+    <span class="kpi-value">{{ stats.reviews }}</span>
+    <span class="kpi-sub">{{ stats.llm_reviews }} by LLM agents · {{ stats.concluded }} finished</span>
+  </div>
+  <div class="kpi kpi-coral">
+    <span class="kpi-label">Model spend</span>
+    <span class="kpi-value">${{ '%.2f' % budget.spent }}</span>
+    <span class="kpi-sub">of ${{ '%.2f' % budget.total }} limit</span>
+  </div>
+  <div class="kpi kpi-green">
+    <span class="kpi-label">Database lab</span>
+    <span class="kpi-value kpi-status"><span class="dot {{ 'dot-ok' if lab.ok else 'dot-off' }}"></span>MySQL <span class="dot {{ 'dot-ok' if pg_lab.ok else 'dot-off' }}"></span>PostgreSQL</span>
+    <span class="kpi-sub">{{ lab_runs|length }} recent lab run{{ '' if lab_runs|length == 1 else 's' }}</span>
+  </div>
 </section>
 
-<section class="steps" aria-label="How it works">
-  <div class="step">
-    <span class="step-num">1</span>
-    <h3>Evidence</h3>
-    <p>Scenario data, measurements from the local MySQL or PostgreSQL lab, or exports from your own database. Every item says where it
-    came from.</p>
-  </div>
-  <div class="step">
-    <span class="step-num">2</span>
-    <h3>Review rounds</h3>
-    <p>Roles cite evidence, request checks (capacity model, cost, index tests, rewrite checks, lab load tests), and
-    challenge each other. Numbers they state must appear in what they cite.</p>
-  </div>
-  <div class="step">
-    <span class="step-num">3</span>
-    <h3>Decision record</h3>
-    <p>Final positions, open disagreements, missing evidence, and a log you can replay to verify every check.</p>
-  </div>
-</section>
-
-<h2>Scenarios</h2>
-<div class="cards">
+<div class="section-head"><h2>Decisions on the table</h2></div>
+<div class="scenario-grid">
 {% for c in cards %}
-  <a class="card" href="/scenarios/{{ c.scenario.id }}">
-    <div class="card-kicker">{{ c.scenario.cluster.id }} · {{ c.scenario.horizon.date }}</div>
-    <h3>{{ c.scenario.title }}</h3>
-    <p>{{ c.scenario.summary }}</p>
-    {% for f in c.findings %}
-    <div class="card-finding"><span class="sev sev-{{ f.severity }}">{{ {'high': 'Act', 'medium': 'Weigh', 'info': 'Note'}[f.severity] }}</span><span>{{ f.headline }}</span></div>
-    {% endfor %}
-    <div class="facts">
-      <span>{{ c.evidence }} evidence items</span><span>{{ c.scenario.options|length }} options</span><span>{{ c.gaps }} known gaps</span>
+  <a class="scenario-card" href="/scenarios/{{ c.scenario.id }}">
+    <div class="scenario-band">
+      <span class="chip-dark">{{ c.scenario.cluster.id }}</span>
+      <span class="chip-dark">{{ c.scenario.cluster.writer_instance }}</span>
+      <span class="chip-dark">{{ c.scenario.horizon.date }}</span>
+    </div>
+    <div class="scenario-body">
+      <h3>{{ c.scenario.title }}</h3>
+      <p>{{ c.scenario.summary }}</p>
+      <div class="money-row">
+        {% if c.keep and c.keep.revenue_at_risk_usd %}
+        <div class="money-tile tile-risk"><span>Doing nothing risks</span><strong>{{ c.keep.revenue_at_risk_usd|usd }}</strong><em>of sale revenue</em></div>
+        {% elif c.keep %}
+        <div class="money-tile tile-neutral"><span>Doing nothing</span><strong>{{ c.keep.total_slo_breach_slots }} breach slots</strong><em>peak {{ c.keep.peak_utilization_pct }}% CPU</em></div>
+        {% endif %}
+        {% if c.cheapest %}
+        {% set year = c.cheapest.cost_delta_event_usd + 12 * c.cheapest.cost_delta_month_usd %}
+        {% set risks = c.cheapest.unknowns|length %}
+        <div class="money-tile {{ 'tile-save' if year < 0 else 'tile-ok' }}" title="{{ c.cheapest.label }}"><span>{{ 'Largest saving that keeps SLOs' if year < 0 else 'Cheapest option that keeps SLOs' }}</span><strong>{% if year < 0 %}saves {{ (-year)|usd }}{% else %}{{ year|usd }}{% endif %}</strong><em>{{ '12 months' if year else 'no extra cost' }}{% if risks %} · {{ risks }} open risk{{ '' if risks == 1 else 's' }}{% endif %} · {{ c.cheapest.label }}</em></div>
+        {% endif %}
+        {% if c.budget.current_monthly_instance_cost_usd is defined %}
+        <div class="money-tile tile-neutral"><span>Instances today</span><strong>{{ c.budget.current_monthly_instance_cost_usd|usd }}</strong><em>a month · budget {{ c.budget.monthly_budget_usd|usd }}</em></div>
+        {% endif %}
+      </div>
+      {% for f in c.findings %}
+      <div class="card-finding"><span class="sev sev-{{ f.severity }}">{{ {'high': 'Act', 'medium': 'Weigh', 'info': 'Note'}[f.severity] }}</span><span>{{ f.headline }}</span></div>
+      {% endfor %}
+      <div class="scenario-foot">
+        <span>{{ c.safe_count }}/{{ c.option_count }} options keep every SLO</span>
+        <span>{{ c.evidence }} evidence items</span><span>{{ c.gaps }} known gaps</span>
+        <span class="open">Open →</span>
+      </div>
     </div>
   </a>
 {% endfor %}
-  <a class="card card-lab" href="/lab">
-    <div class="card-kicker"><span class="dot {{ 'dot-ok' if lab.ok else 'dot-off' }}"></span>{{ 'Lab ready' if lab.ok else 'Lab not running' }}</div>
-    <h3>Local database lab</h3>
-    <p>Run a real concurrent workload against a local MySQL 8.0 or PostgreSQL 17 container and collect latency, lock
-    waits, and plans to attach to a review.</p>
-    <div class="facts"><span>{{ lab_runs|length }} recent lab run{{ '' if lab_runs|length == 1 else 's' }}</span><span>{{ lab.detail }}</span></div>
-  </a>
 </div>
 
-<h2>Recent runs</h2>
-{% if runs %}
-{% include "_runs_table.html" %}
-{% else %}
-<div class="empty">No runs yet. Open a scenario and start a review.</div>
-{% endif %}
+<div class="split-wide">
+  <section class="panel-card">
+    <div class="section-head"><h2>Recent reviews</h2><a class="link-more" href="/runs">All reviews →</a></div>
+    {% if runs %}
+    <ul class="review-list">
+    {% for r in runs %}
+      <li>
+        <a href="/runs/{{ r.file }}">
+          <span class="review-who {{ 'who-llm' if not r.mocked else 'who-script' }}">{{ 'LLM' if not r.mocked else 'Rules' }}</span>
+          <span class="review-main"><strong>{{ r.scenario_id }}</strong><span class="muted small">{{ r.model if not r.mocked else 'scripted agents' }} · {{ r.rounds }} round{{ '' if r.rounds == 1 else 's' }} · {{ r.created_at }}</span></span>
+          {{ status(r.status) }}
+          <span class="review-spend">{% if r.mocked %}free{% else %}${{ '%.2f' % r.spend }}{% endif %}</span>
+        </a>
+      </li>
+    {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">No reviews yet. Open a scenario and start one.</div>
+    {% endif %}
+  </section>
+
+  <section class="panel-card agents-card">
+    <div class="section-head"><h2>The agents</h2></div>
+    <div class="hero-ring">{% include "_agents_ring.html" %}</div>
+    <ol class="flow">
+      <li><strong>Evidence</strong><span>Scenario data, local lab measurements, AWS or file imports, each labelled by source.</span></li>
+      <li><strong>Review rounds</strong><span>Agents cite evidence, ask for checks and challenge each other.</span></li>
+      <li><strong>Decision record</strong><span>Positions, disputes and what nobody has measured, replayable.</span></li>
+    </ol>
+  </section>
+</div>
+
+<a class="lab-strip" href="/lab">
+  <span><strong>Local database lab</strong> Run a real concurrent workload on MySQL 8.0 or PostgreSQL 17 and attach latency, lock waits and plans to a review.</span>
+  <span class="open">Open the lab →</span>
+</a>
 {% endblock %}

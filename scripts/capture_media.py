@@ -22,7 +22,7 @@ MEDIA = ROOT / "docs" / "media"
 FRAMES = MEDIA / "_frames"
 PORT = int(os.environ.get("CAPTURE_PORT", "8799"))
 BASE = f"http://127.0.0.1:{PORT}"
-VIEWPORT = {"width": 1280, "height": 820}
+VIEWPORT = {"width": 1440, "height": 900}
 
 
 def wait_for_server(timeout: float = 30) -> None:
@@ -52,7 +52,8 @@ def span(page, first: str, last: str) -> tuple[float, float, float, float]:
             const r1 = document.querySelector(a).getBoundingClientRect();
             const r2 = document.querySelector(b).getBoundingClientRect();
             const main = document.querySelector('main').getBoundingClientRect();
-            return [main.left, r1.top + window.scrollY, main.width, r2.bottom - r1.top];
+            // main has 32 px side padding; stay inside it so the sidebar never shows at the edge
+            return [main.left + 20, r1.top + window.scrollY, main.width - 40, r2.bottom - r1.top];
         }""",
         [first, last],
     )
@@ -157,6 +158,8 @@ def main() -> int:
             page.goto(BASE + "/scenarios/campaign-overlap")
             if lab_source.is_file():
                 page.check("input[name=evidence]")
+            page.evaluate("window.scrollTo(0, 0)")
+            page.wait_for_timeout(200)
             page.screenshot(path=str(MEDIA / "scenario.png"))
 
             page.goto(BASE + f"/runs/{live_source.stem}")

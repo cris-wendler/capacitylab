@@ -2,25 +2,34 @@
 {% from "_macros.html" import prov, status, chip, ev, options_table, lab_table, avatar %}
 {% block title %}{{ scenario.title }} · run · CapacityLab{% endblock %}
 {% block content %}
-<div class="crumbs"><a href="/">Scenarios</a> / <a href="/scenarios/{{ scenario.id }}">{{ scenario.id }}</a> / run <span class="mono">{{ run.run_id }}</span></div>
+<div class="crumbs"><a href="/runs">Reviews</a> / <a href="/scenarios/{{ scenario.id }}">{{ scenario.id }}</a> / <span class="mono">{{ run.run_id }}</span></div>
 {% if run.mocked %}
 <div class="banner">Scripted run: every agent's answers come from fixed rules written in code, not from a language model.</div>
 {% endif %}
-<h1>{{ scenario.title }}</h1>
-<div class="meta">
-  {{ status(run.state.status.value) }}
-  <span>{% if run.mocked %}Scripted agents{% else %}{{ run.model }}{% endif %}</span>
-  <span>{{ run.rounds_completed }} rounds</span>
-  <span>{{ checks_run }} checks run</span>
-  {% if not run.mocked %}<span>${{ '%.4f' % run.spend_usd }} model spend</span>{% endif %}
-  <span>experiments on {{ run.sandbox_engine or 'no database' }}</span>
-  {% if run.extra_evidence_items %}<span>{{ run.extra_evidence_items|length }} attached evidence items</span>{% endif %}
-</div>
-<div class="actions">
-  <a class="btn-secondary" href="/runs/{{ run.run_id }}/replay">Verify by replay</a>
-  <a class="btn-secondary" href="/runs/{{ run.run_id }}/report.md">Markdown report</a>
-  <a class="btn-secondary" href="/runs/{{ run.run_id }}/ledger.json">Run log (JSON)</a>
-</div>
+<section class="scenario-hero run-hero">
+  <div class="scenario-band">
+    <span class="chip-dark chip-who">{% if run.mocked %}scripted agents{% else %}LLM · {{ run.model }}{% endif %}</span>
+    <span class="chip-dark">{{ run.rounds_completed }} round{{ '' if run.rounds_completed == 1 else 's' }}</span>
+    <span class="chip-dark">{{ checks_run }} checks run</span>
+    <span class="chip-dark">experiments on {{ run.sandbox_engine or 'no database' }}</span>
+    {% if run.extra_evidence_items %}<span class="chip-dark">{{ run.extra_evidence_items|length }} attached evidence items</span>{% endif %}
+  </div>
+  <div class="scenario-hero-body">
+    <div class="run-hero-head">
+      <div>
+        <div class="eyebrow">Review</div>
+        <h1>{{ scenario.title }}</h1>
+      </div>
+      <div class="run-hero-status">{{ status(run.state.status.value) }}
+        {% if not run.mocked %}<span class="run-spend">${{ '%.4f' % run.spend_usd }}<small>model spend</small></span>{% endif %}</div>
+    </div>
+    <div class="actions">
+      <a class="btn-secondary" href="/runs/{{ run.run_id }}/replay">Verify by replay</a>
+      <a class="btn-secondary" href="/runs/{{ run.run_id }}/report.md">Markdown report</a>
+      <a class="btn-secondary" href="/runs/{{ run.run_id }}/ledger.json">Run log (JSON)</a>
+    </div>
+  </div>
+</section>
 {% for w in run.warnings %}<div class="warn">{{ w }}</div>{% endfor %}
 
 {% if run.decision %}{% set d = run.decision %}

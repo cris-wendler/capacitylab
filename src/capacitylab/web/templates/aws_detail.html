@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ file_name }} · aws · CapacityLab{% endblock %}
 {% block content %}
-<div class="crumbs"><a href="/aws">AWS</a> / <span class="mono">{{ file_name }}</span></div>
+<div class="crumbs"><a href="/aws">AWS import</a> / <span class="mono">{{ file_name }}</span></div>
 {% set emulator = topo.source.startswith('floci') %}
 <h1>AWS import · {{ topo.title.removeprefix("RDS topology (").removesuffix(")") }}</h1>
 <div class="meta">

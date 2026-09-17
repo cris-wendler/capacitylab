@@ -2,13 +2,43 @@
 {% from "_macros.html" import prov, options_table %}
 {% block title %}{{ scenario.title }} · CapacityLab{% endblock %}
 {% block content %}
-<div class="crumbs"><a href="/">Scenarios</a> / {{ scenario.id }}</div>
-
-<div class="page-head">
-  <div>
-    <h1>{{ scenario.title }} <span class="tag">synthetic</span></h1>
+<div class="crumbs"><a href="/">Overview</a> / {{ scenario.id }}</div>
+{% set outcomes = panels|map(attribute='outcome')|list %}
+{% set keep = outcomes|selectattr('option_kind', 'equalto', 'keep')|first %}
+<section class="scenario-hero">
+  <div class="scenario-band">
+    <span class="chip-dark">{{ scenario.cluster.id }}</span>
+    <span class="chip-dark">writer {{ scenario.cluster.writer_instance }}</span>
+    {% if scenario.cluster.reader_instances %}<span class="chip-dark">reader {{ scenario.cluster.reader_instances|join(', ') }}</span>{% endif %}
+    <span class="chip-dark">{{ scenario.horizon.date }} · {{ scenario.horizon.start }}–{{ scenario.horizon.end }}</span>
+    <span class="chip-dark chip-soft">synthetic</span>
+  </div>
+  <div class="scenario-hero-body">
+    <h1>{{ scenario.title }}</h1>
     <p class="lead">{{ scenario.summary }}</p>
     <div class="question"><div class="label">Decision to make</div>{{ scenario.decision_question }}</div>
+    <div class="money-row hero-kpis">
+      {% if keep and keep.revenue_at_risk_usd is not none %}
+      <div class="money-tile {{ 'tile-risk' if keep.revenue_at_risk_usd else 'tile-ok' }}"><span>Doing nothing risks</span><strong>{{ keep.revenue_at_risk_usd|usd }}</strong><em>of sale revenue · {{ keep.revenue_at_risk_slots }} sale slots</em></div>
+      {% endif %}
+      {% if keep %}
+      <div class="money-tile {{ 'tile-risk' if keep.total_slo_breach_slots else 'tile-neutral' }}"><span>Peak CPU if nothing changes</span><strong>{{ keep.peak_utilization_pct }}%</strong><em>{{ keep.total_slo_breach_slots }} SLO breach slots · threshold {{ scenario.utilization_threshold_pct|int }}%</em></div>
+      {% endif %}
+      <div class="money-tile tile-ok"><span>Options that keep every SLO</span><strong>{{ safe_count }} of {{ option_count }}</strong><em>at the scenario's assumptions</em></div>
+      {% if cost_budget.current_monthly_instance_cost_usd is defined %}
+      <div class="money-tile tile-neutral"><span>Instances today</span><strong>{{ cost_budget.current_monthly_instance_cost_usd|usd }}</strong><em>a month · budget {{ cost_budget.monthly_budget_usd|usd }}</em></div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<nav class="section-nav" aria-label="On this page">
+  <a href="#findings">Findings</a><a href="#options">Options</a><a href="#assumptions">Assumptions and gaps</a><a href="#evidence">Evidence</a><a class="section-nav-cta" href="#start">Start a review</a>
+</nav>
+
+<div class="page-head" id="start">
+  <div class="panel-card details-card">
+    <div class="section-head"><h2>Scenario details</h2></div>
     <dl class="facts-list">
       <dt>Cluster</dt><dd>{{ scenario.cluster.id }}: writer {{ scenario.cluster.writer_instance }}{% if scenario.cluster.reader_instances %}, reader {{ scenario.cluster.reader_instances|join(', ') }}{% endif %} <span class="muted">(capacity is modeled for the {{ scenario.cluster.evaluated_node }})</span></dd>
       <dt>Engine</dt><dd>{{ scenario.cluster.engine_assumption }}</dd>
@@ -107,7 +137,7 @@ here until an index experiment measures one.</p>
 {% include "_options_live.html" %}
 </div>
 
-<div class="split">
+<div class="split" id="assumptions">
   <section>
     <h2>Known gaps</h2>
     <ul class="plain">
@@ -128,7 +158,7 @@ here until an index experiment measures one.</p>
   </section>
 </div>
 
-<h2>Evidence</h2>
+<h2 id="evidence">Evidence</h2>
 {% for kind, items in grouped.items() %}
 <details class="evidence-group" {% if loop.index <= 2 %}open{% endif %}>
   <summary>{{ kind|capitalize }} <span class="muted small">{{ items|length }}</span></summary>

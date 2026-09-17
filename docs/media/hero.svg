@@ -6,6 +6,15 @@
       <stop offset="0" stop-color="#101a33"/>
       <stop offset="1" stop-color="#1d1a3a"/>
     </linearGradient>
+    <linearGradient id="lgGlass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ea8ff"/>
+      <stop offset="1" stop-color="#9b7bff"/>
+    </linearGradient>
+    <linearGradient id="lgLiquid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fd1a1"/>
+      <stop offset="1" stop-color="#1b9b6d"/>
+    </linearGradient>
+    <clipPath id="lgInside"><path d="M26 8h12v16l14 24a6 6 0 0 1-5.2 9H17.2a6 6 0 0 1-5.2-9l14-24z"/></clipPath>
     <radialGradient id="core" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/>
@@ -25,6 +34,11 @@
       .q2 { animation-delay: 3s; } .q3 { animation-delay: 6s; } .q4 { animation-delay: 9s; }
       .q5 { animation-delay: 12s; } .q6 { animation-delay: 15s; }
       .caret { fill: #ffd27a; animation: blink 1s steps(1) infinite; }
+      .bubble { animation: rise 3.2s ease-in infinite; }
+      .bubble2 { animation-delay: 1.6s; }
+      .spark { transform-origin: 47px 18px; animation: twinkle 2.4s ease-in-out infinite; }
+      @keyframes rise { 0% { transform: translateY(6px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
+      @keyframes twinkle { 0%, 100% { transform: scale(.7); opacity: .6; } 50% { transform: scale(1.1); opacity: 1; } }
       .r2 { animation-delay: 2s; } .r3 { animation-delay: 4s; } .r4 { animation-delay: 6s; } .r5 { animation-delay: 8s; }
       @keyframes flow { to { stroke-dashoffset: -22; } }
       @keyframes turn { 0%, 22%, 100% { opacity: 0.18; } 6%, 16% { opacity: 1; } }
@@ -32,7 +46,7 @@
       @keyframes rotate { 0% { opacity: 0; } 2%, 15% { opacity: 1; } 17%, 100% { opacity: 0; } }
       @keyframes blink { 50% { opacity: 0; } }
       @media (prefers-reduced-motion: reduce) {
-        .link, .glow, .ring, .caret { animation: none; }
+        .link, .glow, .ring, .caret, .bubble, .spark { animation: none; }
         .q1 { animation: none; opacity: 1; }
       }
     </style>
@@ -41,7 +55,21 @@
   <rect width="900" height="300" rx="18" fill="url(#bg)"/>
 
   <!-- left: name, what it is, the questions it answers -->
-  <text x="40" y="78" class="title">CapacityLab</text>
+  <g transform="translate(40 34) scale(0.86)">
+    <rect width="64" height="64" rx="16" fill="#0b1328" stroke="#ffffff" stroke-opacity="0.12"/>
+    <g clip-path="url(#lgInside)">
+      <path d="M8 38c8-3 14 3 24 0s16-3 24 0v22H8z" fill="url(#lgLiquid)"/>
+      <rect x="22" y="46" width="4.5" height="8" rx="1.2" fill="#ffffff" opacity=".9"/>
+      <rect x="29.75" y="42" width="4.5" height="12" rx="1.2" fill="#ffffff" opacity=".9"/>
+      <rect x="37.5" y="44" width="4.5" height="10" rx="1.2" fill="#ffd27a"/>
+    </g>
+    <path d="M26 8h12v16l14 24a6 6 0 0 1-5.2 9H17.2a6 6 0 0 1-5.2-9l14-24z" fill="none" stroke="url(#lgGlass)" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M23 8h18" stroke="url(#lgGlass)" stroke-width="3" stroke-linecap="round"/>
+    <circle class="bubble" cx="30" cy="34" r="2" fill="#6ea8ff"/>
+    <circle class="bubble bubble2" cx="35" cy="30" r="1.4" fill="#9b7bff"/>
+    <path class="spark" d="M47 14l1.2 2.8L51 18l-2.8 1.2L47 22l-1.2-2.8L43 18l2.8-1.2z" fill="#ffd27a"/>
+  </g>
+  <text x="104" y="78" class="title">CapacityLab</text>
   <text x="42" y="110" class="sub">Multi-agent LLM review for database capacity,</text>
   <text x="42" y="132" class="sub">reliability and FinOps decisions</text>
 

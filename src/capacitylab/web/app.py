@@ -260,9 +260,22 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         cards = []
         for sid in list_scenarios():
             scenario, bundle = load_scenario(sid)
+            view = options_view(scenario, bundle)
+            outcomes = [p["outcome"] for p in view["panels"]]
+            keep = next((o for o in outcomes if o["option_kind"] == "keep"), None)
+            safe = [o for o in outcomes if o["total_slo_breach_slots"] == 0 and o["option_kind"] != "keep"]
+            twelve = lambda o: o["cost_delta_event_usd"] + 12 * o["cost_delta_month_usd"]  # noqa: E731
+            cheapest = min(safe, key=lambda o: (twelve(o), o["peak_utilization_pct"]), default=None)
+            budget_item = bundle.first(EvidenceKind.BUDGET)
             cards.append({"scenario": scenario, "evidence": len(bundle), "gaps": len(bundle.missing),
-                          "findings": review_findings(scenario, bundle)[:2]})
-        return page(request, "index.html", cards=cards, runs=recent_runs(), lab=lab_status(), lab_runs=lab_files()[:3])
+                          "findings": review_findings(scenario, bundle)[:2], "keep": keep, "cheapest": cheapest,
+                          "safe_count": view["safe_count"], "option_count": view["option_count"],
+                          "budget": budget_item.data if budget_item else {}})
+        runs_list = recent_runs(200)
+        return page(request, "index.html", cards=cards, runs=runs_list[:6], lab=lab_status(),
+                    pg_lab=lab_status("postgres"), lab_runs=lab_files()[:3],
+                    stats={"reviews": len(runs_list), "llm_reviews": sum(1 for r in runs_list if not r["mocked"]),
+                           "concluded": sum(1 for r in runs_list if r["status"] == "concluded")})
 
     @app.get("/runs", response_class=HTMLResponse)
     def runs(request: Request):
@@ -327,7 +340,8 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
                     sliders=what_if_sliders(scenario, bundle), **options_view(scenario, bundle),
                     llm_ready=settings.credentials_present(settings.llm_provider),
                     findings=review_findings(scenario, bundle),
-                    files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario))
+                    files=evidence_files(), preselected=evidence, lab=lab_status(), lab_ok=lab_compatible(scenario),
+                    cost_budget=(bundle.first(EvidenceKind.BUDGET).data if bundle.first(EvidenceKind.BUDGET) else {}))
 
     @app.post("/scenarios/{sid}/run")
     async def start_run(request: Request, sid: str):
