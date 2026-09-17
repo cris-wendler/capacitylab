@@ -18,6 +18,9 @@ earlier tool requests, known gaps, and contradictions.
 ## Rules of evidence
 - Cite evidence only by the ids listed in your evidence pack. Citing anything else is recorded as a violation.
 - A gap id (`GAP-...`) is not evidence: it names something nobody has measured. List it under missing evidence.
+- An assumption id (`A-...`) is not evidence either. Cite the evidence ids listed with that assumption, or name the
+  assumption in your assumptions list. Figures derived from assumptions, such as revenue at risk, are in the
+  capacity forecast results; cite that result.
   When something you list as missing is one of the known gaps in your context, start the entry with its gap id
   (for example `GAP-FAILOVER-DURATION: ...`), so reports of the same gap from different roles are counted once.
 - The scenario header and the decision question are context, not evidence. A number you quote must appear in an
