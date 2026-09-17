@@ -1,0 +1,20 @@
+name: Proposal
+description: Something new, or a change to how something works
+labels: [proposal]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What decision is harder than it should be today. Describe the problem before the change.
+    validations: {required: true}
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Where the numbers would come from
+      description: Every figure has to follow from evidence or from arithmetic on it. Which would this rest on?

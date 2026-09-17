@@ -80,7 +80,7 @@ ahead of time and have the reasoning on record afterwards.
 | [The five agents](#the-five-agents) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
 | [What you get](#what-you-get) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
 | [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
-| [Quick start](#quick-start) | | |
+| [Quick start](#quick-start) | | [Contributing](#contributing) |
 
 ---
 
@@ -1163,6 +1163,20 @@ docs/              evaluation method, screenshots
 | **Smaller model context** | Trim what each role receives in later rounds so a full three-round review fits a small budget. |
 | **PostgreSQL in reviews** | Index and rewrite experiments on PostgreSQL during a review (today they run on SQLite or MySQL), `pg_stat_monitor`, and importers for `auto_explain` and `pg_stat_statements` exports. |
 | **`pt-index-usage`** | It runs against the lab but reported nothing useful yet, so it is not wired in. |
+
+## Contributing
+
+Bug reports and proposals are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first, which says what fits, how to set
+up, and the house rules the tests enforce. Security problems go through [SECURITY.md](SECURITY.md), never a public
+issue. Everyone taking part is held to the [code of conduct](CODE_OF_CONDUCT.md). What has changed is in
+[CHANGELOG.md](CHANGELOG.md).
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/pip install -e ".[dev,all]"
+make check          # lint, tests, a demo run, replay, and the identifier scan
+make check-containers   # the suites that need Docker: MySQL, PostgreSQL, and the three cloud emulators
+```
 
 ## License
 

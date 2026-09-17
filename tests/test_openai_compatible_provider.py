@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("openai", reason="pip install -e '.[openai]' to run these")
+
 from capacitylab.factory import make_provider
 from capacitylab.scenarios.state import RunStatus
 from capacitylab.settings import Settings

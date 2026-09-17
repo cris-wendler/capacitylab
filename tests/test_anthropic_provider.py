@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("anthropic", reason="pip install -e '.[anthropic]' to run these")
+
 from capacitylab.scenarios.state import RunStatus
 from capacitylab.simulation.orchestrator import Orchestrator
 from capacitylab.simulation.providers.anthropic_provider import (

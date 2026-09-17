@@ -202,7 +202,8 @@ def test_attached_aws_prices_are_named_on_the_run_page(client, runs_dir):
 def test_aws_pages(client):
     page = client.get("/aws")
     assert page.status_code == 200 and "Import from AWS" in page.text
-    assert "refusing endpoint" in page.text, "a non-local endpoint is refused without CAPACITYLAB_AWS_LIVE"
+    # Without boto3 the page says so; with it, a non-local endpoint is refused unless CAPACITYLAB_AWS_LIVE is set.
+    assert "refusing endpoint" in page.text or "boto3 is not installed" in page.text
     assert "aws-floci-demo-test.yaml" in page.text and "emulator" in page.text and "built-in method" not in page.text
     detail = client.get("/aws/aws-floci-demo-test.yaml")
     assert detail.status_code == 200 and "AWS import · floci demo" in detail.text

@@ -82,6 +82,12 @@ class Settings:
     azure_live: bool = False
     # AGPL section 13: when you host CapacityLab for other people, point this at your own source so the footer can
     # link to it.
+    # Web UI sign-in. With no password the UI stays open, which is fine on localhost; `serve` refuses any other
+    # address without one. The hash form comes from `capacitylab hash-password`.
+    web_password: str | None = None
+    web_password_hash: str | None = None
+    session_secret: str | None = None  # without one, sessions end when the server restarts
+    session_hours: float = 12.0
     source_url: str | None = None
     runs_dir: Path = Path("runs")
 
@@ -138,6 +144,10 @@ class Settings:
             azure_live=_bool(env.get("CAPACITYLAB_AZURE_LIVE"), False),
             runs_dir=Path(env.get("CAPACITYLAB_RUNS_DIR", "runs")),
             source_url=env.get("CAPACITYLAB_SOURCE_URL") or None,
+            web_password=env.get("CAPACITYLAB_WEB_PASSWORD") or None,
+            web_password_hash=env.get("CAPACITYLAB_WEB_PASSWORD_HASH") or None,
+            session_secret=env.get("CAPACITYLAB_SESSION_SECRET") or None,
+            session_hours=float(env.get("CAPACITYLAB_SESSION_HOURS", "12")),
         )
 
     @staticmethod
