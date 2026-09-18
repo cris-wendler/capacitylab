@@ -762,7 +762,7 @@ read calls only. Nothing that identifies the account is stored.
 | **On-demand prices** | ✅ Pricing API | ⚪ not read yet (Cloud Billing Catalog) | ✅ public Retail Prices API |
 | **Cost this month** | ✅ Cost Explorer | ⚪ needs a BigQuery billing export | ✅ Cost Management |
 | **Local emulator** | [Floci](https://github.com/floci-io/floci), port 4566 | [floci-gcp](https://github.com/floci-io/floci-gcp), port 4588 | [floci-az](https://github.com/floci-io/floci-az), port 4577 |
-| **Tested** | recorded responses, and against Floci | recorded responses, and one run against floci-gcp (standing check pending) | recorded responses, and against floci-az (MySQL and PostgreSQL) |
+| **Tested** | recorded responses, and against Floci | recorded responses, and against floci-gcp | recorded responses, and against floci-az (MySQL and PostgreSQL) |
 
 ```bash
 capacitylab import gcp --project my-project --instance orders-primary --label "evening" --out runs/imports/gcp.yaml
@@ -772,8 +772,8 @@ capacitylab import azure --subscription <id> --resource-group <group> --instance
 
 > [!NOTE]
 > Each import has been run against its emulator, with the evidence fed into a review; the Containers workflow and
-> `make check-containers` repeat that on request. The standing floci-gcp check is not green yet, and none of the
-> imports has been run against a real account. The emulators do not serve everything, and what is missing is skipped with the
+> `make check-containers` repeat that on request. All three emulator checks pass; none of the imports has been run
+> against a real account. The emulators do not serve everything, and what is missing is skipped with the
 > reason written into the evidence:
 >
 > - **floci-gcp 0.9.0** serves Cloud SQL and Cloud Monitoring, so a GCP import yields topology, the CPU series and
