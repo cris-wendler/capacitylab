@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -30,6 +31,7 @@ from capacitylab.simulation.orchestrator import Orchestrator
 from capacitylab.simulation.roles import ROLE_ORDER, ROLES
 from capacitylab.simulation.run import RunConfig, SimulationRun
 from capacitylab.spend import SpendLedger
+from capacitylab.web.auth import COOKIE, OPEN_PATHS, Auth, client_address, same_origin
 from capacitylab.web.charts import event_bands, shared_y_max, utilization_panel
 
 HERE = Path(__file__).parent
@@ -97,6 +99,54 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     templates.env.filters["usd"] = usd
     jobs: dict[str, Job] = {}
     evaluations: dict[str, object] = {}
+
+    auth = Auth.from_settings(settings)
+    templates.env.globals["auth_required"] = auth.required
+
+    @app.middleware("http")
+    async def require_session(request: Request, call_next):
+        """Everything needs a session once a password is set, except signing in itself and the static files."""
+        if auth.required and not request.url.path.startswith(OPEN_PATHS) and auth.session_user(request) is None:
+            wants_json = "application/json" in request.headers.get("accept", "") or request.url.path.endswith(".json")
+            if wants_json:
+                return JSONResponse({"error": "sign in first"}, status_code=401)
+            return RedirectResponse(f"/login?next={quote(request.url.path, safe='/')}", status_code=303)
+        return await call_next(request)
+
+    @app.get("/login", response_class=HTMLResponse)
+    def login_page(request: Request, next: str = "/") -> HTMLResponse:
+        if not auth.required or auth.session_user(request):
+            return RedirectResponse("/", status_code=303)
+        return templates.TemplateResponse(request, "login.html", {"settings": settings, "next": next, "error": None})
+
+    @app.post("/login")
+    def login(request: Request, password: str = Form(""), next: str = Form("/")):
+        if not auth.required:
+            return RedirectResponse("/", status_code=303)
+        if not same_origin(request):
+            raise HTTPException(400, "cross-origin form post")
+        client = client_address(request)
+        if wait := auth.locked_for(client):
+            return templates.TemplateResponse(
+                request, "login.html", {"settings": settings, "next": next,
+                                        "error": f"Too many attempts. Try again in {wait:.0f} seconds."},
+                status_code=429)
+        if not auth.attempt(password, client):
+            return templates.TemplateResponse(
+                request, "login.html", {"settings": settings, "next": next, "error": "That password does not match."},
+                status_code=401)
+        target = next if next.startswith("/") and not next.startswith("//") else "/"
+        response = RedirectResponse(target, status_code=303)
+        response.set_cookie(COOKIE, auth.issue(), httponly=True, samesite="lax",
+                            max_age=int(settings.session_hours * 3600),
+                            secure=request.url.scheme == "https")
+        return response
+
+    @app.post("/logout")
+    def logout(request: Request):
+        response = RedirectResponse("/login", status_code=303)
+        response.delete_cookie(COOKIE)
+        return response
 
     def ledger() -> SpendLedger:
         return SpendLedger(runs_dir / "spend-ledger.json")

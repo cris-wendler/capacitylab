@@ -558,3 +558,26 @@ button { background: linear-gradient(135deg, #2d6cdf, #5a4fd6); }
 .run-spend small { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .chip-who { background: rgba(155, 123, 255, .22); border-color: rgba(155, 123, 255, .4); }
 .page-head h1 { margin-top: 2px; }
+
+/* Sign-in page: its own small layout, no sidebar or budget meter to show before there is a session. */
+body.signin { display: grid; place-items: center; min-height: 100vh; background: var(--page); padding: 24px; }
+.signin-card { width: min(380px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 32px 28px; text-align: center; box-shadow: 0 18px 40px rgba(16, 20, 38, .18); }
+.signin-logo { margin-bottom: 10px; }
+.signin-card h1 { margin: 0 0 4px; font-size: 1.45rem; letter-spacing: -.01em; }
+.signin-sub { margin: 0 0 22px; color: var(--muted); font-size: .88rem; }
+.signin-card form { display: grid; gap: 8px; text-align: left; }
+.signin-card label { font-size: .8rem; font-weight: 600; color: var(--muted); }
+.signin-card input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: .95rem;
+  background: var(--surface); color: inherit; }
+.signin-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.signin-card button { margin-top: 6px; padding: 11px 14px; width: 100%; border: 0; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: .95rem; font-weight: 600; cursor: pointer; }
+.signin-card button:hover { filter: brightness(1.07); }
+.signin-error { margin: 0 0 16px; padding: 9px 12px; border-radius: 8px; background: #fdeceb; color: #a1302a;
+  font-size: .85rem; text-align: left; }
+.signin-note { margin: 18px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+.signout { margin-top: 10px; }
+.signout button { width: 100%; padding: 7px 10px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 8px;
+  background: transparent; color: rgba(255, 255, 255, .72); font-size: .78rem; cursor: pointer; }
+.signout button:hover { background: rgba(255, 255, 255, .08); color: #fff; }

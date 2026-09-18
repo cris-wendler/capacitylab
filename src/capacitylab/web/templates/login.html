@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · CapacityLab</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="signin">
+  <main class="signin-card">
+    <img class="signin-logo" src="/static/logo.svg" alt="" width="56" height="56">
+    <h1>CapacityLab</h1>
+    <p class="signin-sub">Multi-agent LLM review of database capacity decisions</p>
+    {% if error %}<p class="signin-error" role="alert">{{ error }}</p>{% endif %}
+    <form method="post" action="/login">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
+      <button type="submit">Sign in</button>
+    </form>
+    <p class="signin-note">Set in <code>.env</code> as <code>CAPACITYLAB_WEB_PASSWORD_HASH</code>, from
+      <code>capacitylab hash-password</code>.</p>
+  </main>
+</body>
+</html>

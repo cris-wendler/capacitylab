@@ -38,6 +38,9 @@
         <div class="budget-row small"><span>of ${{ '%.2f' % budget.total }} used</span><span>{{ '%.0f' % pct }}%</span></div>
       </div>
       <div class="sidebar-note">{{ settings.model }} · synthetic data</div>
+      {% if auth_required %}
+      <form method="post" action="/logout" class="signout"><button type="submit">Sign out</button></form>
+      {% endif %}
     </div>
   </aside>
   <div class="workspace">

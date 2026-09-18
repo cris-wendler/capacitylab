@@ -446,12 +446,49 @@ def cmd_spend(args, settings) -> int:
     return 0
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
 def cmd_serve(args, settings) -> int:
     import uvicorn
 
     from capacitylab.web.app import create_app
+    from capacitylab.web.auth import Auth
 
+    auth = Auth.from_settings(settings)
+    if args.host not in LOCAL_HOSTS and not auth.required:
+        print(f"error: refusing to serve on {args.host} with no password set. Anyone who can reach that address would "
+              "see every run and could start new ones.\n"
+              "  set one:  capacitylab hash-password   then put the line it prints in .env\n"
+              "  or serve on 127.0.0.1 (the default) and reach it through an SSH tunnel.", file=sys.stderr)
+        return 2
+    if auth.required and auth.secret_is_ephemeral:
+        print("note: CAPACITYLAB_SESSION_SECRET is not set, so everyone is signed out when this process restarts.",
+              file=sys.stderr)
+    if not auth.required:
+        print("note: no password set, so the UI is open to anyone who can reach it on this machine.", file=sys.stderr)
     uvicorn.run(create_app(settings), host=args.host, port=args.port)
+    return 0
+
+
+def cmd_hash_password(args, settings) -> int:
+    """Turn a password into the hash to put in .env. The password itself is never printed or stored."""
+    import getpass
+    import secrets
+
+    from capacitylab.web.auth import hash_password
+
+    password = args.password or getpass.getpass("Password for the web UI: ")
+    if not args.password and password != getpass.getpass("Again: "):
+        print("error: the two entries do not match", file=sys.stderr)
+        return 1
+    if len(password) < 10:
+        print("error: use at least 10 characters", file=sys.stderr)
+        return 1
+    print("\nAdd these two lines to .env (it is git-ignored):\n")
+    print(f"CAPACITYLAB_WEB_PASSWORD_HASH={hash_password(password)}")
+    print(f"CAPACITYLAB_SESSION_SECRET={secrets.token_hex(32)}")
+    print("\nThe second keeps sessions valid across restarts. Neither line contains the password.")
     return 0
 
 
@@ -696,6 +733,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("hash-password", help="hash a password for the web UI and print the .env lines to add")
+    p.add_argument("--password", help="read from a prompt when omitted, which keeps it out of your shell history")
+    p.set_defaults(func=cmd_hash_password)
 
     history = sub.add_parser("history", help="accumulate what a cluster does over time and read its envelope")
     history_sub = history.add_subparsers(dest="history_command", required=True)
