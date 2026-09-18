@@ -44,7 +44,7 @@ jobs:
       CAPACITYLAB_MYSQL_DATABASE: capacitylab_sandbox
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -68,7 +68,7 @@ jobs:
       CAPACITYLAB_POSTGRES_PASSWORD: ci-only-password
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -94,7 +94,7 @@ jobs:
       CAPACITYLAB_TEST_FLOCI: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -131,7 +131,7 @@ jobs:
       CAPACITYLAB_TEST_FLOCI_GCP: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -168,7 +168,7 @@ jobs:
       CAPACITYLAB_TEST_FLOCI_AZ: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
