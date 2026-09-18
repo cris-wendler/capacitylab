@@ -138,18 +138,24 @@ the record afterwards.
 | ![](https://img.shields.io/badge/clouds-c47f00?style=for-the-badge) | AWS (boto3), Google Cloud and Azure (REST); Floci emulators | Topology, metrics, prices and cost, read-only. A local emulator by default, a real account only with `--live`. |
 | ![](https://img.shields.io/badge/database-31577d?style=for-the-badge) | MySQL 8.0, PostgreSQL 17, SQLite, Percona Toolkit | Real load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE`, index and rewrite experiments. |
 | ![](https://img.shields.io/badge/app-0f6f78?style=for-the-badge) | FastAPI, Jinja, SVG charts, argparse | Web UI with password sign-in and a model settings page; every feature also on the command line. |
-| ![](https://img.shields.io/badge/quality-4b5563?style=for-the-badge) | pytest, ruff, GitHub Actions | 218 tests on every change; container and cloud-emulator suites on request; replay of a full run; a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/quality-4b5563?style=for-the-badge) | pytest, ruff, GitHub Actions | 222 tests on every change; container and cloud-emulator suites on request; replay of a full run; a scan for leftover identifiers. |
 
 ## The five agents
 
 Each agent gets a role, the evidence that role would normally see, and a list of checks it may ask for. None of
 them sees everything.
 
+> [!NOTE]
+> Concurrency shows up here as evidence, not as a constraint. Connections are imported, the bottleneck check flags a
+> node running near its connection limit, and the lab records threads running, lock waits and deadlocks. What the
+> capacity model does **not** yet do is treat `max_connections`, pool size per application pod, or a saturating pool
+> as a limit on the options. See [Next](#next).
+
 | Agent | Looks at | Can ask for | Reasoning effort |
 |---|---|---|:---:|
-| 🟦 **Database engineer** | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
+| 🟦 **Database engineer** | metrics (CPU, **connections**, memory, IOPS), statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
 | 🟩 **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
-| 🟨 **Reliability engineer** · SRE | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
+| 🟨 **Reliability engineer** · SRE | metrics (**connection saturation** included), forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
 | 🟧 **FinOps analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
 | 🟪 **Tenant representative** | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
 
@@ -991,10 +997,23 @@ docker exec capacitylab-ollama ollama create capacitylab-llama3.2 -f /tmp/Modelf
 > than Docker Desktop usually grants by default.
 
 The endpoint is OpenAI-compatible, so nothing else changes: same prompt, same turn format, same checks, and the
-settings page lists the models the server is actually serving. A review then costs nothing and nothing leaves the
-machine. Be realistic about the result: a small local model holds a five-role argument together much less well than a
-frontier one, and the turns are thinner. It is the right way to try the tool, read the prompts and watch the loop
-without spending anything.
+settings page lists the models the server is actually serving. A review costs nothing and nothing leaves the machine.
+
+**And here is what actually happened when I ran it.** Same scenario, same scorer, `llama3.2:3b` on a laptop:
+
+| Run | Recommendation | Citation errors | Cost |
+|---|---|---:|---:|
+| One round, five agents | two roles voted to **keep capacity**, the option that breaches 14 slots | 7 | $0.00 |
+| Two rounds, scored | *"Evolutionary Experiment Designer"* - not an option that exists | **96** | $0.00 |
+| The single reviewer, same model | a paragraph of prose instead of an option id | 14 | $0.00 |
+
+Neither local run could be scored, because neither produced a valid decision. Compare that with Claude Sonnet 5 on the
+same scenario: the right option, zero citation errors, $2.85.
+
+Read it as a good result for the design rather than a bad one for Ollama. **The checks are what make a weak model
+obviously weak instead of plausibly wrong.** 96 invented citations were caught and counted, not quietly folded into a
+confident-sounding recommendation. Run it free to watch the loop, read the prompts, and see the guardrails do their
+job; do not run it free to decide what to do with a production database.
 
 Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 
@@ -1218,7 +1237,10 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 | `CAPACITYLAB_GCP_PROJECT` / `CAPACITYLAB_GCP_ENDPOINT` / `CAPACITYLAB_GCP_LIVE` | `capacitylab-demo` / `http://127.0.0.1:4588` / `false` | Google Cloud project, emulator and live switch for the web UI's Google Cloud page |
 | `CAPACITYLAB_AZURE_SUBSCRIPTION` / `..._RESOURCE_GROUP` / `..._ENGINE` | `demo-subscription` / `capacitylab-demo` / `mysql` | Azure scope and flexible server engine for the web UI's Azure page |
 | `CAPACITYLAB_AZURE_ENDPOINT` / `CAPACITYLAB_AZURE_LIVE` | `http://127.0.0.1:4577` / `false` | Azure emulator and live switch |
-| `CAPACITYLAB_RUNS_DIR` | `runs` | Run logs, lab results, imports, spend ledger |
+| `CAPACITYLAB_WEB_PASSWORD_HASH` / `CAPACITYLAB_WEB_PASSWORD` | *(empty)* | Sign-in for the web UI. Generate the hash with `capacitylab hash-password`; the plain form exists for convenience only |
+| `CAPACITYLAB_SESSION_SECRET` / `CAPACITYLAB_SESSION_HOURS` | *(empty)* / `12` | Keeps sessions valid across restarts, and how long one lasts |
+| `CAPACITYLAB_SOURCE_URL` | this repository | Where the footer points for source, as the AGPL asks when you host it for other people |
+| `CAPACITYLAB_RUNS_DIR` | `runs` | Run logs, lab results, imports, the history store, the spend ledger |
 
 </details>
 
@@ -1246,12 +1268,14 @@ src/capacitylab/
   cloud_common.py  shared naming, safety checks, slot series and a small JSON client
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
+  history/        append-only sample store, the envelope, and collection from a cloud
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             172 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
-                   container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
+tests/             222 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+                   container, and 4 a seeded cloud emulator (Floci, floci-gcp, floci-az); 1 calls a real model
+                   and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data
-docs/              evaluation method, screenshots
+docs/              evaluation method, scored results, screenshots
 ```
 
 </details>
@@ -1264,8 +1288,12 @@ docs/              evaluation method, screenshots
 |---|---|
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Importers, AWS import against Floci, GCP and Azure imports against recorded responses, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%20production--scale%2C%202%20rounds-127a55?style=flat-square) |
+| Importers, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
+| AWS, Google Cloud and Azure imports against their emulators (Floci, floci-gcp, floci-az) in CI | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
+| History store, envelope, readiness grading and load attribution | ![verified](https://img.shields.io/badge/-verified%3A%20unit%20tested-127a55?style=flat-square) |
+| Password sign-in and the model settings page | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
+| Five-agent review with an LLM (Claude Opus 5, Sonnet 5, and a local model through Ollama) | ![verified](https://img.shields.io/badge/-verified%3A%20production--scale-127a55?style=flat-square) |
+| Five agents scored against a single reviewer and simple rules | ![measured](https://img.shields.io/badge/-measured%3A%20one%20scenario%2C%20one%20run-c98a00?style=flat-square) |
 | CI on GitHub: lint and tests (Python 3.11, 3.12) on every change; MySQL 8.0, PostgreSQL 17 and the three cloud emulators as an on-request workflow | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**
@@ -1281,19 +1309,29 @@ docs/              evaluation method, screenshots
 - The rate card is illustrative. Tenant isolation (shared schema with `tenant_id`) is an assumption; attribution by
   schema name is supported for database-per-tenant setups.
 - Importers are tested on synthetic files. Redaction covers emails and IPv4 addresses only.
-- The AWS import is tested against recorded API responses and against Floci, not against a real account. Readers and
-  prices are only exercised by the recorded responses. It reads one instance at a time. AWS prices are on-demand list
-  prices; reserved instances and savings plans are not applied.
-- The web UI has no login and is meant for localhost.
+- Cloud imports are tested against recorded API responses and against local emulators, never a real account. Prices
+  are on-demand list prices; reserved instances and savings plans are not applied.
+- **Concurrency is measured, not modelled.** Connections are imported and the lab records threads running, lock
+  waits and deadlocks, but the capacity model queues CPU only. It does not know `max_connections`, how many
+  application pods hold a pool, how large each pool is, or what happens when a pool saturates and requests queue in
+  the application rather than in the database. A decision that is really about connection limits is outside what the
+  model can answer today.
+- The AWS, Google Cloud and Azure imports read one instance and its readers at a time.
 
 ## Next
 
+In rough order, and honest about why each one matters.
+
 | | |
 |---|---|
-| **Lab spread in the agents' reasoning** | Let scripted roles weigh the spread across lab passes against the capacity model. |
-| **Smaller model context** | Trim what each role receives in later rounds so a full three-round review fits a small budget. |
-| **PostgreSQL in reviews** | Index and rewrite experiments on PostgreSQL during a review (today they run on SQLite or MySQL), `pg_stat_monitor`, and importers for `auto_explain` and `pg_stat_statements` exports. |
-| **`pt-index-usage`** | It runs against the lab but reported nothing useful yet, so it is not wired in. |
+| 🧮 **Derive the plan, stop typing it** | Pick the instance class per node and the scale-up window from the envelope, with enough lead time for a failover, instead of a human writing both into the scenario. |
+| 🧾 **Build the scenario from the evidence** | Today the workload shape, statement mix and tenant split are hand-written. They should come from what was imported, leaving only SLOs, revenue and campaign dates for a person to supply, since no log contains those. |
+| 🔔 **Watch, and warn early** | A scheduled collect-and-check that raises three things: a predicted breach with the lead time to act, a node that has been oversized for weeks, and a collector that has stopped sending. |
+| 🧵 **Concurrency as a constraint, not a note** | `max_connections`, pool size per application pod, and what happens when a pool saturates and requests queue outside the database. The model queues CPU; a great many real incidents are about connections instead. |
+| 🏷️ **Which service owns the query** | Parse `sqlcommenter` tags from slow logs, falling back to `application_name` or the database user, so a breach names the owning service and release rather than only the SQL. |
+| 🔁 **Close the loop** | Record what a decision predicted, then compare it with what the cluster actually did afterwards. The history store makes this possible; almost nothing in this category does it. |
+| 🧪 **Replay your own workload in the lab** | Drive the lab from an imported slow log instead of a synthetic mix, and answer the onboarding question: what happens to headroom, SLOs and cost when this new tenant arrives. |
+| 📊 **More runs of the comparison** | One scenario, one model, one run each is a data point. The case the five roles are built for - contested or missing evidence - has not been tested. |
 
 ## Signing in
 

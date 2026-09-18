@@ -95,6 +95,29 @@ Read honestly:
   a busy cluster, so it buys capacity and misses the cause.
 - **It stopped early.** The five-role run hit the $2.80 per-run cap in round 3, so its last round is incomplete.
 
+## The same test on a free local model
+
+`campaign-overlap`, `llama3.2:3b` through Ollama with an 8k context window, two rounds, 2026-09-18
+(`runs/evaluate-campaign-ollama.json`, not committed because it holds no usable result):
+
+| Approach | Recommendation | Citation errors | Gap recall | Spend |
+|---|---|---:|---:|---:|
+| five-role review | `Evolutionary Experiment Designer` (not an option) | 96 | 1.0 | $0.00 |
+| single reviewer | a sentence of prose, not an option id | 14 | 0.0 | $0.00 |
+| simple rules | `OPT-SCALE-TEMP` | 0 | 0.0 | $0.00 |
+
+Neither model run is scoreable: `breach_slot_regret` and `cost_regret_usd` are `None` because the recommendation does
+not name an option the scenario offers. The gap recall of 1.0 for the five-role run is not a success either; naming
+every gap while failing to produce a decision is not a useful review.
+
+The finding worth keeping is about the guardrails, not the model. A weak model does not fail quietly here: 96 invented
+citations were rejected and counted, and an invented option name could not be scored, so nothing plausible-looking
+reached the decision record. A tool that only summarised model output would have reported a confident recommendation
+built on nothing.
+
+Practical notes from the run: a turn carries about 5,600 tokens, so Ollama's default 4k window truncates it silently;
+an 8 GB Docker allowance runs a 3B model at an 8k window but was killed at 16k, and killed an 8B model outright.
+
 What this does not show: whether the ensemble decides better when evidence is contested, missing or asymmetric, which
 is the case it is built for. That needs a scenario designed to punish a single confident reviewer, and several runs of
 each approach. Until then this is one data point, in favour of "use one reviewer for a clear decision, and five when
