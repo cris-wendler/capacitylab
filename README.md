@@ -22,6 +22,7 @@
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-6b6a65" alt="AGPL 3.0 or later">
   <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
+  <img src="https://img.shields.io/badge/five%20agents%20vs%20one-measured-1b9b6d" alt="Five agents versus one: measured">
 </p>
 
 <p align="center">
@@ -39,6 +40,24 @@ what is still disputed, and what nobody has measured.
 
 The agents discuss and recommend; the numbers come from code. The queueing model, costs, lab measurements and query
 experiments are deterministic Python, and every number an agent quotes is checked against the evidence it cites.
+
+### Then it tests its own premise
+
+Five agents cost five times one agent, so the obvious question is whether they are worth it. CapacityLab answers that
+about itself: the same decision runs three ways, and a scorer that can see the scenario's hidden truth marks all
+three. On the flash-sale scenario, with Claude Sonnet 5:
+
+| | The decision | What nobody had measured | Cost |
+|---|---|---|---:|
+| 🟣 **Five agents** | index and move the batch job ✅ | found **both** hidden gaps, left 7 disagreements on the record | $2.85 |
+| 🔵 **One agent** | index and move the batch job ✅ | found **one** of two, agreed with itself throughout | $0.64 |
+| ⚪ **A threshold rule** | scale up for the evening | found **none**, never spotted the cause | **+$128.96** |
+
+**One agent got the same answer for a quarter of the price.** So the five are not what finds the decision - they are
+what refuses to let you assume. The rule was not wrong about the SLO, only about the bill.
+
+That is the project in one line: *every number is checkable, including the ones about itself.* Full method, caveats
+and the case it has not yet tested in [Comparison with simpler approaches](#comparison-with-simpler-approaches).
 
 > **The question in the demo.** A tenant is about to run a flash sale on a cluster that already runs hot in the
 > evening, and a batch job starts halfway through. Scale up for the night, add an index, move the job, or a mix?
