@@ -113,6 +113,12 @@ def main() -> int:
             page.screenshot(path=str(MEDIA / "home.png"))
             frame("home")
 
+            # Model settings: the presets and what is in use, which is what someone wants to see before installing.
+            page.goto(BASE + "/settings")
+            full = FRAMES / "settings-full.png"
+            page.screenshot(path=str(full), full_page=True)
+            crop(full, span(page, "h1", "section.card:nth-of-type(2)"), MEDIA / "settings.png")
+
             if lab_source.is_file():
                 page.goto(BASE + f"/lab/{lab_source.name}")
                 full = FRAMES / "lab-full.png"

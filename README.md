@@ -916,6 +916,8 @@ The **Model settings** page picks the provider, the model, the endpoint, the per
 saves them to `runs/llm-settings.json`. Anything you do not change keeps following the environment. Presets fill the
 lot in one click: Claude Opus 5, Claude Sonnet 5, OpenAI, Ollama on this machine, or vLLM and LM Studio.
 
+![Model settings: presets for Claude Opus 5, Claude Sonnet 5, OpenAI, Ollama and vLLM, and what is in use now with the API key reported as missing](docs/media/settings.png)
+
 **No API key is ever stored by the page.** It chooses which environment variable holds the key and shows whether that
 variable is set. The key stays in `.env`, which is where the rest of the code looks for it, and the page reports a
 local endpoint as needing no key at all.
@@ -1200,6 +1202,10 @@ The UI is open when no password is set, which is what you want on `127.0.0.1`. S
 capacitylab hash-password          # prints the two lines to paste into .env
 capacitylab serve --port 8765
 ```
+
+<p align="center">
+  <img src="docs/media/login.png" alt="The CapacityLab sign-in page: a password field and a note saying the hash comes from capacitylab hash-password" width="420">
+</p>
 
 It stores a PBKDF2-SHA256 hash, never the password, compares in constant time, and issues a signed cookie carrying
 only an expiry. Wrong guesses are rate limited, and `serve` refuses any address other than localhost while no password
