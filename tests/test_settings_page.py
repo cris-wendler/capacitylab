@@ -27,7 +27,8 @@ def test_the_page_shows_what_is_in_use_and_whether_the_key_is_there(client, monk
     page = client.get("/settings")
     assert page.status_code == 200
     assert "Model settings" in page.text and "claude-opus-5" in page.text
-    assert "Ollama, on this machine" in page.text and "llama3.1:8b" in page.text
+    assert "Ollama, on this machine" in page.text and "capacitylab-llama3.2" in page.text
+    assert "DeepSeek" in page.text and "Groq" in page.text  # the free and cheap routes are offered, not buried
     # Key presence is reported; the value never is.
     assert "missing" in page.text or "set</span>" in page.text
 
@@ -54,7 +55,7 @@ def test_saving_a_choice_changes_what_the_next_review_uses(client, tmp_path):
 def test_a_preset_fills_everything_in_one_click(client, tmp_path):
     assert "Saved to" in client.post("/settings", data={"preset": "ollama"}).text
     saved = stored(tmp_path)
-    assert saved["model"] == "llama3.1:8b" and saved["input_usd_per_mtok"] == 0.0
+    assert saved["model"] == "capacitylab-llama3.2" and saved["input_usd_per_mtok"] == 0.0
     assert client.post("/settings", data={"preset": "anthropic-sonnet"}).status_code == 200
     assert stored(tmp_path)["model"] == "claude-sonnet-5"
     # Back to the environment: the file is emptied rather than left with stale values.

@@ -50,10 +50,29 @@ PRESETS = {
     },
     "ollama": {
         "label": "Ollama, on this machine",
-        "note": "Free and offline: no key, no spend, nothing leaves the machine. Small local models hold a five-role argument together much less well, so expect thinner turns.",
-        "fields": {"llm_provider": "openai", "model": "llama3.1:8b", "llm_base_url": "http://127.0.0.1:11434/v1",
+        "note": "Free and offline: no key, no spend, nothing leaves the machine. A turn needs about 6k tokens of "
+                "context, so build a variant with a bigger window (see the README) or it silently truncates. Small "
+                "models cite badly; the checks catch it, which is worth watching once.",
+        "fields": {"llm_provider": "openai", "model": "capacitylab-llama3.2",
+                   "llm_base_url": "http://127.0.0.1:11434/v1",
                    "llm_api_key_env": "OLLAMA_API_KEY", "input_usd_per_mtok": 0.0, "output_usd_per_mtok": 0.0,
                    "cached_input_multiplier": 1.0, "reasoning_effort": ""},
+    },
+    "deepseek": {
+        "label": "DeepSeek",
+        "note": "A fraction of a frontier model's price per token, through an OpenAI-compatible endpoint. Your "
+                "evidence leaves the machine, the same as any hosted API. Check the current prices and set them below.",
+        "fields": {"llm_provider": "openai", "model": "deepseek-chat", "llm_base_url": "https://api.deepseek.com/v1",
+                   "llm_api_key_env": "DEEPSEEK_API_KEY", "input_usd_per_mtok": 0.3, "output_usd_per_mtok": 1.2,
+                   "cached_input_multiplier": 0.1},
+    },
+    "groq": {
+        "label": "Groq",
+        "note": "Open-weight models served fast, with a free tier that is usually enough to watch a review run. "
+                "Rate limits apply; set the prices to whatever your plan charges.",
+        "fields": {"llm_provider": "openai", "model": "llama-3.3-70b-versatile",
+                   "llm_base_url": "https://api.groq.com/openai/v1", "llm_api_key_env": "GROQ_API_KEY",
+                   "input_usd_per_mtok": 0.0, "output_usd_per_mtok": 0.0, "cached_input_multiplier": 1.0},
     },
     "vllm": {
         "label": "vLLM or LM Studio, on this machine",

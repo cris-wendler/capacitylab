@@ -974,9 +974,21 @@ local endpoint as needing no key at all.
 
 ```bash
 docker compose --profile ollama up -d ollama
-docker exec capacitylab-ollama ollama pull llama3.1:8b
+docker exec capacitylab-ollama ollama pull llama3.2:3b
+
+# A turn carries the whole evidence bundle, about 6k tokens. Ollama defaults to a 4k window and truncates
+# silently, so build a variant with a bigger one:
+printf 'FROM llama3.2:3b\nPARAMETER num_ctx 8192\nPARAMETER temperature 0.3\n' > Modelfile
+docker cp Modelfile capacitylab-ollama:/tmp/Modelfile
+docker exec capacitylab-ollama ollama create capacitylab-llama3.2 -f /tmp/Modelfile
+
 # then pick "Ollama, on this machine" on the Model settings page
 ```
+
+> [!TIP]
+> Size the window to the prompt, not to the maximum. A 3B model at 16k context was killed by Docker's memory limit
+> on an 8 GB allowance, while the same model at 8k ran the whole review comfortably. An 8B model needs more memory
+> than Docker Desktop usually grants by default.
 
 The endpoint is OpenAI-compatible, so nothing else changes: same prompt, same turn format, same checks, and the
 settings page lists the models the server is actually serving. A review then costs nothing and nothing leaves the
