@@ -81,7 +81,7 @@ ahead of time and have the reasoning on record afterwards.
 | [The five agents](#the-five-agents) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
 | [What you get](#what-you-get) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
 | [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
-| [Quick start](#quick-start) | | [Contributing](#contributing) |
+| [Quick start](#quick-start) | [Signing in](#signing-in) | [Contributing](#contributing) |
 
 ---
 
@@ -908,7 +908,33 @@ providers ship:
 | `openai` | Any OpenAI-compatible chat completions endpoint: OpenAI, Google Gemini's OpenAI endpoint, Mistral, Groq, DeepSeek, local models through Ollama, vLLM or LM Studio, and Bedrock, Vertex or Azure behind a LiteLLM proxy | JSON schema output, automatic prefix caching where the endpoint offers it, optional `reasoning_effort` |
 
 Both send the same system prompt and evidence, ask for the same turn format, and go through the same checks and spend
-limit. Put keys in `.env` (git-ignored) and set the total you are willing to spend:
+limit.
+
+### Choosing one without editing files
+
+The **Model settings** page picks the provider, the model, the endpoint, the per-token prices and the spend caps, and
+saves them to `runs/llm-settings.json`. Anything you do not change keeps following the environment. Presets fill the
+lot in one click: Claude Opus 5, Claude Sonnet 5, OpenAI, Ollama on this machine, or vLLM and LM Studio.
+
+**No API key is ever stored by the page.** It chooses which environment variable holds the key and shows whether that
+variable is set. The key stays in `.env`, which is where the rest of the code looks for it, and the page reports a
+local endpoint as needing no key at all.
+
+### Free and offline, with Ollama
+
+```bash
+docker compose --profile ollama up -d ollama
+docker exec capacitylab-ollama ollama pull llama3.1:8b
+# then pick "Ollama, on this machine" on the Model settings page
+```
+
+The endpoint is OpenAI-compatible, so nothing else changes: same prompt, same turn format, same checks, and the
+settings page lists the models the server is actually serving. A review then costs nothing and nothing leaves the
+machine. Be realistic about the result: a small local model holds a five-role argument together much less well than a
+frontier one, and the turns are thinner. It is the right way to try the tool, read the prompts and watch the loop
+without spending anything.
+
+Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 
 ```bash
 # Anthropic
@@ -1165,6 +1191,20 @@ docs/              evaluation method, screenshots
 | **Smaller model context** | Trim what each role receives in later rounds so a full three-round review fits a small budget. |
 | **PostgreSQL in reviews** | Index and rewrite experiments on PostgreSQL during a review (today they run on SQLite or MySQL), `pg_stat_monitor`, and importers for `auto_explain` and `pg_stat_statements` exports. |
 | **`pt-index-usage`** | It runs against the lab but reported nothing useful yet, so it is not wired in. |
+
+## Signing in
+
+The UI is open when no password is set, which is what you want on `127.0.0.1`. Set one and every page needs a session:
+
+```bash
+capacitylab hash-password          # prints the two lines to paste into .env
+capacitylab serve --port 8765
+```
+
+It stores a PBKDF2-SHA256 hash, never the password, compares in constant time, and issues a signed cookie carrying
+only an expiry. Wrong guesses are rate limited, and `serve` refuses any address other than localhost while no password
+is set, rather than exposing every run to whoever can reach the port. `CAPACITYLAB_SESSION_SECRET` keeps sessions
+valid across restarts; without it everyone is signed out when the process stops.
 
 ## Contributing
 

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Model settings · CapacityLab{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Model settings</h1>
+    <p class="lede">Which language model plays the five agents, what it costs per token, and how much a review may
+      spend. The scripted <code>mock</code> provider needs none of this and stays free.</p>
+  </div>
+</header>
+
+{% if saved %}<p class="notice ok">Saved to <code>{{ store_path }}</code>. New reviews use it right away.</p>{% endif %}
+{% for problem in problems %}<p class="notice bad">{{ problem }}</p>{% endfor %}
+
+<section class="card">
+  <h2>Presets</h2>
+  <p class="small muted">A starting point. Everything stays editable below, and nothing is sent anywhere when you pick
+    one.</p>
+  <div class="preset-grid">
+    {% for key, preset in presets.items() %}
+    <form method="post" action="/settings" class="preset">
+      <input type="hidden" name="preset" value="{{ key }}">
+      <button type="submit" class="preset-button{% if settings.model == preset.fields.model %} current{% endif %}">
+        <strong>{{ preset.label }}</strong>
+        <span>{{ preset.fields.model }}</span>
+      </button>
+      <p class="small muted">{{ preset.note }}</p>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <h2>In use now</h2>
+  <dl class="kv">
+    <dt>Provider</dt><dd>{{ settings.llm_provider }}{% if settings.llm_base_url %} at <code>{{ settings.llm_base_url }}</code>{% endif %}</dd>
+    <dt>Model</dt><dd><code>{{ settings.model }}</code></dd>
+    <dt>API key</dt>
+    <dd>
+      {% if not key.needed %}<span class="pill ok">not needed</span> a local endpoint
+      {% elif key.present %}<span class="pill ok">set</span> from <code>{{ key.name }}</code>
+      {% else %}<span class="pill bad">missing</span> set <code>{{ key.name }}</code> in <code>.env</code>{% endif %}
+    </dd>
+    <dt>Reasoning effort</dt><dd>{{ settings.effort }}{% if settings.reasoning_effort %} · sends <code>{{ settings.reasoning_effort }}</code>{% endif %}</dd>
+    <dt>Price</dt><dd>${{ '%.2f' % settings.input_usd_per_mtok }} per Mtok in, ${{ '%.2f' % settings.output_usd_per_mtok }} out</dd>
+    <dt>Caps</dt><dd>${{ '%.2f' % settings.max_usd_per_run }} a run, ${{ '%.2f' % settings.max_usd_total }} in total, {{ settings.max_rounds }} rounds, {{ settings.max_output_tokens }} output tokens</dd>
+  </dl>
+  {% if local_models %}
+  <p class="small">Served right now by that endpoint: {% for m in local_models %}<code>{{ m }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  {% elif settings.llm_base_url and '127.0.0.1' in settings.llm_base_url %}
+  <p class="small muted">Nothing answered at <code>{{ settings.llm_base_url }}</code>. Start it with
+    <code>docker compose --profile ollama up -d ollama</code>, then
+    <code>docker exec capacitylab-ollama ollama pull {{ settings.model }}</code>.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Change it</h2>
+  <form method="post" action="/settings" class="settings-form">
+    <label>Provider
+      <select name="llm_provider">
+        {% for p in providers %}<option value="{{ p }}"{% if settings.llm_provider == p %} selected{% endif %}>{{ p }}</option>{% endfor %}
+      </select>
+      <small>anthropic uses the Anthropic API; openai means any OpenAI-compatible endpoint.</small>
+    </label>
+    <label>Model<input name="model" value="{{ settings.model }}" required></label>
+    <label>Endpoint
+      <input name="llm_base_url" value="{{ settings.llm_base_url or '' }}" placeholder="leave empty for the provider's own">
+      <small>For Ollama: <code>http://127.0.0.1:11434/v1</code></small>
+    </label>
+    <label>API key variable
+      <input name="llm_api_key_env" value="{{ settings.llm_api_key_env }}">
+      <small>The name only. The key itself stays in <code>.env</code> and is never stored here.</small>
+    </label>
+    <label>Effort
+      <select name="effort">
+        {% for e in efforts %}<option value="{{ e }}"{% if settings.effort == e %} selected{% endif %}>{{ e }}</option>{% endfor %}
+      </select>
+      <small>auto gives each role its own: roles that quote measurements run low, roles weighing tradeoffs get more.</small>
+    </label>
+    <label>Reasoning effort (openai only)
+      <input name="reasoning_effort" value="{{ settings.reasoning_effort or '' }}" placeholder="sent only when set">
+    </label>
+    <label>Input $ per Mtok<input name="input_usd_per_mtok" value="{{ settings.input_usd_per_mtok }}" inputmode="decimal"></label>
+    <label>Output $ per Mtok<input name="output_usd_per_mtok" value="{{ settings.output_usd_per_mtok }}" inputmode="decimal"></label>
+    <label>Cached input multiplier<input name="cached_input_multiplier" value="{{ settings.cached_input_multiplier }}" inputmode="decimal"></label>
+    <label>Max $ per run<input name="max_usd_per_run" value="{{ settings.max_usd_per_run }}" inputmode="decimal"></label>
+    <label>Max $ in total<input name="max_usd_total" value="{{ settings.max_usd_total }}" inputmode="decimal"></label>
+    <label>Max output tokens<input name="max_output_tokens" value="{{ settings.max_output_tokens }}" inputmode="numeric"></label>
+    <label>Rounds<input name="max_rounds" value="{{ settings.max_rounds }}" inputmode="numeric"></label>
+    <div class="settings-actions">
+      <button type="submit">Save</button>
+      <button type="submit" name="reset" value="1" class="ghost">Back to the environment</button>
+    </div>
+  </form>
+  <p class="small muted">Prices are configuration, not truth: check them against the provider's current pricing. The
+    caps are what stops a runaway review, and they are enforced per turn as well as per run.</p>
+</section>
+{% endblock %}

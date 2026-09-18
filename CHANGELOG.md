@@ -18,6 +18,12 @@ Notable changes, newest first. Dates are the day the work landed on `main`.
   against the floci-gcp and floci-az emulators in CI.
 - A reason the project exists, in the README: why reactive autoscaling does not answer a known event.
 
+- Password sign-in for the web UI: a PBKDF2 hash in `.env`, a signed session cookie, rate-limited attempts, and
+  `serve` refusing a non-local address while no password is set. `capacitylab hash-password` generates the lines.
+- Model settings page: provider, model, endpoint, prices and spend caps, with presets for Claude, OpenAI, Ollama and
+  vLLM. No API key is ever stored; the page chooses which environment variable holds it and reports presence only.
+- An Ollama container in `docker-compose.yml` (`--profile ollama`), so a review can run free and offline.
+
 **Changed**
 
 - Licensed under AGPL-3.0-or-later (was Apache-2.0), with a commercial licence available separately.

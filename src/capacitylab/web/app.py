@@ -17,6 +17,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from capacitylab import settings_store
 from capacitylab.capacity.cost import choose_rate_card
 from capacitylab.capacity.options import build_context, evaluate_all, needed_instance_classes
 from capacitylab.evidence.bundle import EvidenceBundle
@@ -100,6 +101,7 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
     jobs: dict[str, Job] = {}
     evaluations: dict[str, object] = {}
 
+    settings = settings_store.apply(settings, settings_store.load(runs_dir))
     auth = Auth.from_settings(settings)
     templates.env.globals["auth_required"] = auth.required
 
@@ -147,6 +149,36 @@ def create_app(settings: Settings | None = None, inline_jobs: bool = False) -> F
         response = RedirectResponse("/login", status_code=303)
         response.delete_cookie(COOKIE)
         return response
+
+    def settings_context(saved: bool = False, problems: list[str] | None = None) -> dict:
+        return {
+            "presets": settings_store.PRESETS, "efforts": settings_store.EFFORTS,
+            "providers": ("anthropic", "openai"), "key": settings_store.key_state(settings),
+            "local_models": settings_store.local_models(settings.llm_base_url),
+            "stored": settings_store.load(runs_dir), "store_path": str(settings_store.path_for(runs_dir)),
+            "saved": saved, "problems": problems or [],
+        }
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_page(request: Request) -> HTMLResponse:
+        return page(request, "settings.html", **settings_context())
+
+    @app.post("/settings")
+    async def save_settings(request: Request):
+        nonlocal settings
+        form = dict(await request.form())
+        if form.get("preset") in settings_store.PRESETS:
+            values = {**settings_store.load(runs_dir), **settings_store.PRESETS[form["preset"]]["fields"]}
+            problems: list[str] = []
+        elif form.get("reset"):
+            values, problems = {}, []
+        else:
+            values, problems = settings_store.clean(form)
+        if problems:
+            return page(request, "settings.html", **settings_context(problems=problems))
+        settings_store.save(runs_dir, values)
+        settings = settings_store.apply(Settings.from_env(), values)
+        return page(request, "settings.html", **settings_context(saved=True))
 
     def ledger() -> SpendLedger:
         return SpendLedger(runs_dir / "spend-ledger.json")
