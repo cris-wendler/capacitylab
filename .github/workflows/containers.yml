@@ -114,7 +114,7 @@ jobs:
           capacitylab import aws --instance demo-writer --label "floci demo" --out runs/ci-aws.yaml
           capacitylab run campaign-overlap --provider mock --evidence runs/ci-aws.yaml --out runs/ci-aws-run.json --quiet
       - name: Keep the imported evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: floci-import
           path: runs/ci-aws.yaml
@@ -151,7 +151,7 @@ jobs:
           capacitylab import gcp --project floci-local --instance demo-pg --label "floci-gcp demo" --out runs/ci-gcp.yaml
           capacitylab run campaign-overlap --provider mock --evidence runs/ci-gcp.yaml --out runs/ci-gcp-run.json --quiet
       - name: Keep the imported evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: floci-gcp-import
           path: runs/ci-gcp.yaml
@@ -192,7 +192,7 @@ jobs:
             --instance demo-mysql --label "floci-az demo" --out runs/ci-azure.yaml
           capacitylab run campaign-overlap --provider mock --evidence runs/ci-azure.yaml --out runs/ci-azure-run.json --quiet
       - name: Keep the imported evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: floci-az-import
           path: runs/ci-azure.yaml
