@@ -118,6 +118,11 @@ built on nothing.
 Practical notes from the run: a turn carries about 5,600 tokens, so Ollama's default 4k window truncates it silently;
 an 8 GB Docker allowance runs a 3B model at an 8k window but was killed at 16k, and killed an 8B model outright.
 
+**What this run is not.** It compares a 3B model on CPU with a frontier hosted model, which is not a comparison
+between vendors or between open and closed weights. The machine could not load an 8B model at all. An open-weight
+model of serious size, served with enough memory - Llama 3.3 70B or DeepSeek V3, both reachable through the settings
+page - is the test that would say something about open weights, and it has not been run.
+
 What this does not show: whether the ensemble decides better when evidence is contested, missing or asymmetric, which
 is the case it is built for. That needs a scenario designed to punish a single confident reviewer, and several runs of
 each approach. Until then this is one data point, in favour of "use one reviewer for a clear decision, and five when

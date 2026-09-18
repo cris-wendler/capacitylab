@@ -1010,10 +1010,16 @@ settings page lists the models the server is actually serving. A review costs no
 Neither local run could be scored, because neither produced a valid decision. Compare that with Claude Sonnet 5 on the
 same scenario: the right option, zero citation errors, $2.85.
 
-Read it as a good result for the design rather than a bad one for Ollama. **The checks are what make a weak model
-obviously weak instead of plausibly wrong.** 96 invented citations were caught and counted, not quietly folded into a
-confident-sounding recommendation. Run it free to watch the loop, read the prompts, and see the guardrails do their
-job; do not run it free to decide what to do with a production database.
+**This is not evidence about open-weight models.** It is evidence about a 3B model, on CPU, inside an 8 GB Docker
+allowance, holding a 5,600-token structured task. An 8B model would not even load here. The fair comparison for a
+frontier hosted model is an open-weight model of serious size served properly - Llama 3.3 70B or DeepSeek V3, both
+cheap or free through the presets on the settings page - and that test has not been run. Treat the table above as the
+floor of what runs on a laptop, not as a verdict on anyone's weights.
+
+What it does show is about the design rather than the model: **the checks make a weak model obviously weak instead of
+plausibly wrong.** 96 invented citations were caught and counted, and an invented option name could not be scored, so
+nothing confident-sounding reached the decision record. Run it free to watch the loop, read the prompts and see the
+guardrails work; use something larger to decide what to do with a production database.
 
 Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 
