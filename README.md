@@ -116,12 +116,12 @@ the record afterwards.
 
 | Start here | Go deeper | Reference |
 |---|---|---|
-| [Why not just let it autoscale?](#why-not-just-let-it-autoscale) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
-| [Tech stack](#tech-stack) | [Using an LLM for the agents](#using-an-llm-for-the-agents) | [Project layout](#project-layout) |
-| [The five agents](#the-five-agents) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
-| [What you get](#what-you-get) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
-| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
-| [Quick start](#quick-start) | [Signing in](#signing-in) | [Contributing](#contributing) |
+| ⚡ [Why not just let it autoscale?](#why-not-just-let-it-autoscale) | 🔄 [How a review runs](#how-a-review-runs) | ⚙️ [Configuration](#configuration) |
+| 🧱 [Tech stack](#tech-stack) | 🤖 [Using an LLM for the agents](#using-an-llm-for-the-agents) | 🗂️ [Project layout](#project-layout) |
+| 🎭 [The five agents](#the-five-agents) | 🧪 [The local database lab](#the-local-database-lab) | 📋 [Status and limitations](#status-and-limitations) |
+| 🎁 [What you get](#what-you-get) | 📥 [Bringing your own data](#bringing-your-own-data) | 🧭 [Next](#next) |
+| 🛒 [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | ⚖️ [Comparison with simpler approaches](#comparison-with-simpler-approaches) | 📄 [License](#license) |
+| 🚀 [Quick start](#quick-start) | 🔐 [Signing in](#signing-in) | 🤝 [Contributing](#contributing) |
 
 ---
 
@@ -129,16 +129,16 @@ the record afterwards.
 
 | Layer | Built with | What it does here |
 |---|---|---|
-| ![](https://img.shields.io/badge/LLM%20agents-D97757?style=flat-square) | Any LLM: the Anthropic API natively, or any OpenAI-compatible endpoint (OpenAI, Gemini, Mistral, Groq, Ollama, vLLM, LiteLLM) | One call per turn, returning JSON that matches a Pydantic schema. Prompt caching, token counting before each call, effort per role, one retry when a turn is cut off. |
-| ![](https://img.shields.io/badge/orchestration-7a5ad6?style=flat-square) | Plain Python, no agent framework | Rounds, what each role may see, checks between rounds, stopping when positions settle, a log that replays. |
-| ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to that role. Every number must appear in the evidence it cites. Spend must fit the cap. |
-| ![](https://img.shields.io/badge/capacity-2d6cdf?style=flat-square) | M/M/c queueing model | Utilisation per slot, SLO breach slots, every option scored against the others. |
-| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model, tenant entitlements, cloud pricing APIs | Option costs from a rate card, real prices and month-to-date spend, each tenant's share against what their plan guarantees. |
-| ![](https://img.shields.io/badge/history-9c6ade?style=flat-square) | SQLite, append-only | What a cluster actually does, accumulated: the envelope per hour and weekday, drift detection, and whether the history can carry a decision at all. |
-| ![](https://img.shields.io/badge/clouds-FF9900?style=flat-square) | AWS (boto3), Google Cloud and Azure (REST); Floci emulators | Topology, metrics, prices and cost, read-only. A local emulator by default, a real account only with `--live`. |
-| ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0, PostgreSQL 17, SQLite, Percona Toolkit | Real load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE`, index and rewrite experiments. |
-| ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI with password sign-in and a model settings page; every feature also on the command line. |
-| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | 218 tests on every change; container and cloud-emulator suites on request; replay of a full run; a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/LLM%20agents-7a5ad6?style=for-the-badge) | Any LLM: the Anthropic API natively, or any OpenAI-compatible endpoint (OpenAI, Gemini, Mistral, Groq, Ollama, vLLM, LiteLLM) | One call per turn, returning JSON that matches a Pydantic schema. Prompt caching, token counting before each call, effort per role, one retry when a turn is cut off. |
+| ![](https://img.shields.io/badge/orchestration-4a3aa7?style=for-the-badge) | Plain Python, no agent framework | Rounds, what each role may see, checks between rounds, stopping when positions settle, a log that replays. |
+| ![](https://img.shields.io/badge/guardrails-b42318?style=for-the-badge) | Turn validation in code | Citations must exist and be visible to that role. Every number must appear in the evidence it cites. Spend must fit the cap. |
+| ![](https://img.shields.io/badge/capacity-2d6cdf?style=for-the-badge) | M/M/c queueing model | Utilisation per slot, SLO breach slots, every option scored against the others. |
+| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=for-the-badge) | Cost model, tenant entitlements, cloud pricing APIs | Option costs from a rate card, real prices and month-to-date spend, each tenant's share against what their plan guarantees. |
+| ![](https://img.shields.io/badge/history-0f766e?style=for-the-badge) | SQLite, append-only | What a cluster actually does, accumulated: the envelope per hour and weekday, drift detection, and whether the history can carry a decision at all. |
+| ![](https://img.shields.io/badge/clouds-c47f00?style=for-the-badge) | AWS (boto3), Google Cloud and Azure (REST); Floci emulators | Topology, metrics, prices and cost, read-only. A local emulator by default, a real account only with `--live`. |
+| ![](https://img.shields.io/badge/database-31577d?style=for-the-badge) | MySQL 8.0, PostgreSQL 17, SQLite, Percona Toolkit | Real load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE`, index and rewrite experiments. |
+| ![](https://img.shields.io/badge/app-0f6f78?style=for-the-badge) | FastAPI, Jinja, SVG charts, argparse | Web UI with password sign-in and a model settings page; every feature also on the command line. |
+| ![](https://img.shields.io/badge/quality-4b5563?style=for-the-badge) | pytest, ruff, GitHub Actions | 218 tests on every change; container and cloud-emulator suites on request; replay of a full run; a scan for leftover identifiers. |
 
 ## The five agents
 
@@ -147,11 +147,11 @@ them sees everything.
 
 | Agent | Looks at | Can ask for | Reasoning effort |
 |---|---|---|:---:|
-| 🔵 **Database engineer** | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
-| 🟢 **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
-| 🟡 **Reliability engineer (SRE)** | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
-| 🟠 **FinOps analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
-| 🟣 **Tenant representative** | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
+| 🟦 **Database engineer** | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
+| 🟩 **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
+| 🟨 **Reliability engineer** · SRE | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
+| 🟧 **FinOps analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
+| 🟪 **Tenant representative** | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
 
 **Why the effort differs.** Reasoning effort is how much the model thinks before it writes a turn: more effort means
 longer internal reasoning, more tokens and a higher cost. Four agents mostly read evidence and quote it (digests,
