@@ -32,8 +32,8 @@
 # CapacityLab
 
 **CapacityLab is a multi-agent LLM simulation for database capacity planning, reliability and FinOps decisions.**
-CapacityLab uses a large language model (LLM) to simulate the five people who usually have a say when a busy database needs a capacity
-decision: a database engineer, an application owner, a reliability engineer (SRE), a FinOps analyst and a tenant
+CapacityLab uses a large language model (LLM) to simulate the five people who usually have a say when a busy
+database needs a capacity decision: a database engineer, an application owner, a reliability engineer (SRE), a FinOps analyst and a tenant
 representative. Each one is an AI agent with its own role and its own view of the evidence. Over several rounds they
 discuss the options, ask for checks and give a recommendation, and the result is a decision record: what was decided,
 what is still disputed, and what nobody has measured.
@@ -192,8 +192,8 @@ is free, offline and repeatable.
 
 The `campaign-overlap` scenario: Tenant Alder runs a sale from 18:00 to 21:00 on `demo-cluster-a`, a shared
 production cluster with a writer and a reader on `db.r6i.16xlarge` (64 vCPU each; $9.28 an hour × 730 hours × 2 nodes =
-$13,548.80 a month in instances, against a $16,500 budget). Other tenants peak at the same time, a release raises order-history traffic, and the
-loyalty recalculation job starts at 19:00. Alder's previous sale earned $2.9 million in two hours.
+$13,548.80 a month in instances, against a $16,500 budget). Other tenants peak at the same time, a release raises
+order-history traffic, and the loyalty recalculation job starts at 19:00. Alder's previous sale earned $2.9 million in two hours.
 
 | On the table | How it is calculated |
 |---|---|
@@ -357,7 +357,8 @@ candidate measured 1,835,008 bytes on 122,675 local rows, which scales to 0.802 
 
 Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
 the evidence bundle, and a scenario without one fails validation. An AWS import with prices replaces the instance
-rates for that review (see [Straight from your cloud](#straight-from-your-cloud)). The numbers shipped here are illustrative and
+rates for that review (see [Straight from your cloud](#straight-from-your-cloud)). The numbers shipped here are
+illustrative and
 labelled as an assumption: on-demand rates at production scale ($0.145 per vCPU-hour) without reserved-instance or
 savings-plan discounts. Replacing that one evidence item with your provider's rates re-prices every option.
 
@@ -999,27 +1000,32 @@ docker exec capacitylab-ollama ollama create capacitylab-llama3.2 -f /tmp/Modelf
 The endpoint is OpenAI-compatible, so nothing else changes: same prompt, same turn format, same checks, and the
 settings page lists the models the server is actually serving. A review costs nothing and nothing leaves the machine.
 
-**And here is what actually happened when I ran it.** Same scenario, same scorer, `llama3.2:3b` on a laptop:
+**And here is what actually happened when I ran it.** Same scenario, same scorer, three models, one of them free:
 
-| Run | Recommendation | Citation errors | Cost |
-|---|---|---:|---:|
-| One round, five agents | two roles voted to **keep capacity**, the option that breaches 14 slots | 7 | $0.00 |
-| Two rounds, scored | *"Evolutionary Experiment Designer"* - not an option that exists | **96** | $0.00 |
-| The single reviewer, same model | a paragraph of prose instead of an option id | 14 | $0.00 |
+| Model | Five-role recommendation | Extra cost, 12 months | Root cause | Citation errors | Spend |
+|---|---|---:|:---:|---:|---:|
+| Claude Sonnet 5 | index and move the batch job | **$0.00** | yes | **0** | $2.85 |
+| `qwen2.5:32b`, local and free | scale up for the evening | $128.96 | yes | 34 | **$0.00** |
+| `llama3.2:3b`, local and free | *"Evolutionary Experiment Designer"*, not an option that exists | not scoreable | no | 96 | $0.00 |
 
-Neither local run could be scored, because neither produced a valid decision. Compare that with Claude Sonnet 5 on the
-same scenario: the right option, zero citation errors, $2.85.
+**A free 32B model on a laptop reaches a defensible decision.** It keeps every SLO, finds the root cause, and flags
+both hidden evidence gaps. What it does not do is find the *cheap* answer: it buys capacity for the evening where the
+frontier model fixed the workload instead, and that gap is $128.96 a year on one cluster. It also cited badly, 34
+times, and its five roles never converged - four different final positions, one of them the literal string `decided`.
 
-**This is not evidence about open-weight models.** It is evidence about a 3B model, on CPU, inside an 8 GB Docker
-allowance, holding a 5,600-token structured task. An 8B model would not even load here. The fair comparison for a
-frontier hosted model is an open-weight model of serious size served properly - Llama 3.3 70B or DeepSeek V3, both
-cheap or free through the presets on the settings page - and that test has not been run. Treat the table above as the
-floor of what runs on a laptop, not as a verdict on anyone's weights.
+The 3B model is in the table to mark the floor: it invented an option name, so there was nothing to score.
 
-What it does show is about the design rather than the model: **the checks make a weak model obviously weak instead of
-plausibly wrong.** 96 invented citations were caught and counted, and an invented option name could not be scored, so
-nothing confident-sounding reached the decision record. Run it free to watch the loop, read the prompts and see the
-guardrails work; use something larger to decide what to do with a production database.
+Two honest readings of that table.
+
+**On open weights.** The 32B run is the fair comparison, and it is respectable: a valid, SLO-safe decision for nothing,
+on a laptop, with no data leaving the machine. The difference from the frontier model was not safety, it was
+thrift - and thrift is the whole point of a FinOps review. If your alternative is no review at all, the free one is
+clearly worth running. If the decision is worth more than three dollars, the paid one paid for itself many times over
+here.
+
+**On the design.** The checks are what make the difference visible at all: **34 invented citations were caught and
+counted, and an invented option name could not be scored**, so nothing confident-sounding slipped into the decision
+record. A tool that only summarised model output would have reported all three runs as a recommendation.
 
 Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 

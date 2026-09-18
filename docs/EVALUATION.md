@@ -95,9 +95,38 @@ Read honestly:
   a busy cluster, so it buys capacity and misses the cause.
 - **It stopped early.** The five-role run hit the $2.80 per-run cap in round 3, so its last round is incomplete.
 
-## The same test on a free local model
+## The same test on a free open-weight model
 
-`campaign-overlap`, `llama3.2:3b` through Ollama with an 8k context window, two rounds, 2026-09-18
+`campaign-overlap`, `qwen2.5:32b` through a native Ollama on an Apple M5 Pro (Metal, 16k context), two rounds,
+2026-09-18. Scored result:
+[docs/evaluations/campaign-overlap-qwen2.5-32b-2026-09-18.json](evaluations/campaign-overlap-qwen2.5-32b-2026-09-18.json).
+
+| Approach | Recommendation | Breach regret | Cost regret | Root cause | Gap recall | Citation errors | Open disagreements | Spend |
+|---|---|---:|---:|:---:|---:|---:|---:|---:|
+| five-role review | `OPT-SCALE-TEMP` | 0 | $128.96 | yes | 1.0 | 34 | 10 | $0.00 |
+| single reviewer | `final_decision` (not an option) | n/a | n/a | yes | 1.0 | 5 | 2 | $0.00 |
+| simple rules | `OPT-SCALE-TEMP` | 0 | $128.96 | no | 0.0 | 0 | 0 | $0.00 |
+
+Against Claude Sonnet 5 on the same scenario: same breach regret (0), but $128.96 of cost regret against $0.00, 34
+citation errors against 0, and no convergence - the five roles ended on four distinct positions, one of which was the
+literal string `decided`, so the plurality was 1 of 5 and the scorer broke the tie alphabetically.
+
+What that supports:
+
+- **A free open-weight model produces a safe answer, not the cheap one.** It protected every SLO and identified the
+  root cause, then bought capacity for the evening rather than fixing the workload. On this scenario that costs
+  $128.96 over twelve months, on one cluster.
+- **Its single-agent run was worse than its five-role run**, which is the opposite of the Sonnet result: alone it
+  never named a valid option, while the five roles between them did. One data point, but it is the direction the
+  ensemble is supposed to help in.
+- **Citation quality tracks model class more sharply than the decision does.** 0 errors for the frontier model, 34 for
+  32B, 96 for 3B, while the decision itself degrades more slowly.
+- **Hardware matters more than vendor here.** The same 32B model was impossible in a Docker VM on this machine and
+  comfortable natively on Metal, running at about 11 tokens a second and finishing the whole comparison in 35 minutes.
+
+## The same test on a 3B model
+
+The floor, for contrast. `campaign-overlap`, `llama3.2:3b` in a CPU-only container, 8k context, two rounds, 2026-09-18
 (`runs/evaluate-campaign-ollama.json`, not committed because it holds no usable result):
 
 | Approach | Recommendation | Citation errors | Gap recall | Spend |
@@ -118,10 +147,8 @@ built on nothing.
 Practical notes from the run: a turn carries about 5,600 tokens, so Ollama's default 4k window truncates it silently;
 an 8 GB Docker allowance runs a 3B model at an 8k window but was killed at 16k, and killed an 8B model outright.
 
-**What this run is not.** It compares a 3B model on CPU with a frontier hosted model, which is not a comparison
-between vendors or between open and closed weights. The machine could not load an 8B model at all. An open-weight
-model of serious size, served with enough memory - Llama 3.3 70B or DeepSeek V3, both reachable through the settings
-page - is the test that would say something about open weights, and it has not been run.
+**What this run is not.** It compares a 3B model on CPU with a frontier hosted model, which says nothing about open
+weights as such. The 32B run above is the comparison that does.
 
 What this does not show: whether the ensemble decides better when evidence is contested, missing or asymmetric, which
 is the case it is built for. That needs a scenario designed to punish a single confident reviewer, and several runs of
