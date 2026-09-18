@@ -592,6 +592,9 @@ def cmd_history_envelope(args, settings) -> int:
         print(f"{args.cluster} {args.metric} on {args.role}: {envelope.observations} samples over "
               f"{envelope.days_covered} days, {envelope.coverage:.0%} of the window covered")
         print(f"half-life {envelope.half_life_days:g} days; drift: {envelope.drift.note}")
+        readiness = envelope.readiness(args.days_ahead)
+        mark = {"ready": "OK   ", "provisional": "WEIGH", "insufficient": "STOP "}[readiness.grade]
+        print(f"{mark} {readiness.sentence}")
         print(f"\nbusiest slots ({envelope.unit or 'unitless'}; typical / high / peak)")
         for slot in envelope.busiest(args.top):
             thin = "  (thin evidence)" if slot.thin else ""
@@ -768,6 +771,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--window-days", type=int, default=28, help="history considered (default 28)")
     p.add_argument("--slot-minutes", type=int, default=60, help="slot size; must divide a day (default 60)")
     p.add_argument("--top", type=int, default=5, help="slots to show at each end (default 5)")
+    p.add_argument("--days-ahead", type=float, default=0.0,
+                   help="check whether the history reaches far enough to plan this many days ahead")
     p.add_argument("--name", help="name used in the evidence title")
     p.add_argument("--out", help="also write the envelope as evidence YAML")
     p.add_argument("--store", default=None)

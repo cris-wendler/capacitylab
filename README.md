@@ -861,6 +861,7 @@ that changes:
 | **Recency** | samples are weighted by age with a 7-day half-life, so last week counts and last quarter barely does |
 | **Drift** | the last 24 h are compared with the baseline before them; once the level has clearly shifted, the envelope is rebuilt with a 1.5-day half-life so recent behaviour dominates. Fast change is detected, not predicted |
 | **Thin evidence** | every slot says how many observations and distinct days it rests on, and flags itself when that is too few to lean on |
+| **Readiness** | before anything plans on it, the envelope grades itself: `ready`, `provisional`, or `insufficient`, with the reason. Fewer than 7 days has no weekday shape; under half the window covered means the quiet stretches may be gaps in collection; a level shift keeps it provisional; and planning 30 days ahead on 14 days of history reaches further than the evidence does |
 
 Nothing is trained and no future value is predicted; it is descriptive statistics recomputed on read, so every figure
 traces back to samples you collected. A capacity decision then sizes for the high end plus headroom, which errs

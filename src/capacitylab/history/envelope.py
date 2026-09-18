@@ -42,6 +42,15 @@ DRIFT_MIN_RECENT_SLOTS = 6
 DRIFT_MIN_BASELINE_SLOTS = 24
 THIN_DAYS = 3  # a slot resting on fewer distinct days than this is flagged
 
+# Whether the history behind an envelope is good enough to plan on. A recommendation drawn from nine patchy days is
+# worse than none, because it carries the same authority as one drawn from a month.
+FULL_WEEKS = 14  # distinct days before a weekday shape is treated as established
+MIN_DAYS = 7  # below this there is no weekday shape at all, only a daily one
+MIN_COVERAGE = 0.5  # share of the window that must actually hold samples
+GOOD_COVERAGE = 0.9
+THIN_SLOT_SHARE = 0.5  # more than this share of slots resting on thin evidence keeps it provisional
+HORIZON_RATIO = 0.5  # do not plan further ahead than this fraction of the history held
+
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 
@@ -108,6 +117,34 @@ class Drift:
 
 
 @dataclass(frozen=True)
+class Readiness:
+    """Whether this envelope is fit to plan on, and if not, what is missing."""
+
+    grade: str  # ready | provisional | insufficient
+    reasons: list[str] = field(default_factory=list)
+    days_covered: int = 0
+    coverage: float = 0.0
+    thin_slot_share: float = 0.0
+
+    @property
+    def ok(self) -> bool:
+        return self.grade == "ready"
+
+    @property
+    def sentence(self) -> str:
+        if self.grade == "insufficient":
+            return "Not enough history to plan on: " + "; ".join(self.reasons) + "."
+        if self.grade == "provisional":
+            return "Usable but provisional: " + "; ".join(self.reasons) + "."
+        return (f"{self.days_covered} days of history, {self.coverage:.0%} of the window covered, no level shift: "
+                "good enough to plan on.")
+
+    def as_dict(self) -> dict:
+        return {"grade": self.grade, "reasons": self.reasons, "days_covered": self.days_covered,
+                "coverage": self.coverage, "thin_slot_share": self.thin_slot_share, "summary": self.sentence}
+
+
+@dataclass(frozen=True)
 class Envelope:
     cluster_key: str
     role: str
@@ -150,6 +187,43 @@ class Envelope:
     def thin(self) -> bool:
         return not self.slots or all(s.thin for s in self.slots.values())
 
+    @property
+    def thin_slot_share(self) -> float:
+        return round(sum(s.thin for s in self.slots.values()) / len(self.slots), 3) if self.slots else 1.0
+
+    def readiness(self, days_ahead: float = 0.0) -> Readiness:
+        """Whether this envelope can carry a decision, optionally one taken `days_ahead` of the event."""
+        reasons, grade = [], "ready"
+
+        def hold(level: str, reason: str) -> None:
+            nonlocal grade
+            reasons.append(reason)
+            if level == "insufficient" or grade == "insufficient":
+                grade = "insufficient"
+            else:
+                grade = "provisional"
+
+        if not self.slots:
+            return Readiness("insufficient", ["nothing has been collected for this metric"], 0, 0.0, 1.0)
+        if self.days_covered < MIN_DAYS:
+            hold("insufficient", f"only {self.days_covered} days collected, so there is no weekday shape yet")
+        elif self.days_covered < FULL_WEEKS:
+            hold("provisional", f"{self.days_covered} days collected; a weekday shape settles around {FULL_WEEKS}")
+        if self.coverage < MIN_COVERAGE:
+            hold("insufficient", f"only {self.coverage:.0%} of the window has samples, so the quiet stretches may "
+                                 "just be gaps in collection")
+        elif self.coverage < GOOD_COVERAGE:
+            hold("provisional", f"{self.coverage:.0%} of the window has samples")
+        if self.thin_slot_share > THIN_SLOT_SHARE:
+            hold("provisional", f"{self.thin_slot_share:.0%} of slots rest on fewer than {THIN_DAYS} days")
+        if self.drift.detected:
+            hold("provisional", f"the level shifted {self.drift.direction} in the last {DRIFT_RECENT_HOURS} h, so the "
+                                "older history describes a workload that has changed")
+        if days_ahead and days_ahead > self.days_covered * HORIZON_RATIO:
+            hold("insufficient", f"planning {days_ahead:g} days ahead on {self.days_covered} days of history reaches "
+                                 "further than the evidence does")
+        return Readiness(grade, reasons, self.days_covered, self.coverage, self.thin_slot_share)
+
     def to_evidence(self, *, evidence_id: str | None = None, name: str | None = None,
                     environment: str = "import") -> EvidenceItem:
         """The envelope as evidence an agent can cite: modeled from observed history, with its limits stated."""
@@ -161,6 +235,9 @@ class Envelope:
             "It carries no knowledge of anything planned. A campaign, release or migration ahead of this window is a "
             "scenario assumption, not part of these numbers.",
         ]
+        readiness = self.readiness()
+        if not readiness.ok:
+            caveats.append(readiness.sentence)
         if self.thin:
             caveats.append(f"Every slot rests on fewer than {THIN_DAYS} distinct days; treat the shape as provisional.")
         if self.drift.detected:
@@ -182,7 +259,7 @@ class Envelope:
                 "metric": self.metric, "unit": self.unit, "node": self.role, "slot_minutes": self.slot_minutes,
                 "half_life_days": self.half_life_days, "observations": self.observations,
                 "days_covered": self.days_covered, "coverage": self.coverage,
-                "drift": self.drift.as_dict(),
+                "drift": self.drift.as_dict(), "readiness": self.readiness().as_dict(),
                 "busiest_slots": [s.as_dict() for s in self.busiest()],
                 "quietest_slots": [s.as_dict() for s in self.quietest()],
                 "slots": [s.as_dict() for s in sorted(self.slots.values(),

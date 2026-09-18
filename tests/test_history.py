@@ -285,3 +285,62 @@ def test_history_cli_collects_status_and_envelope(tmp_path, capsys):
     assert out_file.exists() and "EV-ENV-CPUUTILIZATI" in out_file.read_text()
 
     assert main(["history", "envelope", key, "--metric", "Nope", "--store", str(store)]) == 1
+
+
+def test_readiness_says_when_the_history_cannot_carry_a_decision(store):
+    """A recommendation from nine patchy days reads as confidently as one from a month. It should not."""
+    key = store.cluster_key(IDENTIFIERS)
+    store.add_samples(key, "writer", "CPUUtilization",
+                      cpu_points(NOW - timedelta(days=3), 3 * 24, lambda _: 40.0), unit="Percent")
+    verdict = build_envelope(store, key, "CPUUtilization", now=NOW).readiness()
+    assert verdict.grade == "insufficient" and not verdict.ok
+    assert any("no weekday shape yet" in r for r in verdict.reasons)
+    assert verdict.sentence.startswith("Not enough history to plan on")
+
+
+def test_readiness_grows_with_the_history(store):
+    key = store.cluster_key(IDENTIFIERS)
+    store.add_samples(key, "writer", "CPUUtilization",
+                      cpu_points(NOW - timedelta(days=10), 10 * 24, lambda _: 40.0), unit="Percent")
+    ten_days = build_envelope(store, key, "CPUUtilization", now=NOW, window_days=10).readiness()
+    assert ten_days.grade == "provisional" and "settles around" in " ".join(ten_days.reasons)
+
+    store.add_samples(key, "writer", "CPUUtilization",
+                      cpu_points(NOW - timedelta(days=21), 11 * 24, lambda _: 40.0), unit="Percent")
+    full = build_envelope(store, key, "CPUUtilization", now=NOW, window_days=21).readiness()
+    assert full.grade == "ready" and full.ok and full.reasons == []
+    assert "good enough to plan on" in full.sentence
+
+
+def test_readiness_refuses_to_reach_further_than_the_evidence(store):
+    key = store.cluster_key(IDENTIFIERS)
+    store.add_samples(key, "writer", "CPUUtilization",
+                      cpu_points(NOW - timedelta(days=21), 21 * 24, lambda _: 40.0), unit="Percent")
+    envelope = build_envelope(store, key, "CPUUtilization", now=NOW, window_days=21)
+    assert envelope.readiness(days_ahead=7).ok  # a week ahead on three weeks of history
+    far = envelope.readiness(days_ahead=30)
+    assert far.grade == "insufficient" and any("further than the evidence does" in r for r in far.reasons)
+
+
+def test_a_gappy_window_is_not_mistaken_for_a_quiet_one(store):
+    key = store.cluster_key(IDENTIFIERS)
+    # Two weeks of days, but only the first six hours of each collected.
+    for day in range(14):
+        store.add_samples(key, "writer", "CPUUtilization",
+                          cpu_points(NOW - timedelta(days=14 - day), 6, lambda _: 40.0), unit="Percent")
+    verdict = build_envelope(store, key, "CPUUtilization", now=NOW, window_days=14).readiness()
+    assert verdict.grade == "insufficient"
+    assert any("may just be gaps in collection" in r for r in verdict.reasons)
+
+
+def test_a_level_shift_keeps_the_envelope_usable_but_provisional(store):
+    key = store.cluster_key(IDENTIFIERS)
+    store.add_samples(key, "writer", "CPUUtilization",
+                      cpu_points(NOW - timedelta(days=21), 21 * 24,
+                                 lambda ts: 70.0 if ts >= NOW - timedelta(hours=20) else 30.0), unit="Percent")
+    envelope = build_envelope(store, key, "CPUUtilization", now=NOW, window_days=21)
+    verdict = envelope.readiness()
+    assert verdict.grade == "provisional"
+    assert any("workload that has changed" in r for r in verdict.reasons)
+    assert any(verdict.sentence in c for c in envelope.to_evidence().caveats)
+    assert envelope.to_evidence().data["readiness"]["grade"] == "provisional"
