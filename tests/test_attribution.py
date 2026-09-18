@@ -110,3 +110,64 @@ def test_the_tool_reports_attribution_with_its_limits(campaign):
     assert any("not a decision" in c for c in outcome.caveats)
     with pytest.raises(ValueError, match="unknown option"):
         TOOLS["load_attribution"].handler(env, {"option_id": "OPT-NOPE"}, "database_engineer")
+
+
+def test_a_cause_says_how_sure_it_is(campaign):
+    """A subject that dominates every slot is a different claim from one that scrapes past the threshold."""
+    scenario, bundle = campaign
+    causes = {c.kind: c for c in attribute(build_context(scenario, bundle)).causes}
+
+    tenant = causes["tenant"]
+    assert tenant.confidence == "high"
+    assert tenant.slots_present == tenant.slots_total == 12  # above the threshold in every breaching slot
+    assert tenant.lead_pct > 50  # and far ahead of the next tenant
+    assert "12 of 12 slots" in tenant.confidence_reason
+
+    # The batch job runs in only part of the window, so it drives the breach less consistently.
+    batch = causes["batch_job"]
+    assert batch.confidence == "medium" and batch.slots_present < batch.slots_total
+
+
+def test_confidence_falls_when_the_reading_is_close_or_patchy():
+    from capacitylab.capacity.attribution import _confidence
+
+    clear, why = _confidence(pct=70, threshold=40, lead=40, present=10, total=10)
+    assert clear == "high" and "10 of 10" in why
+
+    # Just past the threshold, and barely ahead of the next subject: not a finding to act on alone.
+    close, why = _confidence(pct=42, threshold=40, lead=3, present=10, total=10)
+    assert close == "low" and "too close to the next" in why
+
+    # Decisive, but only in three slots out of ten.
+    patchy, why = _confidence(pct=70, threshold=40, lead=40, present=3, total=10)
+    assert patchy == "low" and "only part of the window" in why
+
+    steady, _ = _confidence(pct=55, threshold=40, lead=20, present=7, total=10)
+    assert steady == "medium"
+
+
+def test_an_evenly_spread_workload_is_a_confident_reading_too(campaign):
+    """"Nothing dominates" is a firm conclusion, not an absence of one."""
+    scenario, bundle = campaign
+    ctx = build_context(scenario, bundle)
+    tenants = ["alder", "birch", "cedar", "dune", "elm"]
+    ctx.series = {fid: {t: [2.0] * len(ctx.slot_labels) for t in tenants} for fid in ctx.series}
+    ctx.cpu_ms = dict.fromkeys(ctx.cpu_ms, 8.0)
+    ctx.batch = None
+    cause = attribute(ctx, threshold_pct=0.0, only_breached=False).causes[0]
+    assert cause.kind == "broad_load" and cause.confidence == "high"
+    assert "below every threshold" in cause.confidence_reason
+
+
+def test_the_finding_and_the_tool_both_carry_the_confidence(campaign):
+    from capacitylab.findings import review_findings
+    from capacitylab.simulation.tools import TOOLS, ToolEnvironment
+
+    scenario, bundle = campaign
+    finding = next(f for f in review_findings(scenario, bundle) if f.id == "FND-CAP-CAUSE")
+    assert "high confidence" in finding.recommendation and "medium confidence" in finding.recommendation
+
+    outcome = TOOLS["load_attribution"].handler(ToolEnvironment(scenario=scenario, bundle=bundle), {},
+                                                "database_engineer")
+    assert {c["confidence"] for c in outcome.data["causes"]} <= {"high", "medium", "low"}
+    assert all(c["confidence_reason"] for c in outcome.data["causes"])

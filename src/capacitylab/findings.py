@@ -51,7 +51,8 @@ def _cause_finding(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
         headline="What is driving the busiest slots: " + ", ".join(f"{c.subject} {c.pct:g}%" for c in result.causes),
         detail=(f"Across {len(result.slots)} slots ({result.window}), the worst is {worst.slot} at "
                 f"{worst.utilization_pct:g}% of the node. By statement: {top}. By tenant: {tenants}."),
-        recommendation="; ".join(f"{c.remedy} ({c.subject}, {c.pct:g}%)" for c in result.causes)
+        recommendation="; ".join(f"{c.remedy} ({c.subject}, {c.pct:g}%, {c.confidence} confidence)"
+                                 for c in result.causes)
                        + ". Shares are modeled from the forecast rates and each statement's cost per execution.",
         evidence_ids=list(ctx.evidence_ids))]
 

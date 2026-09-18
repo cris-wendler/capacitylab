@@ -24,6 +24,13 @@ from capacitylab.capacity.options import (  # noqa: PLC2701 - same package, one 
     _resolve,
 )
 
+# How sure the reading is. A subject that dominates every breaching slot by a wide margin is a different claim from
+# one that scrapes past the threshold in half of them, and a recommendation should not sound the same in both cases.
+CLEAR_LEAD_PCT = 15.0  # points ahead of the next subject
+CLEAR_MARGIN_PCT = 15.0  # points above the threshold that named it
+CONSISTENT_SHARE = 0.8  # share of the slots it leads in
+PRESENT_SHARE = 0.5
+
 DOMINANT_STATEMENT_PCT = 40.0  # one statement at or above this share is worth fixing before buying capacity
 DOMINANT_TENANT_PCT = 40.0
 BATCH_SHARE_PCT = 15.0  # a batch job holding this much of a breached slot is worth moving first
@@ -70,10 +77,16 @@ class Cause:
     pct: float
     remedy: str
     detail: str
+    confidence: str = "medium"  # high | medium | low
+    confidence_reason: str = ""
+    slots_present: int = 0  # breaching slots where it is above the threshold
+    slots_total: int = 0
+    lead_pct: float = 0.0  # points ahead of the next subject of the same kind
 
     def as_dict(self) -> dict:
         return {"kind": self.kind, "subject": self.subject, "share_pct": self.pct, "remedy": self.remedy,
-                "detail": self.detail}
+                "detail": self.detail, "confidence": self.confidence, "confidence_reason": self.confidence_reason,
+                "slots_present": self.slots_present, "slots_total": self.slots_total, "lead_pct": self.lead_pct}
 
 
 @dataclass(frozen=True)
@@ -170,6 +183,32 @@ def _mean_share(slots: list[SlotAttribution], pick) -> dict[str, float]:
     return {name: round(total / len(slots), 1) for name, total in totals.items()} if slots else {}
 
 
+def _confidence(pct: float, threshold: float, lead: float, present: int, total: int) -> tuple[str, str]:
+    """How sure this reading is, from the margin over the threshold, the lead over the next subject, and consistency.
+
+    None of this says the remedy will work. It says how firmly the evidence points at this subject rather than
+    another, which is a different and more answerable question.
+    """
+    share = present / total if total else 0.0
+    parts = [f"{pct:g}% of demand", f"{lead:g} points ahead of the next", f"leads in {present} of {total} slots"]
+    if pct >= threshold + CLEAR_MARGIN_PCT and lead >= CLEAR_LEAD_PCT and share >= CONSISTENT_SHARE:
+        return "high", "; ".join(parts)
+    if share < PRESENT_SHARE:
+        return "low", "; ".join(parts) + ", so it drives only part of the window"
+    if lead < CLEAR_LEAD_PCT:
+        return "low", "; ".join(parts) + ", too close to the next to separate them"
+    return "medium", "; ".join(parts)
+
+
+def _per_slot_shares(slots: list[SlotAttribution], pick, subject: str) -> list[float]:
+    return [next((s.pct for s in pick(slot) if s.name == subject), 0.0) for slot in slots]
+
+
+def _lead(means: dict[str, float], subject: str) -> float:
+    others = [pct for name, pct in means.items() if name != subject]
+    return round(means.get(subject, 0.0) - (max(others) if others else 0.0), 1)
+
+
 def _causes(ctx: ModelContext, slots: list[SlotAttribution], plan: _Plan) -> list[Cause]:
     """Which remedies the shape of the load makes worth considering. Suggestions, not a decision."""
     if not slots:
@@ -180,32 +219,50 @@ def _causes(ctx: ModelContext, slots: list[SlotAttribution], plan: _Plan) -> lis
     overlapping = [s for s in slots if s.batch_cores > 0]
     batch_share = round(sum(s.batch_pct for s in overlapping) / len(overlapping), 1) if overlapping else 0.0
     if ctx.batch and batch_share >= BATCH_SHARE_PCT:
-        overlapping = [s.slot for s in overlapping]
+        present = len(overlapping)
+        names = [s.slot for s in overlapping]
+        # A job either runs in a slot or it does not, so its "lead" is its own share: there is nothing to confuse it
+        # with. Confidence then rests on how much of the window it covers.
+        grade, why = _confidence(batch_share, BATCH_SHARE_PCT, batch_share, present, len(slots))
         causes.append(Cause(
             "batch_job", ctx.batch.name, batch_share, "move the batch job",
-            f"It holds {ctx.batch.cpu_cores:g} cores in {len(overlapping)} of these slots "
-            f"({overlapping[0]} to {overlapping[-1]}), {batch_share:g}% of the demand while it runs. Moving work that "
-            "has a deadline rather than an audience is the cheapest remedy when the deadline still holds."))
+            f"It holds {ctx.batch.cpu_cores:g} cores in {present} of these slots "
+            f"({names[0]} to {names[-1]}), {batch_share:g}% of the demand while it runs. Moving work that "
+            "has a deadline rather than an audience is the cheapest remedy when the deadline still holds.",
+            confidence=grade, confidence_reason=why, slots_present=present, slots_total=len(slots),
+            lead_pct=batch_share))
 
     by_statement = _mean_share(slots, lambda s: s.by_statement)
     for fid, pct in sorted(by_statement.items(), key=lambda kv: -kv[1]):
         if pct >= DOMINANT_STATEMENT_PCT and not (ctx.batch and fid == ctx.batch.name):
+            present = sum(share >= DOMINANT_STATEMENT_PCT
+                          for share in _per_slot_shares(slots, lambda s: s.by_statement, fid))
+            grade, why = _confidence(pct, DOMINANT_STATEMENT_PCT, _lead(by_statement, fid), present, len(slots))
             causes.append(Cause(
                 "statement", fid, pct, "index or rewrite this statement",
                 f"{fid} is {pct:g}% of the demand in these slots. An index experiment or a rewrite equivalence check "
-                "would show whether its cost per execution can be cut; either is cheaper than buying capacity."))
+                "would show whether its cost per execution can be cut; either is cheaper than buying capacity.",
+                confidence=grade, confidence_reason=why, slots_present=present, slots_total=len(slots),
+                lead_pct=_lead(by_statement, fid)))
 
     by_tenant = _mean_share(slots, lambda s: s.by_tenant)
     for tenant, pct in sorted(by_tenant.items(), key=lambda kv: -kv[1]):
         if pct >= DOMINANT_TENANT_PCT:
+            present = sum(share >= DOMINANT_TENANT_PCT
+                          for share in _per_slot_shares(slots, lambda s: s.by_tenant, tenant))
+            grade, why = _confidence(pct, DOMINANT_TENANT_PCT, _lead(by_tenant, tenant), present, len(slots))
             causes.append(Cause(
                 "tenant", tenant, pct, "check this tenant's share against what they pay for",
                 f"{tenant} drives {pct:g}% of the demand in these slots. Whether that is fair is an entitlement "
-                "question, not a capacity one."))
+                "question, not a capacity one.",
+                confidence=grade, confidence_reason=why, slots_present=present, slots_total=len(slots),
+                lead_pct=_lead(by_tenant, tenant)))
 
     if not causes:
         top = max(by_statement.items(), key=lambda kv: kv[1], default=("nothing", 0.0))
         causes.append(Cause(
             "broad_load", "the whole workload", round(top[1], 1), "capacity is the honest remedy",
-            "No single statement, tenant or job dominates these slots, so there is nothing cheaper to fix first."))
+            "No single statement, tenant or job dominates these slots, so there is nothing cheaper to fix first.",
+            confidence="high", confidence_reason=f"the largest single share is {top[1]:g}%, below every threshold",
+            slots_present=len(slots), slots_total=len(slots)))
     return causes

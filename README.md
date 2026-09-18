@@ -248,6 +248,12 @@ Four shapes get four different answers:
 | One tenant dominates | An entitlement question, not a capacity one: compare their share with what they pay for |
 | Nothing dominates | Capacity is the honest remedy, because there is nothing cheaper to fix first |
 
+Each cause also says **how sure the reading is**, because "one tenant is 68% of the demand in all twelve slots, 61
+points ahead of the next" and "one statement scrapes past 40% in half of them" deserve different treatment. Confidence
+comes from three things anyone can check: the margin over the threshold that named it, the lead over the next subject,
+and how many of the breaching slots it actually leads. A tie between two subjects reads as low confidence rather than
+picking one.
+
 It attributes under any option, not just today's, so "what would still be driving this after we move the batch job"
 is answerable before deciding. Agents can call it as the `load_attribution` tool, and it reports the thresholds it
 applied rather than hiding them.
