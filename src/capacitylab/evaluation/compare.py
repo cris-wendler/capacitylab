@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Compare the five-role review with a single reviewer and a rule-based baseline on the same evidence.
 
 Scoring uses the synthetic scenario's hidden ground truth (for example the true campaign multiplier)

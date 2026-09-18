@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Provider interface and the context pack each stakeholder receives."""
 
 from __future__ import annotations

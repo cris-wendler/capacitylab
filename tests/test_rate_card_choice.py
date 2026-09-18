@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from capacitylab.capacity.cost import choose_rate_card
 from capacitylab.capacity.options import build_context, evaluate_option, needed_instance_classes
 from capacitylab.evidence.bundle import EvidenceBundle

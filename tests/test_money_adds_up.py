@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Every money figure shown for the scenarios must follow from its inputs by arithmetic.
 
 These tests recompute each figure from the rate card, budget, calendar and assumptions, independently of the

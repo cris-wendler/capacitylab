@@ -18,14 +18,15 @@
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7-1c5cab" alt="Percona Toolkit 3.7">
   <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
-  <img src="https://img.shields.io/badge/AWS-boto3%20%2B%20Floci-FF9900?logo=amazonwebservices&logoColor=white" alt="AWS APIs through boto3, Floci emulator">
+  <img src="https://img.shields.io/badge/clouds-AWS%20%C2%B7%20GCP%20%C2%B7%20Azure-FF9900" alt="Cloud imports from AWS, Google Cloud and Azure">
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
-  <img src="https://img.shields.io/badge/license-Apache--2.0-6b6a65" alt="Apache 2.0">
+  <img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-6b6a65" alt="AGPL 3.0 or later">
   <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
 </p>
 
-<!-- Add the CI badge once the repository is public:
-[![CI](https://github.com/<owner>/capacitylab/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/capacitylab/actions/workflows/ci.yml) -->
+<p align="center">
+  <a href="https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml"><img src="https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
 
 # CapacityLab
 
@@ -50,15 +51,37 @@ experiments are deterministic Python, and every number an agent quotes is checke
 > Every scenario, tenant, cluster and figure in this repository is synthetic. Local lab measurements compare phases
 > with each other; they do not predict production latency.
 
+## Why not just let it autoscale?
+
+Because autoscaling reacts, and a known event needs a decision made before it starts.
+
+Automatic scaling, Aurora Serverless v2 included, watches the database and adds capacity only after the load is
+already there. **Scaling up is the problem, not just scaling down.** The traffic arrives, the scaler starts climbing
+behind it, and it spends the event chasing a target it never quite reaches: it is still adding capacity while
+checkout is already queueing, timing out and retrying. By the time it has caught up, the sale is half over and the
+carts are already abandoned. The retries make it worse, because the scaler reads them as yet more load. Scaling back
+down afterwards is slow too, so you also pay for the overshoot.
+
+For an event you know is coming, "it will scale" is a hope, not a plan. The `campaign-overlap` scenario carries this
+as an assumption nobody has measured (`A-AUTOSCALE-LAG`) and as an evidence gap (`GAP-AUTOSCALE-RESPONSE`), so the
+agents have to argue about it instead of assuming it away.
+
+The second half is *what* the scaling decision looks at. An autoscaler sees CPU, connections and I/O. It does not know
+that a campaign starts at 18:00, that the storefront earns $1.45 million an hour while it runs, that a batch job lands
+at 19:00, or that one tenant will take a third of the cluster. CapacityLab puts those product signals next to the
+database metrics, prices each option, and shows the revenue at risk if nothing changes, so engineers can make the call
+ahead of time and have the reasoning on record afterwards.
+
 ## Contents
 
 | Start here | Go deeper | Reference |
 |---|---|---|
-| [Tech stack](#tech-stack) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
-| [The five agents](#the-five-agents) | [Using an LLM for the agents](#using-an-llm-for-the-agents) | [Project layout](#project-layout) |
-| [What you get](#what-you-get) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
-| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
-| [Quick start](#quick-start) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
+| [Why not just let it autoscale?](#why-not-just-let-it-autoscale) | [How a review runs](#how-a-review-runs) | [Configuration](#configuration) |
+| [Tech stack](#tech-stack) | [Using an LLM for the agents](#using-an-llm-for-the-agents) | [Project layout](#project-layout) |
+| [The five agents](#the-five-agents) | [The local database lab](#the-local-database-lab) | [Status and limitations](#status-and-limitations) |
+| [What you get](#what-you-get) | [Bringing your own data](#bringing-your-own-data) | [Next](#next) |
+| [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | [Comparison with simpler approaches](#comparison-with-simpler-approaches) | [License](#license) |
+| [Quick start](#quick-start) | [Signing in](#signing-in) | [Contributing](#contributing) |
 
 ---
 
@@ -71,10 +94,10 @@ experiments are deterministic Python, and every number an agent quotes is checke
 | ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to the role, every number must appear in the cited evidence, requested checks must be allowed for the role, spend must fit the limits. |
 | ![](https://img.shields.io/badge/capacity%20planning-2d6cdf?style=flat-square) | M/M/c queueing model | CPU utilisation per 15 or 60 minute slot, SLO breach slots, instance options scored against each other. |
 | ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model, tenant entitlements, AWS Pricing and Cost Explorer | Option costs from a rate card, on-demand RDS prices and month-to-date spend read from AWS, spend limits for the model itself, each tenant's CPU share against what its plan guarantees. |
-| ![](https://img.shields.io/badge/AWS-FF9900?style=flat-square) | boto3, Floci (local AWS emulator) | RDS topology, CloudWatch metrics, prices and cost pulled through the AWS APIs, against a local emulator by default or a real account with `--live`. |
+| ![](https://img.shields.io/badge/clouds-FF9900?style=flat-square) | AWS (boto3), Google Cloud and Azure (their REST APIs); Floci, floci-gcp and floci-az emulators | RDS topology, CloudWatch metrics, prices and cost pulled through the AWS APIs, against a local emulator by default or a real account with `--live`. |
 | ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 and PostgreSQL 17 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE` and `EXPLAIN (ANALYZE, BUFFERS)`, index and rewrite experiments, `pt-query-digest` and friends. |
 | ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI for scenarios, runs, lab results and comparisons; the same features on the command line. |
-| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests, MySQL and PostgreSQL jobs in CI, replay of a full run, and a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests on every change; the MySQL, PostgreSQL and cloud-emulator suites on request (`make check-containers` locally, or the Containers workflow); replay of a full run, and a scan for leftover identifiers. |
 
 ## The five agents
 
@@ -83,15 +106,19 @@ them sees everything.
 
 | Agent | Looks at | Can ask for | Reasoning effort |
 |---|---|---|:---:|
-| ![](https://img.shields.io/badge/Database%20engineer-2d6cdf?style=flat-square) | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
-| ![](https://img.shields.io/badge/Application%20owner-1b9b6d?style=flat-square) | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
-| ![](https://img.shields.io/badge/Reliability%20engineer-c98a00?style=flat-square) | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
-| ![](https://img.shields.io/badge/FinOps%20analyst-c75b3b?style=flat-square) | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
-| ![](https://img.shields.io/badge/Tenant%20representative-7a5ad6?style=flat-square) | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
+| 🔵 **Database engineer** | metrics, statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
+| 🟢 **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
+| 🟡 **Reliability engineer (SRE)** | metrics, forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
+| 🟠 **FinOps analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
+| 🟣 **Tenant representative** | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
 
-Roles that mostly quote measurements run at low effort so their answers stay close to the numbers. The reliability
-engineer, who has to weigh an unmeasured failover against headroom and cost, gets more room. The same roles can also
-run from scripted rules, which is free, offline and repeatable.
+**Why the effort differs.** Reasoning effort is how much the model thinks before it writes a turn: more effort means
+longer internal reasoning, more tokens and a higher cost. Four agents mostly read evidence and quote it (digests,
+plans, calendars, the rate card, the budget), and extra thinking there tends to produce numbers the model worked out
+itself, which the checks then flag. The reliability engineer is the one agent that has to weigh something nobody
+measured, such as an unknown failover time against headroom and cost, so it gets more room. `CAPACITYLAB_EFFORT=high`
+(or `low`, `medium`) applies one level to every agent instead. The same agents can also run from scripted rules, which
+is free, offline and repeatable.
 
 <p align="center">
   <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $129.92 that is not in the cited rate card is flagged" width="900">
@@ -105,9 +132,11 @@ run from scripted rules, which is free, offline and repeatable.
 |---|---|
 | 📝 **A decision record** | What each agent recommends and why, open disagreements, unanswered challenges, evidence nobody has, and checks that were requested but never ran. |
 | 🩺 **Findings before any review** | Whether a node runs out of CPU or is oversized, whether failover has ever been measured, which tables grow in a way that hurts, and which statements one tenant dominates. `capacitylab findings <scenario>` or the scenario page. |
+| 🔎 **Why a slot breaches** | Each breaching slot broken down by statement, by tenant and by batch job, so the remedy follows the cause: a job that can move, a statement worth an index or a rewrite, a tenant taking more than they pay for, or load spread evenly, which is the only case where buying capacity is the honest answer. |
 | 🧪 **Measurements from a real engine** | A local MySQL 8.0 or PostgreSQL 17 lab runs the scenario's statement mix over many connections and records latency percentiles, lock waits, deadlocks, statement digests and plans, optionally with Percona Toolkit. |
 | 💸 **Costs next to the risk** | Every option priced from the scenario's rate card, and each tenant's share of the cluster compared with what it pays for. |
-| 📥 **Your own data** | Read RDS, CloudWatch, prices and cost straight from AWS, or import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch exports and Percona Toolkit reports. |
+| 📈 **What your cluster actually does** | `history collect` appends each window of metrics to a local store, and `history envelope` reports what every hour of every weekday reaches - typically, at the high end and at worst - weighted towards recent days, with level shifts detected and thin evidence flagged. |
+| 📥 **Your own data** | Read database topology, metrics, prices and cost straight from AWS, Google Cloud or Azure, or import slow logs, `performance_schema` digest exports, `EXPLAIN ANALYZE` output, CloudWatch exports and Percona Toolkit reports. |
 | 🔁 **Replay** | Every item is labelled observed, forecast, assumption, modeled or measured. Every run is a log you can replay to re-check each result. |
 
 ---
@@ -195,9 +224,47 @@ compares it with the CPU share each tenant's workload takes, modeled from calls 
 The review is available to the application owner, reliability engineer and cost analyst as
 `tenant_entitlement_review`; the tenant representative sees only its own plan.
 
+### Who is actually causing it
+
+"The writer saturates at 19:00" is a symptom, and the remedies differ by an order of magnitude in cost, so the first
+question is what is behind it. Every breaching slot is decomposed into the same CPU demand the capacity model used:
+
+```
+What is driving the busiest slots: loyalty-recalculation 18.5%, alder 68.5%
+  Across 12 slots (18:00 to 20:45), the worst is 19:00 at 115% of the node.
+  By statement: QF-OTHER 28.3%, QF-ORDER-HISTORY 24%, QF-AUDIENCE 20.7%.
+  By tenant:    alder 64.8%, birch 7.1%.
+  what to do: move the batch job (loyalty-recalculation, 18.5%);
+              check this tenant's share against what they pay for (alder, 68.5%)
+```
+
+The shares are of modeled demand, not a second estimate: they add up to the same utilization the option table shows.
+Four shapes get four different answers:
+
+| What the slot looks like | What it argues for |
+|---|---|
+| A batch job holds a large share while it runs | Move it. Work with a deadline but no audience is the cheapest thing to move, if the deadline still holds |
+| One statement dominates | An index experiment or a rewrite equivalence check. Either is cheaper than capacity |
+| One tenant dominates | An entitlement question, not a capacity one: compare their share with what they pay for |
+| Nothing dominates | Capacity is the honest remedy, because there is nothing cheaper to fix first |
+
+Each cause also says **how sure the reading is**, because "one tenant is 68% of the demand in all twelve slots, 61
+points ahead of the next" and "one statement scrapes past 40% in half of them" deserve different treatment. Confidence
+comes from three things anyone can check: the margin over the threshold that named it, the lead over the next subject,
+and how many of the breaching slots it actually leads. A tie between two subjects reads as low confidence rather than
+picking one.
+
+It attributes under any option, not just today's, so "what would still be driving this after we move the batch job"
+is answerable before deciding. Agents can call it as the `load_attribution` tool, and it reports the thresholds it
+applied rather than hiding them.
+
+Two limits stated in the output itself: the shares are only as good as the forecast rates and the cost per execution
+they rest on, and **attribution stops at the statement and the tenant**. Which service or code path issues a statement
+is not in this evidence, so it cannot tell you which team owns the fix.
+
 ### What the capacity model says
 
-From the scripted run, with the index effect measured in the SQLite experiment database:
+From the scripted run, with the index and rewrite effects measured in the SQLite experiment database:
 
 | Option | Peak CPU | Slots over 80% | SLO breach slots | One-off | Monthly | Revenue at risk |
 |---|---:|---:|---:|---:|---:|---:|
@@ -206,12 +273,35 @@ From the scripted run, with the index effect measured in the SQLite experiment d
 | Scale to 32xlarge for the 6-week season | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $18,708.48 | $0 | $0 |
 | Resize to 32xlarge permanently | 57.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $13,548.80 | $0 |
 | Add the index | 97.7% | 8 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
+| Rewrite the audience query (`EXISTS`) | 100.1% | 8 | ![2](https://img.shields.io/badge/-2-b42318?style=flat-square) | $0 | $0 | $0 |
 | Move the batch job to 01:00 | 95.0% | 11 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0 | $0 |
 | Index and move the batch job | 77.7% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0.08 | $0 |
 | Scale up and move the batch job | 47.5% | 0 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $129.92 | $0 | $0 |
+| Rewrite and move the batch job | 80.1% | 1 | ![0](https://img.shields.io/badge/-0-127a55?style=flat-square) | $0 | $0 | $0 |
 
 Every scale option also carries writer failovers of unknown length. The scripted FinOps agent reads this table on a
 12-month view, which is why a $129.92 evening beats a $13,548.80-a-month resize even though both keep every SLO.
+
+**A query rewrite competes here on the same terms.** It buys no instance hours and needs no storage, so it costs $0 to
+run; what it costs is a release and a validation. The row above is the honest outcome: the measured `EXISTS` rewrite
+takes the peak from 115.0% to 100.1%, which still misses the SLO in 2 slots, so on its own it is not the answer.
+Paired with moving the batch job it holds every SLO at $0, which is cheaper than the index pairing ($0.08 a month) and
+far cheaper than the evening scale-up. Two guards keep that from being wishful: no benefit is credited until an
+equivalence check has measured it, and a rewrite that returns different rows than the original gets no benefit at all,
+however much work it saves - changing the answer is not an optimization.
+
+That guard earns its keep: of the four candidate rewrites, only one is equivalent on the fixtures, and the three that
+fail do so for three different reasons.
+
+| Candidate | Work | Equivalent | What the check caught |
+|---|---:|---|---|
+| `EXISTS`, tenant predicate kept | 0.29x | ✅ | - |
+| inner `JOIN` on orders | 0.67x | ❌ | join fan-out returns duplicate rows |
+| `NOT IN` to `NOT EXISTS` | 2.71x | ❌ | a NULL `customer_id` in suppressions makes `NOT IN` return nothing and `NOT EXISTS` return rows |
+| `EXISTS` without the tenant predicate | 0.33x | ❌ | extra rows qualify only through another tenant's orders: a tenant boundary violation |
+
+The last one is the dangerous kind. It looks like the winner, being three times cheaper, and it leaks one tenant's
+customers into another tenant's audience. A benchmark that only timed the two statements would have recommended it.
 
 *SLO breach slots* counts each SLO separately: when nothing changes, checkout and order history each miss their SLO in
 the same 7 sale slots, so 7 × 2 = 14. *Revenue at risk* counts the slot once. The index costs $0.08 a month: the
@@ -220,18 +310,18 @@ candidate measured 1,835,008 bytes on 122,675 local rows, which scales to 0.802 
 
 Prices come from the scenario's own rate-card evidence (`EV-RATE-001`), not from code: the cost model reads it from
 the evidence bundle, and a scenario without one fails validation. An AWS import with prices replaces the instance
-rates for that review (see [Straight from AWS](#straight-from-aws)). The numbers shipped here are illustrative and
+rates for that review (see [Straight from your cloud](#straight-from-your-cloud)). The numbers shipped here are illustrative and
 labelled as an assumption: on-demand rates at production scale ($0.145 per vCPU-hour) without reserved-instance or
 savings-plan discounts. Replacing that one evidence item with your provider's rates re-prices every option.
 
 ![Each option's modeled utilization over the evening, with cost and revenue at risk, at the end of the LLM run](docs/media/run-options.png)
 
 On the scenario page, drag the traffic assumption and every option is re-modeled on the spot. At the 3.1× the tenant
-actually reached last time, all eight options keep every SLO and doing nothing risks $0; at the 5× planning value, six
+actually reached last time, all ten options keep every SLO and doing nothing risks $0; at the 5× planning value, seven
 keep every SLO and doing nothing risks $304,500; at 6×, only the four scale-up options do, and doing nothing risks
 $522,000:
 
-![What-if slider set to 3.1x: all eight options keep every SLO, doing nothing risks $0, and which options cost nothing](docs/media/scenario-whatif.png)
+![What-if slider set to 3.1x: all ten options keep every SLO, doing nothing risks $0, and which options cost nothing](docs/media/scenario-whatif.png)
 
 The chart above comes from the two-round LLM review, not the scripted run. Its index options show no benefit because
 no agent in that run asked for an index experiment, and the model credits an index with nothing until one is measured.
@@ -490,8 +580,9 @@ Each item also records where it came from: scenario data, the local lab, or an i
 Requires Python 3.11+. Docker is only needed for the labs.
 
 ```bash
+git clone https://github.com/cris-wendler/capacitylab.git && cd capacitylab
 python3.11 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,anthropic,mysql]"
+pip install -e ".[dev,anthropic,mysql]"     # or ".[dev,all]" for every optional dependency
 cp .env.example .env
 ```
 
@@ -657,7 +748,51 @@ that shares the lab container's network, so it can reach only the lab server.
 
 ## Bringing your own data
 
-### Straight from AWS
+### Straight from your cloud
+
+CapacityLab reads a managed database straight from AWS, Google Cloud or Azure. Each import talks to a local emulator
+by default, and to a real account only with `--live` (or the matching `CAPACITYLAB_*_LIVE` setting in the web UI), using
+read calls only. Nothing that identifies the account is stored.
+
+| | AWS | Google Cloud | Azure |
+|---|---|---|---|
+| **Database** | RDS and Aurora | Cloud SQL | Database for MySQL or PostgreSQL, flexible server |
+| **Topology** | ✅ `rds:DescribeDBInstances`, `DescribeDBClusters` | ✅ `sqladmin instances.get` | ✅ `flexibleServers` get and replicas |
+| **Metrics** | ✅ CloudWatch | ✅ Cloud Monitoring | ✅ Azure Monitor |
+| **On-demand prices** | ✅ Pricing API | ⚪ not read yet (Cloud Billing Catalog) | ✅ public Retail Prices API |
+| **Cost this month** | ✅ Cost Explorer | ⚪ needs a BigQuery billing export | ✅ Cost Management |
+| **Local emulator** | [Floci](https://github.com/floci-io/floci), port 4566 | [floci-gcp](https://github.com/floci-io/floci-gcp), port 4588 | [floci-az](https://github.com/floci-io/floci-az), port 4577 |
+| **Tested** | recorded responses, and against Floci | recorded responses, and one run against floci-gcp (standing check pending) | recorded responses, and against floci-az (MySQL and PostgreSQL) |
+
+```bash
+capacitylab import gcp --project my-project --instance orders-primary --label "evening" --out runs/imports/gcp.yaml
+capacitylab import azure --subscription <id> --resource-group <group> --instance orders-mysql --db-engine mysql \
+  --label "evening" --out runs/imports/azure.yaml
+```
+
+> [!NOTE]
+> Each import has been run against its emulator, with the evidence fed into a review; the Containers workflow and
+> `make check-containers` repeat that on request. The standing floci-gcp check is not green yet, and none of the
+> imports has been run against a real account. The emulators do not serve everything, and what is missing is skipped with the
+> reason written into the evidence:
+>
+> - **floci-gcp 0.9.0** serves Cloud SQL and Cloud Monitoring, so a GCP import yields topology, the CPU series and
+>   metrics. It has no price catalog, and Google Cloud has no cost API outside a BigQuery billing export.
+> - **floci-az 0.13.0** serves flexible servers only, so an Azure import yields topology. Replicas, Azure Monitor
+>   metrics, prices and cost are skipped; the metrics, price and cost parsing is tested against recorded responses.
+>
+> `pip install -e ".[gcp]"` or `".[azure]"` adds the credential libraries `--live` needs.
+
+```bash
+docker compose --profile gcp up -d floci-gcp && python scripts/cloud_emulator_seed.py gcp
+capacitylab import gcp --project floci-local --instance demo-pg --label "floci-gcp demo" --out runs/imports/gcp.yaml
+
+docker compose --profile azure up -d floci-az && python scripts/cloud_emulator_seed.py azure
+capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo --instance demo-mysql \
+  --label "floci-az demo" --out runs/imports/azure.yaml
+```
+
+#### AWS in detail
 
 ```bash
 pip install -e ".[aws]"
@@ -702,6 +837,46 @@ prices the options with those on-demand AWS prices, keeping only the storage rat
 class is missing, it keeps the scenario's rate card and says which classes were missing. The scenario and run pages
 name the prices they used, and the cost check tells the agents the same.
 
+### What a cluster actually does, accumulated
+
+An import answers "what does this cluster look like right now". Collecting answers "what does this cluster *do*",
+which is the question a decision taken before an event depends on.
+
+```bash
+capacitylab history collect aws --instance orders-primary --hours 3 --label "evening cluster" --live
+capacitylab history status
+capacitylab history envelope CL-9F2A41C0B7D3 --metric CPUUtilization --out runs/imports/envelope.yaml
+```
+
+`history collect` runs the same read-only path as the import and appends the metrics to a local SQLite file
+(`runs/history.db`). Run it from cron every few minutes: writes are idempotent, so an overlapping window adds nothing
+and the same collection can run as often as you like. Identities still never land anywhere - a cluster is keyed by an
+HMAC of the identifiers under a salt generated in that file, so history accumulates for the right cluster while the
+key means nothing outside your machine.
+
+**Missing data is data.** Every collection is recorded with the window it asked for and how much came back, so a
+quiet stretch can be told from a stretch nobody collected. `history status` reports the gaps and warns when nothing
+has arrived for over an hour, because a collector that died is the alert you want first.
+
+**The envelope, not a forecast.** `history envelope` groups the samples into slots by hour and weekday and reports
+what that group reached: typically, at the high end (p95), and at worst. Three things keep it useful on a workload
+that changes:
+
+| | |
+|---|---|
+| **Recency** | samples are weighted by age with a 7-day half-life, so last week counts and last quarter barely does |
+| **Drift** | the last 24 h are compared with the baseline before them; once the level has clearly shifted, the envelope is rebuilt with a 1.5-day half-life so recent behaviour dominates. Fast change is detected, not predicted |
+| **Thin evidence** | every slot says how many observations and distinct days it rests on, and flags itself when that is too few to lean on |
+| **Readiness** | before anything plans on it, the envelope grades itself: `ready`, `provisional`, or `insufficient`, with the reason. Fewer than 7 days has no weekday shape; under half the window covered means the quiet stretches may be gaps in collection; a level shift keeps it provisional; and planning 30 days ahead on 14 days of history reaches further than the evidence does |
+
+Nothing is trained and no future value is predicted; it is descriptive statistics recomputed on read, so every figure
+traces back to samples you collected. A capacity decision then sizes for the high end plus headroom, which errs
+towards spending money rather than dropping checkouts. Anything *planned* stays outside it: a campaign or release
+date beats anything inferred from history, so those remain scenario assumptions that multiply the envelope.
+
+With `--out` the envelope becomes evidence labelled `modeled`, carrying its own caveats, so the agents can cite it in
+a review next to the topology and the costs.
+
 ### From exported files
 
 ```bash
@@ -740,7 +915,35 @@ providers ship:
 | `openai` | Any OpenAI-compatible chat completions endpoint: OpenAI, Google Gemini's OpenAI endpoint, Mistral, Groq, DeepSeek, local models through Ollama, vLLM or LM Studio, and Bedrock, Vertex or Azure behind a LiteLLM proxy | JSON schema output, automatic prefix caching where the endpoint offers it, optional `reasoning_effort` |
 
 Both send the same system prompt and evidence, ask for the same turn format, and go through the same checks and spend
-limit. Put keys in `.env` (git-ignored) and set the total you are willing to spend:
+limit.
+
+### Choosing one without editing files
+
+The **Model settings** page picks the provider, the model, the endpoint, the per-token prices and the spend caps, and
+saves them to `runs/llm-settings.json`. Anything you do not change keeps following the environment. Presets fill the
+lot in one click: Claude Opus 5, Claude Sonnet 5, OpenAI, Ollama on this machine, or vLLM and LM Studio.
+
+![Model settings: presets for Claude Opus 5, Claude Sonnet 5, OpenAI, Ollama and vLLM, and what is in use now with the API key reported as missing](docs/media/settings.png)
+
+**No API key is ever stored by the page.** It chooses which environment variable holds the key and shows whether that
+variable is set. The key stays in `.env`, which is where the rest of the code looks for it, and the page reports a
+local endpoint as needing no key at all.
+
+### Free and offline, with Ollama
+
+```bash
+docker compose --profile ollama up -d ollama
+docker exec capacitylab-ollama ollama pull llama3.1:8b
+# then pick "Ollama, on this machine" on the Model settings page
+```
+
+The endpoint is OpenAI-compatible, so nothing else changes: same prompt, same turn format, same checks, and the
+settings page lists the models the server is actually serving. A review then costs nothing and nothing leaves the
+machine. Be realistic about the result: a small local model holds a five-role argument together much less well than a
+frontier one, and the turns are thinner. It is the right way to try the tool, read the prompts and watch the loop
+without spending anything.
+
+Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 
 ```bash
 # Anthropic
@@ -918,6 +1121,9 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 | `CAPACITYLAB_PERCONA_IMAGE` / `CAPACITYLAB_LAB_CONTAINER` | `percona/percona-toolkit:latest` / `capacitylab-sandbox-mysql` | Percona Toolkit image and the lab container it attaches to (must be named `capacitylab-*`) |
 | `CAPACITYLAB_AWS_ENDPOINT` / `CAPACITYLAB_AWS_REGION` | `http://127.0.0.1:4566` / `us-east-1` | AWS emulator and region used by the web UI's AWS page |
 | `CAPACITYLAB_AWS_LIVE` | `false` | `true` lets the web UI read a real AWS account with your normal credentials (read calls only) |
+| `CAPACITYLAB_GCP_PROJECT` / `CAPACITYLAB_GCP_ENDPOINT` / `CAPACITYLAB_GCP_LIVE` | `capacitylab-demo` / `http://127.0.0.1:4588` / `false` | Google Cloud project, emulator and live switch for the web UI's Google Cloud page |
+| `CAPACITYLAB_AZURE_SUBSCRIPTION` / `..._RESOURCE_GROUP` / `..._ENGINE` | `demo-subscription` / `capacitylab-demo` / `mysql` | Azure scope and flexible server engine for the web UI's Azure page |
+| `CAPACITYLAB_AZURE_ENDPOINT` / `CAPACITYLAB_AZURE_LIVE` | `http://127.0.0.1:4577` / `false` | Azure emulator and live switch |
 | `CAPACITYLAB_RUNS_DIR` | `runs` | Run logs, lab results, imports, spend ledger |
 
 </details>
@@ -941,14 +1147,17 @@ src/capacitylab/
   evaluation/      replay and comparison
   importers.py     slow log, digest, plan, CloudWatch, and Percona Toolkit importers
   aws_import.py    RDS, CloudWatch, Pricing and Cost Explorer through boto3; emulator by default, --live for AWS
+  gcp_import.py    Cloud SQL and Cloud Monitoring through their REST APIs
+  azure_import.py  flexible servers, Azure Monitor, retail prices and Cost Management through their REST APIs
+  cloud_common.py  shared naming, safety checks, slot series and a small JSON client
   spend.py         spend ledger
   web/             FastAPI pages, SVG charts
   data/scenarios/  campaign-overlap, downsize-reader
-tests/             162 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
+tests/             172 run by default; 7 need the MySQL container (2 also the Percona image), 1 the PostgreSQL
                    container, 1 a seeded Floci emulator; 1 calls a real model and is opt-in
   data/percona/    real Percona Toolkit output captured from the lab, used by the parser tests
 scripts/           screenshot and GIF capture, Floci seed data
-docs/              provenance and release checklist, evaluation method, screenshots
+docs/              evaluation method, screenshots
 ```
 
 </details>
@@ -961,9 +1170,9 @@ docs/              provenance and release checklist, evaluation method, screensh
 |---|---|
 | Both scenarios end to end with scripted roles, on SQLite and MySQL 8.0 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Lab runs and reviews that use them: MySQL with and without Percona Toolkit 3.7.1, PostgreSQL 17 | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
-| Importers, AWS import against Floci, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
+| Importers, AWS import against Floci, GCP and Azure imports against recorded responses, spend limit, replay, comparison, web UI, leftover-reference scan | ![verified](https://img.shields.io/badge/-verified-127a55?style=flat-square) |
 | Five-agent review with an LLM (Claude Opus 5 and Sonnet 5) | ![verified](https://img.shields.io/badge/-verified%3A%20production--scale%2C%202%20rounds-127a55?style=flat-square) |
-| CI on GitHub (Python 3.11, 3.12, MySQL 8.0 job, PostgreSQL 17 job) | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
+| CI on GitHub: lint and tests (Python 3.11, 3.12) on every change; MySQL 8.0, PostgreSQL 17 and the three cloud emulators as an on-request workflow | ![passing](https://img.shields.io/badge/-passing-127a55?style=flat-square) |
 
 **Limitations**
 
@@ -992,13 +1201,53 @@ docs/              provenance and release checklist, evaluation method, screensh
 | **PostgreSQL in reviews** | Index and rewrite experiments on PostgreSQL during a review (today they run on SQLite or MySQL), `pg_stat_monitor`, and importers for `auto_explain` and `pg_stat_statements` exports. |
 | **`pt-index-usage`** | It runs against the lab but reported nothing useful yet, so it is not wired in. |
 
+## Signing in
+
+The UI is open when no password is set, which is what you want on `127.0.0.1`. Set one and every page needs a session:
+
+```bash
+capacitylab hash-password          # prints the two lines to paste into .env
+capacitylab serve --port 8765
+```
+
+<p align="center">
+  <img src="docs/media/login.png" alt="The CapacityLab sign-in page: a password field and a note saying the hash comes from capacitylab hash-password" width="420">
+</p>
+
+It stores a PBKDF2-SHA256 hash, never the password, compares in constant time, and issues a signed cookie carrying
+only an expiry. Wrong guesses are rate limited, and `serve` refuses any address other than localhost while no password
+is set, rather than exposing every run to whoever can reach the port. `CAPACITYLAB_SESSION_SECRET` keeps sessions
+valid across restarts; without it everyone is signed out when the process stops.
+
+## Contributing
+
+Bug reports and proposals are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first, which says what fits, how to set
+up, and the house rules the tests enforce. Security problems go through [SECURITY.md](SECURITY.md), never a public
+issue. Everyone taking part is held to the [code of conduct](CODE_OF_CONDUCT.md). What has changed is in
+[CHANGELOG.md](CHANGELOG.md).
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/pip install -e ".[dev,all]"
+make check          # lint, tests, a demo run, replay, and the identifier scan
+make check-containers   # the suites that need Docker: MySQL, PostgreSQL, and the three cloud emulators
+```
+
 ## License
 
-[Apache License 2.0](LICENSE). Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and
-PostgreSQL (PostgreSQL License) run from their own Docker images as separate programs and are not included or modified here. The files under
-`tests/data/percona/` are Percona Toolkit output captured from the synthetic lab dataset.
+[GNU Affero General Public License, version 3 or later](LICENSE) (`AGPL-3.0-or-later`). You may read, run, modify and
+share CapacityLab; if you distribute it or run a modified version as a network service, the AGPL asks you to publish
+your changes under the same license. If you host it for others, set `CAPACITYLAB_SOURCE_URL` to where your version's
+source can be fetched, and the web UI will link to it in the footer.
 
----
+**Commercial use.** If the AGPL does not suit you, for example to embed CapacityLab in a closed product or to offer it
+as a hosted service without publishing your changes, a separate commercial license is available. The copyright is held
+by one author, so it can be granted.
 
-<sub>All scenarios, tenants, clusters, and figures in this project are synthetic. Product names are trademarks of their
-owners and are used descriptively.</sub>
+**Contact.** Open an issue at [github.com/cris-wendler/capacitylab/issues](https://github.com/cris-wendler/capacitylab/issues) for questions about the
+project, or the contact details on [@cris-wendler](https://github.com/cris-wendler) for licensing.
+
+Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and PostgreSQL (PostgreSQL License) run
+from their own Docker images as separate programs and are not included or modified here. The Floci, floci-gcp and
+floci-az emulators (MIT) are used the same way. Python dependencies keep their own licenses and are not redistributed.
+

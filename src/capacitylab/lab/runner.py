@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Run lab phases for a scenario and turn the measurements into evidence items."""
 
 from __future__ import annotations

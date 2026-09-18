@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tool registry. Stakeholders request tools; the orchestrator executes them deterministically.
 
 Each successful call produces a new evidence item whose provenance reflects how it was produced:
@@ -137,6 +138,27 @@ def _capacity_forecast(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOu
     )
 
 
+def _load_attribution(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:
+    """Who is causing the load in the slots that breach: statements, tenants, and the batch job."""
+    from capacitylab.capacity.attribution import attribute
+
+    option_id = args.get("option_id") or "OPT-KEEP"
+    if option_id not in {o.id for o in env.scenario.options}:
+        raise ValueError(f"unknown option {option_id}")
+    ctx = build_context(env.scenario, env.bundle)
+    result = attribute(ctx, option_id, env.effects, only_breached=not args.get("all_slots"))
+    return ToolOutcome(
+        title=f"Load attribution for {option_id} ({result.window})",
+        data=result.as_dict(),
+        cited=sorted(set(ctx.evidence_ids)),
+        caveats=["Shares are of modeled CPU demand, from each statement's forecast rate and its cost per execution; "
+                 "they are only as good as those inputs.",
+                 "Attribution stops at the statement and the tenant: which service or code path issues a statement is "
+                 "not in this evidence.",
+                 "The remedies listed are the ones the shape of the load makes worth considering, not a decision."],
+    )
+
+
 def _cost_estimate(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:
     ctx = build_context(env.scenario, env.bundle)
     option_ids = _list(args, "option_ids", [o.id for o in env.scenario.options])
@@ -197,8 +219,23 @@ def _index_experiment(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOut
 def _rewrite_equivalence(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:
     rewrite_ids = _list(args, "rewrite_ids", list(fx.REWRITES))
     result = experiments.rewrite_equivalence(env.sandbox(), rewrite_ids)
+    exponent = env.assumption("A-CPU-ROWS-EXPONENT", 0.8)
+
+    def register(evidence_id: str) -> None:
+        """Make each rewrite modelable, so it can be compared with buying capacity rather than only discussed."""
+        for rid, r in result["rewrites"].items():
+            ratio = r["work_ratio"]
+            multiplier = round(ratio ** exponent, 4) if ratio else 1.0
+            env.effects[rid] = OptimizationEffect(
+                index_candidate=rid, kind="rewrite",
+                cpu_multiplier_by_fingerprint={r["original"]: multiplier},
+                equivalent=r["equivalent_on_fixtures"],
+                evidence_ids=[evidence_id],
+            )
+
     return ToolOutcome(title="Rewrite equivalence: " + ", ".join(rewrite_ids), data=result, cited=[],
-                       caveats=[result["caveat"]])
+                       caveats=[result["caveat"], "Production translation uses assumption A-CPU-ROWS-EXPONENT."],
+                       after_created=register)
 
 
 def _explain_query(env: ToolEnvironment, args: dict, role: RoleId) -> ToolOutcome:
@@ -301,6 +338,11 @@ TOOLS: dict[str, ToolSpec] = {
                  {"option_ids": "list of option ids (default: all)",
                   "assumption_overrides": "object mapping assumption id to number, for sensitivity analysis"},
                  EvidenceKind.CALCULATION, Provenance.MODELED, _capacity_forecast),
+        ToolSpec("load_attribution",
+                 "Break the breaching slots down by statement, tenant and batch job, to see what is causing them.",
+                 {"option_id": "option to attribute under (default OPT-KEEP)",
+                  "all_slots": "true to include slots that do not breach"},
+                 EvidenceKind.CALCULATION, Provenance.MODELED, _load_attribution),
         ToolSpec("cost_estimate", "Cost deltas and budget headroom for options.",
                  {"option_ids": "list of option ids (default: all)"},
                  EvidenceKind.CALCULATION, Provenance.MODELED, _cost_estimate),

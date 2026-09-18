@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Bounded, round-based stakeholder deliberation with tool execution between rounds."""
 
 from __future__ import annotations

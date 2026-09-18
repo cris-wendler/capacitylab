@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Scan the project for identities and internal references that must not ship.
 
 Generic rules always run. Two optional files, both git-ignored, add project-specific checks without

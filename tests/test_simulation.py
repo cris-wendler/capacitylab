@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from dataclasses import dataclass
 
 from capacitylab.evidence.bundle import EvidenceBundle

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Deterministic evaluation of decision options over the scenario horizon.
 
 Every number produced here is a MODELED outcome derived from scenario assumptions, evidence items,
@@ -8,6 +9,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -27,11 +29,17 @@ from capacitylab.workload.generator import Surge, generate
 
 
 class OptimizationEffect(BaseModel):
-    """Effect of an index candidate, derived from a sandbox experiment and translated by an assumption."""
+    """Effect of an index candidate or a query rewrite, measured in the sandbox and translated by an assumption.
 
-    index_candidate: str
+    A rewrite also carries whether it returned the same rows as the original on the edge-case fixtures. A rewrite that
+    did not is never modeled as a benefit, however much work it saves: changing the answer is not an optimization.
+    """
+
+    index_candidate: str  # the index candidate or the rewrite id
+    kind: Literal["index", "rewrite"] = "index"
     cpu_multiplier_by_fingerprint: dict[str, float] = Field(default_factory=dict)
     index_storage_gib: float = 0.0
+    equivalent: bool | None = None  # rewrites only: same rows as the original on the fixtures
     evidence_ids: list[str] = Field(default_factory=list)
     basis: str = "measured_local_translated"
 
@@ -285,6 +293,28 @@ def _resolve(option: OptionSpec, ctx: ModelContext, effects: dict[str, Optimizat
             if card:
                 plan.cost_month += storage_cost_month(card, effect.index_storage_gib)
             plan.events.append(f"online index build for {candidate} (~{effect.index_storage_gib} GiB modeled)")
+    elif kind == "optimize_rewrite":
+        candidate = p["rewrite_id"]
+        effect = effects.get(candidate)
+        if effect is None:
+            plan.unknowns.append(
+                f"No measured effect for {candidate}; benefit is NOT applied until a rewrite equivalence check runs."
+            )
+        elif effect.equivalent is False:
+            plan.unknowns.append(
+                f"{candidate} did not return the same rows as the original on the fixtures, so no benefit is applied: "
+                "a rewrite that changes the answer is not an optimization."
+            )
+            plan.evidence_ids.extend(effect.evidence_ids)
+        else:
+            plan.effects.append(effect)
+            plan.evidence_ids.extend(effect.evidence_ids)
+            plan.events.append(f"query rewrite {candidate} ships with the application, so it needs a release, not a "
+                               "database change")
+            plan.unknowns.append(
+                f"Equivalence for {candidate} was checked on sandbox fixtures, which is evidence and not proof; "
+                "production data can hold shapes the fixtures do not."
+            )
     elif kind == "reschedule_batch":
         if not ctx.batch:
             raise ValueError(f"option {option.id} reschedules a batch job but the scenario has none")

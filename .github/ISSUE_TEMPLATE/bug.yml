@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work as the README or --help says it does
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Security problem? Do not post it here. Use the Security tab, \"Report a vulnerability\". See SECURITY.md."
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran and what came back. Paste the output rather than describing it.
+      render: shell
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes:
+      label: Version and Python
+      description: "Output of: python -c 'import capacitylab; print(capacitylab.__version__)' and python --version"
+    validations: {required: true}
+  - type: checkboxes
+    id: data
+    attributes:
+      label: Before you post
+      options:
+        - label: I removed anything identifying from the output (host names, instance names, tenant names, account ids)
+          required: true

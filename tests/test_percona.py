@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Percona Toolkit parsing and command construction, using real output captured from the local lab."""
 
 import json

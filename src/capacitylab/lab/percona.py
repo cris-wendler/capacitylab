@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Percona Toolkit against the local MySQL lab, run from the official container image.
 
 Each tool runs in a throwaway container that joins the lab container's network namespace, so it can only reach

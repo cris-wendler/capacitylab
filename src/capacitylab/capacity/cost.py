@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Deterministic cost arithmetic. Rates come only from a rate card evidence item, never from a model."""
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from capacitylab.evidence.models import EvidenceItem
 
-AWS_PRICE_SOURCES = ("aws:pricing:", "floci:pricing:")
+AWS_PRICE_SOURCES = ("aws:pricing:", "floci:pricing:", "azure:retail-prices:")  # imported cloud prices
 
 
 class RateCard(BaseModel):

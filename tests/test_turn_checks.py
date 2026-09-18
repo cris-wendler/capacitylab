@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Checks tightened after the first run with a real model: lab tools without a lab, numbers written as text."""
 
 from capacitylab.simulation.roles import ROLES, RoleId, visible_evidence

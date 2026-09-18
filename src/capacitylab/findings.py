@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Findings computed from a scenario's evidence alone, before any review runs.
 
 Each finding names the evidence it rests on and says what it is: a measurement, a model output, or a
@@ -8,6 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from capacitylab.capacity.attribution import attribute
 from capacitylab.capacity.entitlements import LEVERS, tenant_entitlement_review
 from capacitylab.capacity.options import build_context, evaluate_all
 from capacitylab.diagnostics.analysis import bottleneck_classifier, table_growth_review, tenant_skew
@@ -33,6 +35,26 @@ class Finding(BaseModel):
 def _first(bundle: EvidenceBundle, kind: EvidenceKind):
     items = list(bundle.by_kind(kind))
     return items[0] if items else None
+
+
+def _cause_finding(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
+    """What is behind the breaching slots, so the remedy can follow the cause instead of defaulting to capacity."""
+    ctx = build_context(scenario, bundle)
+    result = attribute(ctx)
+    if not result.causes or not result.slots:
+        return []
+    worst = result.worst
+    top = ", ".join(f"{s.name} {s.pct:g}%" for s in worst.by_statement[:3])
+    tenants = ", ".join(f"{s.name} {s.pct:g}%" for s in worst.by_tenant[:2])
+    return [Finding(
+        id="FND-CAP-CAUSE", area="capacity", severity="medium",
+        headline="What is driving the busiest slots: " + ", ".join(f"{c.subject} {c.pct:g}%" for c in result.causes),
+        detail=(f"Across {len(result.slots)} slots ({result.window}), the worst is {worst.slot} at "
+                f"{worst.utilization_pct:g}% of the node. By statement: {top}. By tenant: {tenants}."),
+        recommendation="; ".join(f"{c.remedy} ({c.subject}, {c.pct:g}%, {c.confidence} confidence)"
+                                 for c in result.causes)
+                       + ". Shares are modeled from the forecast rates and each statement's cost per execution.",
+        evidence_ids=list(ctx.evidence_ids))]
 
 
 def _capacity(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
@@ -247,6 +269,7 @@ def _entitlements(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
 
 def review_findings(scenario: Scenario, bundle: EvidenceBundle) -> list[Finding]:
     """Everything the evidence already says, ordered by severity. No review run, no model calls."""
-    findings = (_capacity(scenario, bundle) + _availability(scenario, bundle) + _data_growth(bundle)
+    findings = (_capacity(scenario, bundle) + _cause_finding(scenario, bundle) + _availability(scenario, bundle)
+                + _data_growth(bundle)
                 + _contention(bundle) + _tenant_share(bundle) + _entitlements(scenario, bundle))
     return sorted(findings, key=lambda f: (SEVERITY_ORDER.get(f.severity, 3), AREAS.index(f.area)))

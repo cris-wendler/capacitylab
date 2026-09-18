@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Seeded synthetic workload generator.
 
 Produces per-slot, per-tenant statement rates. Identical inputs always produce identical output

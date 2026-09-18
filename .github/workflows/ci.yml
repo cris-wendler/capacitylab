@@ -1,8 +1,24 @@
 name: CI
 
+# The cheap checks: lint, the test suite and the mock demo, on every change. Runs once per change (a push to a branch
+# is covered by its pull request), cancels a superseded run, and skips documentation-only changes. The jobs that start
+# database and cloud-emulator containers cost several times as much, so they live in containers.yml and run on request.
 on:
   push:
+    branches: [main]  # feature branches are covered by their pull request; running both doubles the minutes
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE*"
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -33,103 +49,3 @@ jobs:
           capacitylab replay runs/ci-campaign.json
           capacitylab run downsize-reader --provider mock --out runs/ci-downsize.json --quiet
           capacitylab scan
-
-  mysql-sandbox:
-    name: Engine-matched sandbox (MySQL 8.0)
-    runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: ci-only-password
-          MYSQL_DATABASE: capacitylab_sandbox
-        ports:
-          - 3307:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-only-password --silent"
-          --health-interval=5s --health-timeout=3s --health-retries=40
-    env:
-      CAPACITYLAB_TEST_MYSQL: "1"
-      CAPACITYLAB_MYSQL_HOST: 127.0.0.1
-      CAPACITYLAB_MYSQL_PORT: "3307"
-      CAPACITYLAB_MYSQL_USER: root
-      CAPACITYLAB_MYSQL_PASSWORD: ci-only-password
-      CAPACITYLAB_MYSQL_DATABASE: capacitylab_sandbox
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-      - name: Install
-        run: pip install -e ".[dev,mysql]"
-      - name: Sandbox check
-        run: capacitylab sandbox-check --sandbox mysql
-      # Percona tests join the lab container's network namespace, which a GitHub service container name does not
-      # provide; they skip here unless a container named capacitylab-* is present.
-      - name: MySQL sandbox and lab tests
-        run: pytest -m mysql tests/test_mysql_sandbox.py tests/test_lab_mysql.py
-      - name: Short lab run
-        run: capacitylab lab run campaign-overlap --duration 5 --qps 100 --out runs/ci-lab.yaml
-
-  postgres-lab:
-    name: PostgreSQL 17 lab
-    runs-on: ubuntu-latest
-    env:
-      CAPACITYLAB_TEST_POSTGRES: "1"
-      CAPACITYLAB_POSTGRES_PASSWORD: ci-only-password
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-      # Started with docker run rather than as a service: pg_stat_statements must be preloaded at server start.
-      - name: Start PostgreSQL
-        run: |
-          docker run -d --name capacitylab-sandbox-postgres -p 127.0.0.1:5433:5432 \
-            -e POSTGRES_PASSWORD=ci-only-password -e POSTGRES_DB=capacitylab_sandbox postgres:17-alpine \
-            postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all
-          for i in $(seq 1 40); do docker exec capacitylab-sandbox-postgres pg_isready -U postgres && break; sleep 2; done
-      - name: Install
-        run: pip install -e ".[dev,postgres]"
-      - name: PostgreSQL lab tests
-        run: pytest -m postgres tests/test_postgres_lab.py
-      - name: Short lab run
-        run: capacitylab lab run campaign-overlap --engine postgres --duration 5 --qps 100 --out runs/ci-pg-lab.yaml
-
-  aws-import:
-    name: AWS import (Floci emulator)
-    runs-on: ubuntu-latest
-    env:
-      CAPACITYLAB_TEST_FLOCI: "1"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-      - name: Start Floci
-        run: |
-          docker run -d --name capacitylab-floci -p 127.0.0.1:4566:4566 \
-            -v /var/run/docker.sock:/var/run/docker.sock floci/floci:2.1.0
-          for i in $(seq 1 60); do docker logs capacitylab-floci 2>&1 | grep -q "Ready" && break; sleep 2; done
-      - name: Install
-        run: pip install -e ".[dev,aws]"
-      - name: Seed the emulator
-        run: python scripts/floci_seed.py
-      - name: AWS import tests
-        run: pytest -m aws tests/test_aws_import.py
-      - name: Import through the CLI and use it in a review
-        run: |
-          capacitylab import aws --instance demo-writer --label "floci demo" --out runs/ci-aws.yaml
-          capacitylab run campaign-overlap --provider mock --evidence runs/ci-aws.yaml --out runs/ci-aws-run.json --quiet
-      - name: Keep the imported evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: floci-import
-          path: runs/ci-aws.yaml
-          retention-days: 14
-      - name: Floci logs on failure
-        if: failure()
-        run: docker logs capacitylab-floci 2>&1 | tail -80

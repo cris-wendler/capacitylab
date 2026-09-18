@@ -1,9 +1,12 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The real provider path, exercised with a fake SDK client (no network, no credentials)."""
 
 import json
 from types import SimpleNamespace
 
 import pytest
+
+pytest.importorskip("anthropic", reason="pip install -e '.[anthropic]' to run these")
 
 from capacitylab.scenarios.state import RunStatus
 from capacitylab.simulation.orchestrator import Orchestrator

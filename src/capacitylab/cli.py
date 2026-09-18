@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Command-line interface."""
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from capacitylab import __version__
 from capacitylab.settings import Settings, load_dotenv
 
 
@@ -289,6 +291,8 @@ def cmd_import(args, settings) -> int:
 
     if args.kind == "aws":
         return _import_aws(args, write_evidence, load_evidence_file)
+    if args.kind in ("gcp", "azure"):
+        return _import_gcp_azure(args, write_evidence, load_evidence_file)
     if not args.file:
         print(f"error: import {args.kind} needs a file", file=sys.stderr)
         return 1
@@ -351,6 +355,10 @@ def _import_aws(args, write_evidence, load_evidence_file) -> int:
     except (botocore.exceptions.ClientError, botocore.exceptions.NoCredentialsError) as exc:
         print(f"error: AWS call failed ({type(exc).__name__}: {str(exc).splitlines()[0]})", file=sys.stderr)
         return 4
+    return _write_cloud_import(result, args, "AWS", write_evidence, load_evidence_file)
+
+
+def _write_cloud_import(result, args, cloud: str, write_evidence, load_evidence_file) -> int:
     out = Path(args.out)
     existing = load_evidence_file(out) if out.is_file() else []
     clash = {e.id for e in existing} & {i.id for i in result.items}
@@ -363,8 +371,53 @@ def _import_aws(args, write_evidence, load_evidence_file) -> int:
         print(f"{item.id}: {item.kind.value}, {item.title}")
     for reason in result.skipped:
         print(f"skipped {reason}")
-    print(f"{len(result.items)} items from {'AWS' if args.live else 'the emulator'} -> {out}")
+    print(f"{len(result.items)} items from {cloud if args.live else 'the emulator'} -> {out}")
     return 0
+
+
+def _import_gcp_azure(args, write_evidence, load_evidence_file) -> int:
+    from capacitylab.cloud_common import CloudApiError, UnsafeCloudTarget
+
+    if not args.instance:
+        print(f"error: import {args.kind} needs --instance (the Cloud SQL instance or flexible server name)", file=sys.stderr)
+        return 1
+    cloud, start = (("Google Cloud", "docker compose --profile gcp up -d floci-gcp") if args.kind == "gcp"
+                    else ("Azure", "docker compose --profile azure up -d floci-az"))
+    try:
+        if args.kind == "gcp":
+            from capacitylab.gcp_import import EMULATOR_ENDPOINT, GcpTarget, import_gcp
+
+            if not args.project:
+                print("error: import gcp needs --project", file=sys.stderr)
+                return 1
+            target = GcpTarget(project=args.project, live=args.live,
+                               endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+            result = import_gcp(target, args.instance, hours=args.hours, period_s=args.period or 300, label=args.label)
+        else:
+            from capacitylab.azure_import import EMULATOR_ENDPOINT, AzureTarget, import_azure
+
+            if not (args.subscription and args.resource_group):
+                print("error: import azure needs --subscription and --resource-group", file=sys.stderr)
+                return 1
+            target = AzureTarget(subscription=args.subscription, resource_group=args.resource_group,
+                                 engine=args.db_engine, live=args.live,
+                                 endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+            result = import_azure(target, args.instance, hours=args.hours, period_s=args.period or 300,
+                                  label=args.label, include_cost=not args.no_cost)
+    except UnsafeCloudTarget as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except ImportError as exc:
+        print(f"error: --live needs the {args.kind} extra: pip install -e '.[{args.kind}]' ({exc.name})", file=sys.stderr)
+        return 4
+    except CloudApiError as exc:
+        print(f"error: {args.kind} API call failed ({exc})", file=sys.stderr)
+        return 4
+    except OSError as exc:
+        print(f"error: could not reach the {'API' if args.live else 'emulator'} ({exc}). Start it: {start}",
+              file=sys.stderr)
+        return 4
+    return _write_cloud_import(result, args, cloud, write_evidence, load_evidence_file)
 
 
 def cmd_findings(args, settings) -> int:
@@ -393,12 +446,165 @@ def cmd_spend(args, settings) -> int:
     return 0
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
 def cmd_serve(args, settings) -> int:
     import uvicorn
 
     from capacitylab.web.app import create_app
+    from capacitylab.web.auth import Auth
 
+    auth = Auth.from_settings(settings)
+    if args.host not in LOCAL_HOSTS and not auth.required:
+        print(f"error: refusing to serve on {args.host} with no password set. Anyone who can reach that address would "
+              "see every run and could start new ones.\n"
+              "  set one:  capacitylab hash-password   then put the line it prints in .env\n"
+              "  or serve on 127.0.0.1 (the default) and reach it through an SSH tunnel.", file=sys.stderr)
+        return 2
+    if auth.required and auth.secret_is_ephemeral:
+        print("note: CAPACITYLAB_SESSION_SECRET is not set, so everyone is signed out when this process restarts.",
+              file=sys.stderr)
+    if not auth.required:
+        print("note: no password set, so the UI is open to anyone who can reach it on this machine.", file=sys.stderr)
     uvicorn.run(create_app(settings), host=args.host, port=args.port)
+    return 0
+
+
+def cmd_hash_password(args, settings) -> int:
+    """Turn a password into the hash to put in .env. The password itself is never printed or stored."""
+    import getpass
+    import secrets
+
+    from capacitylab.web.auth import hash_password
+
+    password = args.password or getpass.getpass("Password for the web UI: ")
+    if not args.password and password != getpass.getpass("Again: "):
+        print("error: the two entries do not match", file=sys.stderr)
+        return 1
+    if len(password) < 10:
+        print("error: use at least 10 characters", file=sys.stderr)
+        return 1
+    print("\nAdd these two lines to .env (it is git-ignored):\n")
+    print(f"CAPACITYLAB_WEB_PASSWORD_HASH={hash_password(password)}")
+    print(f"CAPACITYLAB_SESSION_SECRET={secrets.token_hex(32)}")
+    print("\nThe second keeps sessions valid across restarts. Neither line contains the password.")
+    return 0
+
+
+def _history_store(args, settings):
+    from capacitylab.history import History
+
+    return History(args.store or Path(settings.runs_dir) / "history.db")
+
+
+def _collect_target(args):
+    """The cloud target for `history collect`, refusing a real account unless --live was asked for."""
+    if args.cloud == "aws":
+        from capacitylab.aws_import import EMULATOR_ENDPOINT, AwsTarget
+
+        return AwsTarget(region=args.region, live=args.live,
+                         endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+    if args.cloud == "gcp":
+        from capacitylab.gcp_import import EMULATOR_ENDPOINT, GcpTarget
+
+        if not args.project:
+            raise ValueError("history collect gcp needs --project")
+        return GcpTarget(project=args.project, live=args.live,
+                         endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+    from capacitylab.azure_import import EMULATOR_ENDPOINT, AzureTarget
+
+    if not (args.subscription and args.resource_group):
+        raise ValueError("history collect azure needs --subscription and --resource-group")
+    return AzureTarget(subscription=args.subscription, resource_group=args.resource_group, engine=args.db_engine,
+                       live=args.live, endpoint_url=None if args.live else (args.endpoint or EMULATOR_ENDPOINT))
+
+
+def cmd_history_collect(args, settings) -> int:
+    from capacitylab.cloud_common import CloudApiError, UnsafeCloudTarget
+    from capacitylab.history.collect import COLLECTORS
+
+    with _history_store(args, settings) as history:
+        try:
+            result = COLLECTORS[args.cloud](history, _collect_target(args), args.instance, hours=args.hours,
+                                            period_s=args.period, label=args.label)
+        except (UnsafeCloudTarget, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        except ImportError as exc:
+            print(f"error: --live needs the {args.cloud} extra: pip install -e '.[{args.cloud}]' ({exc.name})",
+                  file=sys.stderr)
+            return 4
+        except (CloudApiError, OSError) as exc:
+            print(f"error: could not collect from {args.cloud} ({exc})", file=sys.stderr)
+            return 4
+        window = f"{result.window_start:%Y-%m-%d %H:%M} to {result.window_end:%Y-%m-%d %H:%M} UTC"
+        print(f"{result.cluster_key}: {result.written} new samples ({result.already_held} already held) "
+              f"from {result.source}")
+        print(f"  window {window}; nodes {', '.join(result.nodes) or 'none'}; "
+              f"metrics {', '.join(result.metrics) or 'none'}")
+        if result.note:
+            print(f"  note: {result.note}")
+        stale = history.stale_for(result.cluster_key, now=result.window_end)
+        if stale is not None:
+            print(f"  newest sample is {stale.total_seconds() / 60:.0f} min old")
+    return 0
+
+
+def cmd_history_status(args, settings) -> int:
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC)
+    with _history_store(args, settings) as history:
+        clusters = history.clusters()
+        if not clusters:
+            print("no history yet; collect some: capacitylab history collect aws --instance <name>")
+            return 0
+        for cluster in clusters:
+            label = f" ({cluster.label})" if cluster.label else ""
+            print(f"{cluster.key}{label}: {cluster.cloud or 'unknown cloud'}, {cluster.engine or 'unknown engine'}")
+            days = (cluster.last_seen - cluster.first_seen).total_seconds() / 86400
+            print(f"  collected over {days:.1f} days, last at {cluster.last_seen:%Y-%m-%d %H:%M} UTC")
+            for node in history.nodes(cluster.key):
+                print(f"  {node['role']}: {node['instance_class'] or 'unknown class'}"
+                      + (f", {node['vcpu']} vCPU" if node['vcpu'] else ""))
+            for metric, role, count in history.metrics(cluster.key):
+                gaps = history.gaps(cluster.key, metric, role, since=now - timedelta(days=7))
+                missing = f", {len(gaps)} gaps in the last 7 days" if gaps else ""
+                print(f"  {metric} on {role}: {count} samples{missing}")
+            stale = history.stale_for(cluster.key, now=now)
+            if stale is not None and stale > timedelta(hours=1):
+                print(f"  WARNING nothing collected for {stale.total_seconds() / 3600:.1f} h")
+    return 0
+
+
+def cmd_history_envelope(args, settings) -> int:
+    from capacitylab.history import build_envelope
+    from capacitylab.lab.runner import write_evidence
+
+    with _history_store(args, settings) as history:
+        envelope = build_envelope(history, args.cluster, args.metric, args.role, window_days=args.window_days,
+                                  slot_minutes=args.slot_minutes)
+        if not envelope.slots:
+            print(f"no {args.metric} samples for {args.cluster} on {args.role} in the last {args.window_days} days",
+                  file=sys.stderr)
+            return 1
+        print(f"{args.cluster} {args.metric} on {args.role}: {envelope.observations} samples over "
+              f"{envelope.days_covered} days, {envelope.coverage:.0%} of the window covered")
+        print(f"half-life {envelope.half_life_days:g} days; drift: {envelope.drift.note}")
+        readiness = envelope.readiness(args.days_ahead)
+        mark = {"ready": "OK   ", "provisional": "WEIGH", "insufficient": "STOP "}[readiness.grade]
+        print(f"{mark} {readiness.sentence}")
+        print(f"\nbusiest slots ({envelope.unit or 'unitless'}; typical / high / peak)")
+        for slot in envelope.busiest(args.top):
+            thin = "  (thin evidence)" if slot.thin else ""
+            print(f"  {slot.label}  {slot.typical:>7.1f} / {slot.high:>7.1f} / {slot.peak:>7.1f}{thin}")
+        print("\nquietest slots")
+        for slot in envelope.quietest(args.top):
+            print(f"  {slot.label}  {slot.typical:>7.1f} / {slot.high:>7.1f} / {slot.peak:>7.1f}")
+        if args.out:
+            item = envelope.to_evidence(name=args.name)
+            print(f"\n{item.id} written to {write_evidence([item], args.out)}")
     return 0
 
 
@@ -431,6 +637,8 @@ def cmd_sandbox_check(args, settings) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="capacitylab", description="Stakeholder simulation for database capacity decisions")
+    parser.add_argument("--version", action="version",
+                        version=f"capacitylab {__version__} (Python {sys.version.split()[0]})")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("scenarios", help="list scenarios").set_defaults(func=cmd_scenarios)
 
@@ -493,7 +701,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("import", help="build evidence from your own exports")
     p.add_argument("kind", choices=["slowlog", "digest", "plan", "metrics", "pt-query-digest", "pt-duplicate-keys",
-                                    "pt-deadlocks", "aws"],
+                                    "pt-deadlocks", "aws", "gcp", "azure"],
                    help="pt-query-digest: --output json; pt-duplicate-keys: pt-duplicate-key-checker text; "
                         "pt-deadlocks: pt-deadlock-logger --tab; aws: read RDS, CloudWatch, Pricing and Cost Explorer "
                         "(a local emulator unless --live)")
@@ -508,13 +716,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fingerprint", help="plan: statement id the plan belongs to")
     p.add_argument("--unit", help="metrics: unit label")
     p.add_argument("--period", type=int, help="metrics and aws: period in seconds (default 60 for metrics, 300 for aws)")
-    p.add_argument("--instance", help="aws: DB instance identifier (used for the API calls only, never stored)")
+    p.add_argument("--instance", help="aws, gcp, azure: DB instance, Cloud SQL instance or flexible server name "
+                                      "(used for the API calls only, never stored)")
+    p.add_argument("--project", help="gcp: project id (never stored)")
+    p.add_argument("--subscription", help="azure: subscription id (never stored)")
+    p.add_argument("--resource-group", help="azure: resource group (never stored)")
+    p.add_argument("--db-engine", choices=["mysql", "postgres"], default="mysql", help="azure: flexible server engine")
     p.add_argument("--region", default="us-east-1", help="aws: region (default us-east-1)")
     p.add_argument("--hours", type=float, default=24.0, help="aws: metric window ending now (default 24)")
-    p.add_argument("--endpoint", default=None, help="aws: emulator endpoint (default http://127.0.0.1:4566)")
+    p.add_argument("--endpoint", default=None, help="emulator endpoint (default: 4566 Floci, 4588 floci-gcp, 4577 floci-az)")
     p.add_argument("--live", action="store_true",
-                   help="aws: read a real AWS account with your normal credentials; read-only calls")
-    p.add_argument("--no-cost", action="store_true", help="aws: skip Cost Explorer (it is billed per request on AWS)")
+                   help="aws, gcp, azure: read a real account with your normal credentials; read-only calls")
+    p.add_argument("--no-cost", action="store_true", help="aws, azure: skip the cost API (it may bill per request)")
     p.set_defaults(func=cmd_import)
 
     sub.add_parser("spend", help="show recorded model spend against the total budget").set_defaults(func=cmd_spend)
@@ -523,6 +736,47 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8765)
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("hash-password", help="hash a password for the web UI and print the .env lines to add")
+    p.add_argument("--password", help="read from a prompt when omitted, which keeps it out of your shell history")
+    p.set_defaults(func=cmd_hash_password)
+
+    history = sub.add_parser("history", help="accumulate what a cluster does over time and read its envelope")
+    history_sub = history.add_subparsers(dest="history_command", required=True)
+
+    p = history_sub.add_parser("collect", help="append one window of metrics from a cloud to the history")
+    p.add_argument("cloud", choices=["aws", "gcp", "azure"])
+    p.add_argument("--instance", required=True, help="DB instance, Cloud SQL instance or flexible server (never stored)")
+    p.add_argument("--hours", type=float, default=3.0, help="window ending now (default 3)")
+    p.add_argument("--period", type=int, default=300, help="seconds per datapoint (default 300)")
+    p.add_argument("--label", help="a name for this cluster in `history status`; the instance name is never stored")
+    p.add_argument("--region", default=None, help="aws: region")
+    p.add_argument("--project", help="gcp: project id (never stored)")
+    p.add_argument("--subscription", help="azure: subscription id (never stored)")
+    p.add_argument("--resource-group", help="azure: resource group (never stored)")
+    p.add_argument("--db-engine", choices=["mysql", "postgres"], default="mysql", help="azure: flexible server engine")
+    p.add_argument("--endpoint", default=None, help="emulator endpoint (default: 4566 Floci, 4588 floci-gcp, 4577 floci-az)")
+    p.add_argument("--live", action="store_true", help="read a real account (read-only calls) instead of an emulator")
+    p.add_argument("--store", default=None, help="history file (default <runs dir>/history.db)")
+    p.set_defaults(func=cmd_history_collect)
+
+    p = history_sub.add_parser("status", help="what has been collected, and where the gaps are")
+    p.add_argument("--store", default=None)
+    p.set_defaults(func=cmd_history_status)
+
+    p = history_sub.add_parser("envelope", help="what this cluster reaches by hour and weekday, from its own history")
+    p.add_argument("cluster", help="cluster key from `history status`")
+    p.add_argument("--metric", default="CPUUtilization")
+    p.add_argument("--role", default="writer", help="writer (default) or reader-N")
+    p.add_argument("--window-days", type=int, default=28, help="history considered (default 28)")
+    p.add_argument("--slot-minutes", type=int, default=60, help="slot size; must divide a day (default 60)")
+    p.add_argument("--top", type=int, default=5, help="slots to show at each end (default 5)")
+    p.add_argument("--days-ahead", type=float, default=0.0,
+                   help="check whether the history reaches far enough to plan this many days ahead")
+    p.add_argument("--name", help="name used in the evidence title")
+    p.add_argument("--out", help="also write the envelope as evidence YAML")
+    p.add_argument("--store", default=None)
+    p.set_defaults(func=cmd_history_envelope)
 
     p = sub.add_parser("scan", help="scan for prohibited identities and internal references")
     p.add_argument("--root", default=".")

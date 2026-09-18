@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """A set of evidence items plus explicitly registered gaps, with contradiction detection."""
 
 from __future__ import annotations

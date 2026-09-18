@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """The decision record merges reports of the same gap instead of listing each role's wording separately."""
 
 from capacitylab.simulation.decision import group_missing_evidence

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Server-rendered SVG small multiples: modeled utilization per option over the horizon.
 
 One series per panel on a shared y-scale (no dual axes, no color-coded series), threshold and event

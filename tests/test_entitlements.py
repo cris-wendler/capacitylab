@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tenant plans against modeled consumption, at baseline and during campaigns."""
 
 from capacitylab.capacity.entitlements import status, tenant_entitlement_review

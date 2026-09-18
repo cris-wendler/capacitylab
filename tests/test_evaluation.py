@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from capacitylab.evaluation.compare import compare, rule_based_recommendation
 from capacitylab.simulation.providers.mock import MockProvider
 

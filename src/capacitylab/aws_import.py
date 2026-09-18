@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Build evidence straight from AWS APIs: RDS topology, CloudWatch metrics, on-demand prices and month-to-date cost.
 
 By default this talks to a local AWS emulator (Floci on 127.0.0.1:4566) with placeholder credentials. Reading a real

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Evidence items: every fact a stakeholder may cite, with explicit provenance."""
 
 from __future__ import annotations

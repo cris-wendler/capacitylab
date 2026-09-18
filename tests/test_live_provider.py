@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Optional live evaluation. Spends real money. Run explicitly: `pytest -m live`."""
 
 import os

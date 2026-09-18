@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Runtime configuration read from the environment (and an optional local `.env`).
 
 Secrets are only ever checked for presence; they are never logged or rendered.
@@ -71,6 +72,23 @@ class Settings:
     aws_region: str = "us-east-1"
     aws_endpoint: str = "http://127.0.0.1:4566"  # local emulator (Floci)
     aws_live: bool = False  # the web UI reads a real AWS account only when this is set explicitly
+    gcp_project: str = "capacitylab-demo"
+    gcp_endpoint: str = "http://127.0.0.1:4588"  # local emulator (floci-gcp)
+    gcp_live: bool = False
+    azure_subscription: str = "demo-subscription"
+    azure_resource_group: str = "capacitylab-demo"
+    azure_engine: str = "mysql"
+    azure_endpoint: str = "http://127.0.0.1:4577"  # local emulator (floci-az)
+    azure_live: bool = False
+    # AGPL section 13: when you host CapacityLab for other people, point this at your own source so the footer can
+    # link to it.
+    # Web UI sign-in. With no password the UI stays open, which is fine on localhost; `serve` refuses any other
+    # address without one. The hash form comes from `capacitylab hash-password`.
+    web_password: str | None = None
+    web_password_hash: str | None = None
+    session_secret: str | None = None  # without one, sessions end when the server restarts
+    session_hours: float = 12.0
+    source_url: str | None = "https://github.com/cris-wendler/capacitylab"
     runs_dir: Path = Path("runs")
 
     @classmethod
@@ -116,7 +134,20 @@ class Settings:
             aws_region=env.get("CAPACITYLAB_AWS_REGION", "us-east-1"),
             aws_endpoint=env.get("CAPACITYLAB_AWS_ENDPOINT", "http://127.0.0.1:4566"),
             aws_live=_bool(env.get("CAPACITYLAB_AWS_LIVE"), False),
+            gcp_project=env.get("CAPACITYLAB_GCP_PROJECT", "capacitylab-demo"),
+            gcp_endpoint=env.get("CAPACITYLAB_GCP_ENDPOINT", "http://127.0.0.1:4588"),
+            gcp_live=_bool(env.get("CAPACITYLAB_GCP_LIVE"), False),
+            azure_subscription=env.get("CAPACITYLAB_AZURE_SUBSCRIPTION", "demo-subscription"),
+            azure_resource_group=env.get("CAPACITYLAB_AZURE_RESOURCE_GROUP", "capacitylab-demo"),
+            azure_engine=env.get("CAPACITYLAB_AZURE_ENGINE", "mysql"),
+            azure_endpoint=env.get("CAPACITYLAB_AZURE_ENDPOINT", "http://127.0.0.1:4577"),
+            azure_live=_bool(env.get("CAPACITYLAB_AZURE_LIVE"), False),
             runs_dir=Path(env.get("CAPACITYLAB_RUNS_DIR", "runs")),
+            source_url=env.get("CAPACITYLAB_SOURCE_URL", "https://github.com/cris-wendler/capacitylab") or None,
+            web_password=env.get("CAPACITYLAB_WEB_PASSWORD") or None,
+            web_password_hash=env.get("CAPACITYLAB_WEB_PASSWORD_HASH") or None,
+            session_secret=env.get("CAPACITYLAB_SESSION_SECRET") or None,
+            session_hours=float(env.get("CAPACITYLAB_SESSION_HOURS", "12")),
         )
 
     @staticmethod

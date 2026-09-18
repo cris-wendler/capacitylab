@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from capacitylab.evidence.bundle import Contradiction, EvidenceBundle, MissingEvidence
 from capacitylab.evidence.models import Assertion, EvidenceItem, EvidenceKind, Provenance
 

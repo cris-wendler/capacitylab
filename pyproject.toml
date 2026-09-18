@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Role-based review of database capacity, reliability, and cost decisions, grounded in measured evidence"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "Apache-2.0"}
+license = {text = "AGPL-3.0-or-later"}
 dependencies = [
   "pydantic>=2.7,<3",
   "PyYAML>=6",
@@ -23,8 +23,11 @@ anthropic = ["anthropic>=1.5"]
 openai = ["openai>=1.40"]
 mysql = ["pymysql>=1.1"]
 aws = ["boto3>=1.34"]
+gcp = ["google-auth[requests]>=2.30"]
+azure = ["azure-identity>=1.17"]
 postgres = ["psycopg[binary]>=3.2"]
 dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.5"]
+all = ["capacitylab[anthropic,openai,mysql,postgres,aws,gcp,azure]"]  # every optional dependency, for the full test suite
 media = ["playwright>=1.45", "pillow>=10"]
 
 [project.scripts]
@@ -44,6 +47,8 @@ markers = [
   "mysql: requires the local MySQL sandbox (docker compose up -d --wait sandbox-mysql)",
   "postgres: requires the local PostgreSQL sandbox (docker compose up -d --wait sandbox-postgres)",
   "aws: requires a seeded local AWS emulator (docker compose --profile aws up -d floci; python scripts/floci_seed.py)",
+  "gcp: requires a seeded floci-gcp (docker compose --profile gcp up -d floci-gcp; python scripts/cloud_emulator_seed.py gcp)",
+  "azure: requires a seeded floci-az (docker compose --profile azure up -d floci-az; python scripts/cloud_emulator_seed.py azure)",
   "live: calls a real model provider and spends money",
 ]
 

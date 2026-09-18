@@ -49,3 +49,43 @@ services:
       - "127.0.0.1:4566:4566"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+  # Local Google Cloud emulator (floci-gcp, MIT): Cloud SQL for PostgreSQL and Cloud Monitoring, for `capacitylab import gcp`.
+  # It runs Cloud SQL instances as real database containers, so it needs the Docker socket. Only started with:
+  # docker compose --profile gcp up -d floci-gcp
+  floci-gcp:
+    image: floci/floci-gcp:0.9.0
+    container_name: capacitylab-floci-gcp
+    profiles: [gcp]
+    ports:
+      - "127.0.0.1:4588:4588"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # Local Azure emulator (floci-az, MIT): MySQL and PostgreSQL flexible servers, for `capacitylab import azure`.
+  # It runs flexible servers as real database containers, so it needs the Docker socket. Only started with:
+  # docker compose --profile azure up -d floci-az
+  floci-az:
+    image: floci/floci-az:0.13.0
+    container_name: capacitylab-floci-az
+    profiles: [azure]
+    ports:
+      - "127.0.0.1:4577:4577"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # Local models through an OpenAI-compatible endpoint, so a review costs nothing and nothing leaves the machine.
+  # Start it with: docker compose --profile ollama up -d ollama
+  # Then pull a model:  docker exec capacitylab-ollama ollama pull llama3.1:8b
+  # Point CapacityLab at it on the Model settings page (the "Ollama, on this machine" preset).
+  ollama:
+    image: ollama/ollama:latest
+    container_name: capacitylab-ollama
+    profiles: [ollama]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  ollama-models:

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tenant entitlements: what each tenant's plan guarantees, against the CPU share its workload takes.
 
 Consumption is modeled from the scenario workload (calls per second per tenant times CPU per call), at baseline and

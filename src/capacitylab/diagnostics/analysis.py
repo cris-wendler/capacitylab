@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Evidence-only diagnostics (no database access). Each returns (payload, cited evidence ids)."""
 
 from __future__ import annotations

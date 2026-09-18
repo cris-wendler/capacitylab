@@ -103,6 +103,10 @@ options:
     kind: optimize_index
     label: Add a composite index for the audience query
     params: {index_candidate: IDX-TENANT-DAY-CUSTOMER}
+  - id: OPT-REWRITE
+    kind: optimize_rewrite
+    label: Rewrite the audience query to a correlated EXISTS
+    params: {rewrite_id: RW-EXISTS}
   - id: OPT-RESCHEDULE
     kind: reschedule_batch
     label: Move the loyalty batch job to 01:00
@@ -115,6 +119,10 @@ options:
     kind: combined
     label: Temporary scale-up plus batch reschedule
     params: {components: [OPT-SCALE-TEMP, OPT-RESCHEDULE]}
+  - id: OPT-REWRITE-RESCHEDULE
+    kind: combined
+    label: Query rewrite plus batch reschedule
+    params: {components: [OPT-REWRITE, OPT-RESCHEDULE]}
 assumptions:
   - id: A-CAMPAIGN-MULT
     statement: Planning multiplier for Alder's campaign-sensitive statements during the sale.
@@ -149,6 +157,14 @@ assumptions:
       (abandoned carts and retries). Not measured for this tenant.
     value: 0.12
     evidence_ids: [EV-TEN-ALDER-001]
+  - id: A-AUTOSCALE-LAG
+    statement: >
+      Time automatic scaling (Aurora Serverless v2 ACUs, or any reactive autoscaler) would need to reach the capacity
+      this ramp asks for. It only adds capacity once the load is already there, so during a 5x ramp it climbs behind
+      the traffic: requests queue and time out while it is still scaling up, and the retries it triggers look like
+      further load. Never measured on this cluster, which is why pre-scaling is evaluated as its own option.
+    value: null
+    unit: s
   - id: A-FAILOVER-SECONDS
     statement: Writer failover duration during an instance class modification. Not measured for this cluster.
     value: null
@@ -162,6 +178,12 @@ missing_evidence:
     description: Index and rewrite effects can only be measured in the local sandbox; no production-like replica test exists.
     relevant_roles: [database_engineer, reliability_engineer]
     impact: Modeled optimization benefits may not transfer to production.
+  - id: GAP-AUTOSCALE-RESPONSE
+    description: >
+      No measurement exists of how quickly automatic scaling reaches the capacity a sharp ramp needs on this cluster,
+      or of what the application sees while it is still scaling.
+    relevant_roles: [reliability_engineer, database_engineer, application_owner]
+    impact: Whether reactive autoscaling could replace a decision taken before the event cannot be evaluated.
   - id: GAP-READER-ROUTING
     description: It is unknown whether the application can route the audience query to the reader.
     relevant_roles: [database_engineer, application_owner]
