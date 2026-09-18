@@ -70,3 +70,30 @@ capacitylab evaluate campaign-overlap --provider anthropic --out runs/eval-live.
 This runs two full simulations (five-role review and single reviewer), each bounded by the scenario's `max_usd` and
 `CAPACITYLAB_MAX_USD_PER_RUN`. Run it several times before drawing conclusions: model outputs vary between runs, and one
 run per approach is an anecdote, not a result.
+
+## What one live run showed
+
+`campaign-overlap`, Claude Sonnet 5, 2026-09-18, one run per approach (`runs/evaluate-campaign-sonnet.json`):
+
+| Approach | Recommendation | Breach regret | Cost regret | Root cause | Gap recall | Unsupported numbers | Open disagreements | Tool calls | Spend |
+|---|---|---:|---:|:---:|---:|---:|---:|---:|---:|
+| five-role review | `OPT-INDEX-RESCHEDULE` | 0 | $0.00 | yes | 1.0 | 5 | 7 | 16 | $2.85 |
+| single reviewer | `OPT-INDEX-RESCHEDULE` | 0 | $0.00 | yes | 0.5 | 2 | 0 | 7 | $0.64 |
+| simple rules | `OPT-SCALE-TEMP` | 0 | $128.96 | no | 0.0 | 0 | 0 | 0 | $0.00 |
+
+Read honestly:
+
+- **The decision did not need five roles.** One reviewer reached the same option for 22% of the cost. On a scenario
+  this clear, the ensemble is not what finds the answer.
+- **The difference was scepticism, not accuracy.** The five-role review flagged both hidden gaps where the single
+  reviewer flagged one, ran 16 checks against 7, and left 7 disagreements unresolved rather than papering over them.
+- **It costs more than money.** Five unsupported numbers against two: more voices produce more claims the evidence
+  does not carry. Each was flagged by the same grounding check, which is why they are countable at all.
+- **The rules were not wrong about the SLO, only about the price.** A threshold cannot distinguish a heavy query from
+  a busy cluster, so it buys capacity and misses the cause.
+- **It stopped early.** The five-role run hit the $2.80 per-run cap in round 3, so its last round is incomplete.
+
+What this does not show: whether the ensemble decides better when evidence is contested, missing or asymmetric, which
+is the case it is built for. That needs a scenario designed to punish a single confident reviewer, and several runs of
+each approach. Until then this is one data point, in favour of "use one reviewer for a clear decision, and five when
+you need to know what nobody has measured".

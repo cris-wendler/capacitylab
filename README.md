@@ -1085,6 +1085,30 @@ same for the best option under the hidden assumptions. The evening scale-up is $
 option (index and move the batch job) is $0 + 12 × $0.08 = $0.96; so $129.92 − $0.96 = $128.96. Downsizing the reader
 is $0 + 12 × −$6,774.40 = −$81,292.80 against keeping it at $0.
 
+### The same test with a real model
+
+The table above uses the scripted roles, where both sides are rules written by the same person. Run with Claude
+Sonnet 5 on `campaign-overlap`, one run each, the answer is more interesting:
+
+| Approach | Recommendation | Extra breach slots | Extra cost, 12 months | Root cause | Gaps found | Unsupported numbers | Open disagreements | Tool calls | Spend |
+|---|---|---:|---:|:---:|---:|---:|---:|---:|---:|
+| five-role review | index and move batch job | 0 | $0.00 | yes | **2 of 2** | 5 | 7 | 16 | $2.85 |
+| single reviewer | index and move batch job | 0 | $0.00 | yes | 1 of 2 | 2 | 0 | 7 | $0.64 |
+| simple rules | scale up for the evening | 0 | $128.96 | **no** | 0 of 2 | 0 | 0 | 0 | $0.00 |
+
+**One reviewer reached the same decision for a quarter of the money.** That is the honest headline, and it is worth
+saying plainly: on a decision this clear, five roles are not what finds the answer. What they added was scepticism.
+The five-role review named every gap the scenario hides, ran more than twice the checks, and left seven disagreements
+on the record; the single reviewer named half the gaps, asked fewer questions, and agreed with itself throughout. The
+rules kept the SLO and spent $128.96 more doing it, because a threshold cannot tell a heavy query from a busy cluster.
+
+It also cost the ensemble something real: five unsupported numbers against two, and the run stopped in round 3 on the
+spend cap. More voices produce more claims, and more claims that the evidence does not carry.
+
+So the case for the five roles is not accuracy, it is coverage of what nobody measured. On a harder scenario, where
+the evidence is contested or missing, that is exactly what should change the decision rather than merely decorate it.
+That test has not been run yet. One run of one scenario with one model is a data point, not a result.
+
 > [!NOTE]
 > With scripted roles, the five-role review and the single reviewer reach the same answer; the five-role review
 > additionally shows where roles disagree and why. That does not show that more roles decide better, since both sides
