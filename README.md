@@ -56,8 +56,10 @@ three. On the flash-sale scenario, with Claude Sonnet 5:
 **One agent got the same answer for a quarter of the price.** So the five are not what finds the decision - they are
 what refuses to let you assume. The rule was not wrong about the SLO, only about the bill.
 
-That is the project in one line: *every number is checkable, including the ones about itself.* Full method, caveats
-and the case it has not yet tested in [Comparison with simpler approaches](#comparison-with-simpler-approaches).
+That is the project in one line: *every number is checkable, including the ones about itself.* The scored result is
+in the repository ([docs/evaluations/campaign-overlap-sonnet-2026-09-18.json](docs/evaluations/campaign-overlap-sonnet-2026-09-18.json)),
+so the table above can be checked rather than believed. Full method, caveats and the case it has not yet tested in
+[Comparison with simpler approaches](#comparison-with-simpler-approaches).
 
 > **The question in the demo.** A tenant is about to run a flash sale on a cluster that already runs hot in the
 > evening, and a batch job starts halfway through. Scale up for the night, add an index, move the job, or a mix?
@@ -1114,6 +1116,9 @@ Sonnet 5 on `campaign-overlap`, one run each, the answer is more interesting:
 | five-role review | index and move batch job | 0 | $0.00 | yes | **2 of 2** | 5 | 7 | 16 | $2.85 |
 | single reviewer | index and move batch job | 0 | $0.00 | yes | 1 of 2 | 2 | 0 | 7 | $0.64 |
 | simple rules | scale up for the evening | 0 | $128.96 | **no** | 0 of 2 | 0 | 0 | 0 | $0.00 |
+
+Reproduce it with `capacitylab evaluate campaign-overlap --provider anthropic`; the scored result of the run above is
+committed at [docs/evaluations/campaign-overlap-sonnet-2026-09-18.json](docs/evaluations/campaign-overlap-sonnet-2026-09-18.json).
 
 **One reviewer reached the same decision for a quarter of the money.** That is the honest headline, and it is worth
 saying plainly: on a decision this clear, five roles are not what finds the answer. What they added was scepticism.

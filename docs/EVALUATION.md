@@ -73,7 +73,9 @@ run per approach is an anecdote, not a result.
 
 ## What one live run showed
 
-`campaign-overlap`, Claude Sonnet 5, 2026-09-18, one run per approach (`runs/evaluate-campaign-sonnet.json`):
+`campaign-overlap`, Claude Sonnet 5, 2026-09-18, one run per approach. The scored result is committed at
+[docs/evaluations/campaign-overlap-sonnet-2026-09-18.json](evaluations/campaign-overlap-sonnet-2026-09-18.json),
+so every figure below can be checked against it rather than taken on trust:
 
 | Approach | Recommendation | Breach regret | Cost regret | Root cause | Gap recall | Unsupported numbers | Open disagreements | Tool calls | Spend |
 |---|---|---:|---:|:---:|---:|---:|---:|---:|---:|

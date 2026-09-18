@@ -1,0 +1,119 @@
+{
+  "scenario_id": "campaign-overlap",
+  "provider": "anthropic",
+  "mocked": false,
+  "reference_assumptions": {
+    "A-CAMPAIGN-MULT": 4.2
+  },
+  "approaches": [
+    {
+      "approach": "multi_stakeholder",
+      "recommendation": "OPT-INDEX-RESCHEDULE",
+      "distinct_final_positions": [
+        "OPT-INDEX-RESCHEDULE",
+        "OPT-RESCHEDULE",
+        "OPT-SCALE-RESCHEDULE"
+      ],
+      "outcome_under_reference": {
+        "option_id": "OPT-INDEX-RESCHEDULE",
+        "total_slo_breach_slots": 0,
+        "saturated_slots": 0,
+        "slots_over_threshold": 0,
+        "peak_utilization_pct": 68.5,
+        "cost_delta_event_usd": 0.0,
+        "cost_delta_month_usd": 0.08,
+        "unknowns": 0
+      },
+      "reference_best": [
+        "OPT-INDEX-RESCHEDULE"
+      ],
+      "breach_slot_regret": 0,
+      "cost_regret_usd": 0.0,
+      "root_cause_identified": true,
+      "expected_gaps_flagged": [
+        "GAP-FAILOVER-DURATION",
+        "GAP-PROD-PLAN-VALIDATION"
+      ],
+      "gap_recall": 1.0,
+      "citation_errors": 0,
+      "ungrounded_numbers": 5,
+      "tool_calls_executed": 16,
+      "unresolved_disagreements": 7,
+      "spend_usd": 2.84701,
+      "notes": [
+        "Scored on the plurality position (3 of 5 roles); CapacityLab itself reports positions, not a vote.",
+        "Run ended with status budget_exhausted: Stopped before application_owner in round 3: projected spend $3.08 exceeds the $2.80 limit."
+      ]
+    },
+    {
+      "approach": "single_agent",
+      "recommendation": "OPT-INDEX-RESCHEDULE",
+      "distinct_final_positions": [
+        "OPT-INDEX-RESCHEDULE"
+      ],
+      "outcome_under_reference": {
+        "option_id": "OPT-INDEX-RESCHEDULE",
+        "total_slo_breach_slots": 0,
+        "saturated_slots": 0,
+        "slots_over_threshold": 0,
+        "peak_utilization_pct": 68.5,
+        "cost_delta_event_usd": 0.0,
+        "cost_delta_month_usd": 0.08,
+        "unknowns": 0
+      },
+      "reference_best": [
+        "OPT-INDEX-RESCHEDULE"
+      ],
+      "breach_slot_regret": 0,
+      "cost_regret_usd": 0.0,
+      "root_cause_identified": true,
+      "expected_gaps_flagged": [
+        "GAP-PROD-PLAN-VALIDATION"
+      ],
+      "gap_recall": 0.5,
+      "citation_errors": 0,
+      "ungrounded_numbers": 2,
+      "tool_calls_executed": 7,
+      "unresolved_disagreements": 0,
+      "spend_usd": 0.637647,
+      "notes": []
+    },
+    {
+      "approach": "rule_based",
+      "recommendation": "OPT-SCALE-TEMP",
+      "distinct_final_positions": [
+        "OPT-SCALE-TEMP"
+      ],
+      "outcome_under_reference": {
+        "option_id": "OPT-SCALE-TEMP",
+        "total_slo_breach_slots": 0,
+        "saturated_slots": 0,
+        "slots_over_threshold": 0,
+        "peak_utilization_pct": 51.5,
+        "cost_delta_event_usd": 129.92,
+        "cost_delta_month_usd": 0.0,
+        "unknowns": 1
+      },
+      "reference_best": [
+        "OPT-INDEX-RESCHEDULE"
+      ],
+      "breach_slot_regret": 0,
+      "cost_regret_usd": 128.96,
+      "root_cause_identified": false,
+      "expected_gaps_flagged": [],
+      "gap_recall": 0.0,
+      "citation_errors": 0,
+      "ungrounded_numbers": 0,
+      "tool_calls_executed": 0,
+      "unresolved_disagreements": 0,
+      "spend_usd": 0.0,
+      "notes": [
+        "peak 115.0% > 80.0%: scale temporarily"
+      ]
+    }
+  ],
+  "caveats": [
+    "Reference outcomes use the scenario's hidden assumptions inside the same capacity model; they are not real-world truth.",
+    "Reference best excludes options with unmeasured risks (unknowns); a different risk preference changes it."
+  ]
+}
