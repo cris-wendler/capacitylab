@@ -4,8 +4,9 @@
 
 Please do not open a public issue for a security problem.
 
-Report it privately through GitHub: on the repository's **Security** tab, choose **Report a vulnerability**. That
-opens a private advisory only the maintainer can see. Include what you found, how to reproduce it, and what an
+Report it privately through GitHub: [open a draft advisory](https://github.com/cris-wendler/capacitylab/security/advisories/new), or use the
+repository's **Security** tab and choose **Report a vulnerability**. That opens a private advisory only the maintainer
+can see. Include what you found, how to reproduce it, and what an
 attacker could do with it.
 
 You can expect an acknowledgement within a week, and an honest answer about whether it will be fixed and when. This is

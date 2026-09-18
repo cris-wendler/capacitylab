@@ -24,8 +24,9 @@
   <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
 </p>
 
-<!-- Add the CI badge once the repository is public:
-[![CI](https://github.com/<owner>/capacitylab/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/capacitylab/actions/workflows/ci.yml) -->
+<p align="center">
+  <a href="https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml"><img src="https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
 
 # CapacityLab
 
@@ -573,8 +574,9 @@ Each item also records where it came from: scenario data, the local lab, or an i
 Requires Python 3.11+. Docker is only needed for the labs.
 
 ```bash
+git clone https://github.com/cris-wendler/capacitylab.git && cd capacitylab
 python3.11 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,anthropic,mysql]"
+pip install -e ".[dev,anthropic,mysql]"     # or ".[dev,all]" for every optional dependency
 cp .env.example .env
 ```
 
@@ -1189,8 +1191,8 @@ source can be fetched, and the web UI will link to it in the footer.
 as a hosted service without publishing your changes, a separate commercial license is available. The copyright is held
 by one author, so it can be granted.
 
-**Contact.** Open an issue on this repository for questions about the project, or use the contact details on the
-owner's GitHub profile for licensing.
+**Contact.** Open an issue at [github.com/cris-wendler/capacitylab/issues](https://github.com/cris-wendler/capacitylab/issues) for questions about the
+project, or the contact details on [@cris-wendler](https://github.com/cris-wendler) for licensing.
 
 Third-party tools keep their own licenses: MySQL and Percona Toolkit (GPL-2.0) and PostgreSQL (PostgreSQL License) run
 from their own Docker images as separate programs and are not included or modified here. The Floci, floci-gcp and
