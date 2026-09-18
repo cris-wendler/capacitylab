@@ -56,6 +56,11 @@ three. On the flash-sale scenario, with Claude Sonnet 5:
 **One agent got the same answer for a quarter of the price.** So the five are not what finds the decision - they are
 what refuses to let you assume. The rule was not wrong about the SLO, only about the bill.
 
+That single reviewer is not a straw man: it is the same model, holding **every** piece of evidence and allowed to run
+**every** check, which is the strongest one-agent setup this repository can build. The five roles are not five
+database specialists either - they are five conflicting objectives, and one of them is shown a redacted view on
+purpose, because a tenant does not get to see the other tenants' numbers.
+
 That is the project in one line: *every number is checkable, including the ones about itself.* The scored result is
 in the repository ([docs/evaluations/campaign-overlap-sonnet-2026-09-18.json](docs/evaluations/campaign-overlap-sonnet-2026-09-18.json)),
 so the table above can be checked rather than believed. Full method, caveats and the case it has not yet tested in
@@ -74,24 +79,38 @@ so the table above can be checked rather than believed. Full method, caveats and
 
 ## Why not just let it autoscale?
 
-Because autoscaling reacts, and a known event needs a decision made before it starts.
+**Because autoscaling reacts, and an event you already know about deserves a decision made before it starts.**
 
-Automatic scaling, Aurora Serverless v2 included, watches the database and adds capacity only after the load is
-already there. **Scaling up is the problem, not just scaling down.** The traffic arrives, the scaler starts climbing
-behind it, and it spends the event chasing a target it never quite reaches: it is still adding capacity while
-checkout is already queueing, timing out and retrying. By the time it has caught up, the sale is half over and the
-carts are already abandoned. The retries make it worse, because the scaler reads them as yet more load. Scaling back
-down afterwards is slow too, so you also pay for the overshoot.
+```mermaid
+xychart-beta
+  title "A 5x evening ramp, and a reactive scaler chasing it"
+  x-axis ["17:45", "18:00", "18:15", "18:30", "18:45", "19:00", "19:15", "19:30"]
+  y-axis "CPU cores" 0 --> 80
+  line [12, 32, 54, 66, 72, 74, 74, 73]
+  line [12, 14, 22, 34, 46, 58, 68, 73]
+```
 
-For an event you know is coming, "it will scale" is a hope, not a plan. The `campaign-overlap` scenario carries this
-as an assumption nobody has measured (`A-AUTOSCALE-LAG`) and as an evidence gap (`GAP-AUTOSCALE-RESPONSE`), so the
-agents have to argue about it instead of assuming it away.
+The upper line is what the workload asks for. The lower one is capacity arriving behind it. **Everything between them
+is checkout queueing, timing out and retrying** - and those retries look like yet more load, so the scaler chases a
+target its own victims keep raising. By the time the two lines meet, the sale is half over and the carts are gone.
+Scaling back down afterwards is deliberately slower, so you pay for the overshoot as well. (Shape illustrative; the
+lag depends on the workload.)
 
-The second half is *what* the scaling decision looks at. An autoscaler sees CPU, connections and I/O. It does not know
-that a campaign starts at 18:00, that the storefront earns $1.45 million an hour while it runs, that a batch job lands
-at 19:00, or that one tenant will take a third of the cluster. CapacityLab puts those product signals next to the
-database metrics, prices each option, and shows the revenue at risk if nothing changes, so engineers can make the call
-ahead of time and have the reasoning on record afterwards.
+| 👀 What a reactive scaler sees | 🧭 What the decision actually needs |
+|---|---|
+| CPU, connections and I/O, **as they are now** | 📅 a campaign that starts at 18:00, announced weeks ago |
+| Load **after** it has arrived | 💰 $1.45M an hour at stake while it runs |
+| Retries, indistinguishable from demand | 🧑‍🤝‍🧑 one tenant about to take a third of the cluster |
+| Nothing about **why** | 🗓️ a batch job landing at 19:00, and a release that raised traffic 1.3x |
+
+CapacityLab puts those product signals beside the database metrics, prices every option, and shows the revenue at risk
+if nothing changes - so the call is made with a lead time long enough to survive a failover, and the reasoning is on
+the record afterwards.
+
+> [!NOTE]
+> This is an argument the agents have to **win, not assume**. The scenario carries "how long would autoscaling take to
+> catch up" as an unmeasured assumption (`A-AUTOSCALE-LAG`) and an evidence gap (`GAP-AUTOSCALE-RESPONSE`), so anyone
+> claiming "it would have scaled in time" has to say where that number came from.
 
 ## Contents
 
@@ -110,15 +129,16 @@ ahead of time and have the reasoning on record afterwards.
 
 | Layer | Built with | What it does here |
 |---|---|---|
-| ![](https://img.shields.io/badge/LLM%20agents-D97757?style=flat-square) | Any LLM: the Anthropic API natively, or any OpenAI-compatible endpoint (OpenAI, Gemini, Mistral, Groq, Ollama, vLLM, a LiteLLM proxy for Bedrock, Vertex or Azure). The recorded runs used Claude Opus 5 and Sonnet 5 | Each agent's turn is one Messages API call that returns JSON matching a Pydantic schema (structured outputs). Prompt caching on the evidence block, token counting before every call, reasoning effort set per role, one retry when a turn is cut off. |
-| ![](https://img.shields.io/badge/orchestration-7a5ad6?style=flat-square) | Plain Python, no agent framework | Rounds, what each role is allowed to see, checks requested between rounds, stopping when positions settle, and a run log that can be replayed. |
-| ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to the role, every number must appear in the cited evidence, requested checks must be allowed for the role, spend must fit the limits. |
-| ![](https://img.shields.io/badge/capacity%20planning-2d6cdf?style=flat-square) | M/M/c queueing model | CPU utilisation per 15 or 60 minute slot, SLO breach slots, instance options scored against each other. |
-| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model, tenant entitlements, AWS Pricing and Cost Explorer | Option costs from a rate card, on-demand RDS prices and month-to-date spend read from AWS, spend limits for the model itself, each tenant's CPU share against what its plan guarantees. |
-| ![](https://img.shields.io/badge/clouds-FF9900?style=flat-square) | AWS (boto3), Google Cloud and Azure (their REST APIs); Floci, floci-gcp and floci-az emulators | RDS topology, CloudWatch metrics, prices and cost pulled through the AWS APIs, against a local emulator by default or a real account with `--live`. |
-| ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0 and PostgreSQL 17 in Docker, SQLite, Percona Toolkit | Concurrent load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE` and `EXPLAIN (ANALYZE, BUFFERS)`, index and rewrite experiments, `pt-query-digest` and friends. |
-| ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI for scenarios, runs, lab results and comparisons; the same features on the command line. |
-| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | Unit and end-to-end tests on every change; the MySQL, PostgreSQL and cloud-emulator suites on request (`make check-containers` locally, or the Containers workflow); replay of a full run, and a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/LLM%20agents-D97757?style=flat-square) | Any LLM: the Anthropic API natively, or any OpenAI-compatible endpoint (OpenAI, Gemini, Mistral, Groq, Ollama, vLLM, LiteLLM) | One call per turn, returning JSON that matches a Pydantic schema. Prompt caching, token counting before each call, effort per role, one retry when a turn is cut off. |
+| ![](https://img.shields.io/badge/orchestration-7a5ad6?style=flat-square) | Plain Python, no agent framework | Rounds, what each role may see, checks between rounds, stopping when positions settle, a log that replays. |
+| ![](https://img.shields.io/badge/guardrails-e5484d?style=flat-square) | Turn validation in code | Citations must exist and be visible to that role. Every number must appear in the evidence it cites. Spend must fit the cap. |
+| ![](https://img.shields.io/badge/capacity-2d6cdf?style=flat-square) | M/M/c queueing model | Utilisation per slot, SLO breach slots, every option scored against the others. |
+| ![](https://img.shields.io/badge/FinOps-1b9b6d?style=flat-square) | Cost model, tenant entitlements, cloud pricing APIs | Option costs from a rate card, real prices and month-to-date spend, each tenant's share against what their plan guarantees. |
+| ![](https://img.shields.io/badge/history-9c6ade?style=flat-square) | SQLite, append-only | What a cluster actually does, accumulated: the envelope per hour and weekday, drift detection, and whether the history can carry a decision at all. |
+| ![](https://img.shields.io/badge/clouds-FF9900?style=flat-square) | AWS (boto3), Google Cloud and Azure (REST); Floci emulators | Topology, metrics, prices and cost, read-only. A local emulator by default, a real account only with `--live`. |
+| ![](https://img.shields.io/badge/database-4479A1?style=flat-square) | MySQL 8.0, PostgreSQL 17, SQLite, Percona Toolkit | Real load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE`, index and rewrite experiments. |
+| ![](https://img.shields.io/badge/app-009688?style=flat-square) | FastAPI, Jinja, SVG charts, argparse | Web UI with password sign-in and a model settings page; every feature also on the command line. |
+| ![](https://img.shields.io/badge/quality-6b6a65?style=flat-square) | pytest, ruff, GitHub Actions | 218 tests on every change; container and cloud-emulator suites on request; replay of a full run; a scan for leftover identifiers. |
 
 ## The five agents
 
@@ -1132,6 +1152,20 @@ spend cap. More voices produce more claims, and more claims that the evidence do
 So the case for the five roles is not accuracy, it is coverage of what nobody measured. On a harder scenario, where
 the evidence is contested or missing, that is exactly what should change the decision rather than merely decorate it.
 That test has not been run yet. One run of one scenario with one model is a data point, not a result.
+
+**Before reading this as "one agent is enough", note what the baseline already had.** The single reviewer is given the
+whole evidence bundle and every tool, and it runs on the same model, so this is not a comparison between a specialist
+and a committee of amateurs. It is a comparison between one objective and five competing ones over identical
+evidence. Three differences a single agent cannot reproduce, whatever it knows about database engines:
+
+| | Why one agent cannot do it |
+|---|---|
+| 🔒 **Information asymmetry** | The tenant representative sees a redacted bundle. A single agent holds the whole context and cannot be made to un-know it |
+| 🧰 **Tools per role** | The SRE can run a failover check the tenant cannot. So "the SRE asked for a measurement nobody ran" is a recordable event, rather than a tool the one agent would simply call itself |
+| 🗣️ **Unanswered challenges** | A model that raises an objection answers it in the same breath. A challenge left unresolved across rounds only exists when the turns belong to different agents |
+
+Whether those differences change the *decision*, rather than the record around it, is exactly what the harder scenario
+is for.
 
 > [!NOTE]
 > With scripted roles, the five-role review and the single reviewer reach the same answer; the five-role review
