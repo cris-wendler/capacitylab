@@ -126,5 +126,5 @@
     <text x="590" y="120.5" class="role">Application owner</text>
   </g>
 
-  <text x="690" y="286" class="core-s">each agent takes a turn, cites evidence, and can ask for checks</text>
+  <text x="690" y="286" class="core-s">each turn cites evidence, and the review itself is scored</text>
 </svg>
