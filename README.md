@@ -128,6 +128,7 @@ the record afterwards.
 | 🎁 [What you get](#what-you-get) | 📥 [Bringing your own data](#bringing-your-own-data) | 🧭 [Next](#next) |
 | 🛒 [Example: a flash sale meets a batch job](#example-a-flash-sale-meets-a-batch-job) | ⚖️ [Comparison with simpler approaches](#comparison-with-simpler-approaches) | 📄 [License](#license) |
 | 🚀 [Quick start](#quick-start) | 🔐 [Signing in](#signing-in) | 🤝 [Contributing](#contributing) |
+| | | 🙏 [Built on other people's work](#built-on-other-peoples-work) |
 
 ---
 
@@ -1382,6 +1383,24 @@ python3.11 -m venv .venv
 make check          # lint, tests, a demo run, replay, and the identifier scan
 make check-containers   # the suites that need Docker: MySQL, PostgreSQL, and the three cloud emulators
 ```
+
+## Built on other people's work
+
+Almost everything this project measures with is open source, and most of it does the hard part:
+
+| | |
+|---|---|
+| [Ollama](https://github.com/ollama/ollama) | Runs open-weight models locally, which is what makes a free review possible at all. The comparison above used `qwen2.5:32b` and `llama3.2:3b` through it |
+| [Floci](https://github.com/floci-io/floci), [floci-gcp](https://github.com/floci-io/floci-gcp), [floci-az](https://github.com/floci-io/floci-az) (MIT) | Local AWS, Google Cloud and Azure emulators. Every cloud import is tested against them in CI, so none of it needs a real account |
+| [MySQL](https://www.mysql.com/) and [PostgreSQL](https://www.postgresql.org/) | The lab runs a real workload on real engines. Modelled latency is a guess; `EXPLAIN ANALYZE` is not |
+| [Percona Toolkit](https://github.com/percona/percona-toolkit) (GPL-2.0) | `pt-query-digest`, `pt-duplicate-key-checker`, `pt-deadlock-logger` and friends, run from their own image |
+| [SQLite](https://sqlite.org/) | The in-process experiment sandbox where index and rewrite candidates are measured, and the history store |
+| [FastAPI](https://github.com/fastapi/fastapi), [Pydantic](https://github.com/pydantic/pydantic), [Uvicorn](https://github.com/encode/uvicorn), [Jinja](https://github.com/pallets/jinja) | The web UI, the schemas that every agent turn must satisfy, and the server |
+| [pytest](https://github.com/pytest-dev/pytest), [ruff](https://github.com/astral-sh/ruff), [Playwright](https://github.com/microsoft/playwright) | The 222 tests, the linting, and the screenshots in this README |
+| [Mermaid](https://github.com/mermaid-js/mermaid) and [Shields.io](https://github.com/badges/shields) | The charts and badges on this page |
+
+Model providers are not in that list because they are paid services rather than open source, but for accuracy: the
+recorded runs used Claude Opus 5 and Sonnet 5, and the free runs used open-weight models through Ollama.
 
 ## License
 
