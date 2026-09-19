@@ -41,6 +41,12 @@ what is still disputed, and what nobody has measured.
 The agents discuss and recommend; the numbers come from code. The queueing model, costs, lab measurements and query
 experiments are deterministic Python, and every number an agent quotes is checked against the evidence it cites.
 
+> **Why databases, and only databases.** They are the hardest capacity decision in a system: stateful, slow to scale,
+> risky to fail over, and expensive in both directions. The decision machinery here - evidence with provenance, the
+> envelope over real history, attribution, the five-role record - is not database-specific, but the depth is:
+> `EXPLAIN` plans, buffer pool against working set, rewrite equivalence, tenant isolation in a shared schema. That
+> depth is the point, so the scope stays deliberate rather than broad.
+
 ### Then it tests its own premise
 
 Five agents cost five times one agent, so the obvious question is whether they are worth it. CapacityLab answers that
