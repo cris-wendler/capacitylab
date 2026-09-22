@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img" aria-labelledby="t d">
   <title id="t">CapacityLab</title>
-  <desc id="d">Five LLM agents (database engineer, application owner, reliability engineer, FinOps analyst, tenant representative) take turns reviewing shared evidence about a database capacity decision.</desc>
+  <desc id="d">CapacityLab 0.1.0. Five agents (database engineer, application owner, reliability engineer, FinOps analyst, tenant representative) review a database capacity decision around shared evidence, and every number they quote is checked. The demo runs offline with one command and no API key.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#101a33"/>
@@ -34,6 +34,11 @@
       .q2 { animation-delay: 3s; } .q3 { animation-delay: 6s; } .q4 { animation-delay: 9s; }
       .q5 { animation-delay: 12s; } .q6 { animation-delay: 15s; }
       .caret { fill: #ffd27a; animation: blink 1s steps(1) infinite; }
+      .ver { font: 700 12px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b1328; text-anchor: middle; }
+      .cmd { font: 600 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #e8ecf6; }
+      .prompt { fill: #4fd1a1; }
+      .note { font: 400 11.5px system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #8f9bb8; }
+      .cursor { fill: #4fd1a1; animation: blink 1s steps(1) infinite; }
       .bubble { animation: rise 3.2s ease-in infinite; }
       .bubble2 { animation-delay: 1.6s; }
       .spark { transform-origin: 47px 18px; animation: twinkle 2.4s ease-in-out infinite; }
@@ -46,7 +51,7 @@
       @keyframes rotate { 0% { opacity: 0; } 2%, 15% { opacity: 1; } 17%, 100% { opacity: 0; } }
       @keyframes blink { 50% { opacity: 0; } }
       @media (prefers-reduced-motion: reduce) {
-        .link, .glow, .ring, .caret, .bubble, .spark { animation: none; }
+        .link, .glow, .ring, .caret, .cursor, .bubble, .spark { animation: none; }
         .q1 { animation: none; opacity: 1; }
       }
     </style>
@@ -70,22 +75,31 @@
     <path class="spark" d="M47 14l1.2 2.8L51 18l-2.8 1.2L47 22l-1.2-2.8L43 18l2.8-1.2z" fill="#ffd27a"/>
   </g>
   <text x="104" y="78" class="title">CapacityLab</text>
-  <text x="42" y="110" class="sub">Multi-agent LLM review for database capacity,</text>
-  <text x="42" y="132" class="sub">reliability and FinOps decisions</text>
+  <rect x="384" y="54" width="58" height="24" rx="12" fill="#ffd27a"/><text x="413" y="70.5" class="ver">v0.1.0</text>
+  <text x="42" y="110" class="sub">Five agents review a database capacity decision.</text>
+  <text x="42" y="132" class="sub">Every number they quote is checked against the evidence.</text>
 
-  <text x="42" y="178" class="q caret" style="opacity:1">&#8250;</text>
-  <text x="60" y="178" class="q q1">Add capacity for the flash sale?</text>
-  <text x="60" y="178" class="q q2">Downsize an oversized reader?</text>
-  <text x="60" y="178" class="q q3">Add an index instead of hardware?</text>
-  <text x="60" y="178" class="q q4">Move the batch job out of the peak?</text>
-  <text x="60" y="178" class="q q5">Is failover ready for the change?</text>
-  <text x="60" y="178" class="q q6">Who pays for the tenant's burst?</text>
+  <text x="42" y="170" class="q caret" style="opacity:1">&#8250;</text>
+  <text x="60" y="170" class="q q1">Add capacity for the flash sale?</text>
+  <text x="60" y="170" class="q q2">Downsize an oversized reader?</text>
+  <text x="60" y="170" class="q q3">Add an index instead of hardware?</text>
+  <text x="60" y="170" class="q q4">Move the batch job out of the peak?</text>
+  <text x="60" y="170" class="q q5">Is failover ready for the change?</text>
+  <text x="60" y="170" class="q q6">Who pays for the tenant's burst?</text>
 
-  <g transform="translate(42 222)">
+  <g transform="translate(42 190)">
     <rect width="92" height="26" rx="13" fill="#d97757"/><text x="46" y="17.5" class="chip" text-anchor="middle">LLM agents</text>
     <rect x="100" width="118" height="26" rx="13" fill="#3a4a7a"/><text x="159" y="17.5" class="chip" text-anchor="middle">queueing model</text>
     <rect x="226" width="92" height="26" rx="13" fill="#2f6b58"/><text x="272" y="17.5" class="chip" text-anchor="middle">cost model</text>
-    <rect x="326" width="88" height="26" rx="13" fill="#2b5c8a"/><text x="370" y="17.5" class="chip" text-anchor="middle">MySQL lab</text>
+    <rect x="326" width="172" height="26" rx="13" fill="#2b5c8a"/><text x="412" y="17.5" class="chip" text-anchor="middle">MySQL + PostgreSQL lab</text>
+  </g>
+
+  <!-- the quickstart, as one command -->
+  <g transform="translate(42 232)">
+    <rect width="498" height="36" rx="9" fill="#0b1328" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="14" y="23" class="cmd"><tspan class="prompt">$</tspan> capacitylab run campaign-overlap</text>
+    <rect x="304" y="10" width="8" height="16" class="cursor"/>
+    <text x="486" y="22.5" class="note" text-anchor="end">offline, no API key</text>
   </g>
 
   <!-- right: five agents around shared evidence -->
