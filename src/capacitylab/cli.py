@@ -61,6 +61,18 @@ def cmd_validate(args, settings) -> int:
     return 1 if errors else 0
 
 
+def _provider_problem(name: str) -> str | None:
+    """Why a model provider cannot start, checked before the first call instead of failing inside it."""
+    import importlib.util
+
+    if name in ("anthropic", "openai") and importlib.util.find_spec(name) is None:
+        return f"the {name} provider needs its SDK: pip install -e '.[{name}]'"
+    if name == "anthropic" and not Settings.anthropic_credentials_present():
+        return ("ANTHROPIC_API_KEY is not set. Put it in .env, or run without a key: "
+                "capacitylab run <scenario> --provider mock")
+    return None
+
+
 def cmd_run(args, settings) -> int:
     from capacitylab.factory import make_provider, make_sandbox_factory
     from capacitylab.report import render_markdown
@@ -71,8 +83,6 @@ def cmd_run(args, settings) -> int:
     scenario, bundle = _load(args)
     extra_items = [item for path in (args.evidence or []) for item in load_evidence_file(path)]
     provider_name = args.provider or settings.provider
-    if provider_name == "anthropic" and not Settings.anthropic_credentials_present():
-        print("note: ANTHROPIC_API_KEY is not set; the SDK will try other credential sources.", file=sys.stderr)
     if provider_name == "openai" and not settings.credentials_present("openai"):
         print(f"note: {settings.llm_api_key_env} is not set and CAPACITYLAB_LLM_BASE_URL is not a local server.",
               file=sys.stderr)
@@ -87,6 +97,9 @@ def cmd_run(args, settings) -> int:
             return 3
         max_usd = min(max_usd, remaining)
         print(f"this run is capped at ${max_usd:.2f}")
+        if problem := _provider_problem(provider_name):
+            print(f"error: {problem}", file=sys.stderr)
+            return 2
     config = RunConfig(
         max_rounds=args.max_rounds or scenario.budgets.max_rounds,
         max_tool_calls=min(scenario.budgets.max_tool_calls, settings.max_tool_calls),
@@ -164,6 +177,9 @@ def cmd_evaluate(args, settings) -> int:
             return 3
         per_run = min(settings.max_usd_per_run, remaining / 2)
         print(f"model budget: ${remaining:.2f} remaining; each of the two model runs is capped at ${per_run:.2f}")
+        if problem := _provider_problem(provider_name):
+            print(f"error: {problem}", file=sys.stderr)
+            return 2
     sandbox = args.sandbox or settings.sandbox
     report = compare(scenario, bundle, lambda: make_provider(provider_name, settings),
                      make_sandbox_factory(sandbox, settings), max_usd_per_run=per_run,
@@ -439,7 +455,7 @@ def cmd_spend(args, settings) -> int:
     ledger = _ledger(settings)
     spent = ledger.spent_usd()
     print(f"model spend: ${spent:.4f} of ${settings.max_usd_total:.2f} total "
-          f"(${ledger.remaining_usd(settings.max_usd_total):.4f} remaining) — {ledger.path}")
+          f"(${ledger.remaining_usd(settings.max_usd_total):.4f} remaining): {ledger.path}")
     if ledger.path.is_file():
         for entry in json.loads(ledger.path.read_text())["entries"]:
             print(f"  {entry['at'][:19]}  {entry['run_id']:40s} {entry['model']:18s} ${entry['usd']:.4f}  {entry['status']}")
@@ -532,7 +548,7 @@ def cmd_history_collect(args, settings) -> int:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         except ImportError as exc:
-            print(f"error: --live needs the {args.cloud} extra: pip install -e '.[{args.cloud}]' ({exc.name})",
+            print(f"error: collecting from {args.cloud} needs its extra: pip install -e '.[{args.cloud}]' ({exc.name})",
                   file=sys.stderr)
             return 4
         except (CloudApiError, OSError) as exc:
@@ -620,19 +636,6 @@ def cmd_scan(args, settings) -> int:
     local = [name for name, path in (("denylist", denylist), ("patterns", patterns)) if path.is_file()]
     print(f"{len(findings)} findings" + ("" if local else " (no local rules present; generic rules only)"))
     return 1 if findings else 0
-
-
-def cmd_sandbox_check(args, settings) -> int:
-    from capacitylab.diagnostics import fixture_db as fx
-    from capacitylab.factory import make_sandbox_factory
-
-    sandbox = make_sandbox_factory(args.sandbox, settings)()
-    try:
-        stats = fx.build(sandbox)
-        print(f"{sandbox.engine_version()}: fixture built ({stats.orders} orders, {stats.customers} customers)")
-    finally:
-        sandbox.close()
-    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -781,10 +784,6 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("scan", help="scan for prohibited identities and internal references")
     p.add_argument("--root", default=".")
     p.set_defaults(func=cmd_scan)
-
-    p = sub.add_parser("sandbox-check", help="build the fixture in a sandbox to verify it works")
-    p.add_argument("--sandbox", choices=["sqlite", "mysql"], default="sqlite")
-    p.set_defaults(func=cmd_sandbox_check)
     return parser
 
 

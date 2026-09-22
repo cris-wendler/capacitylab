@@ -4,7 +4,7 @@ PY ?= .venv/bin/python
         check-containers check-mysql check-postgres check-aws check-gcp check-azure containers-down
 
 install:
-	python3.11 -m venv .venv
+	python3 -m venv .venv
 	.venv/bin/pip install -e ".[dev,anthropic,mysql]"
 
 test:
@@ -39,7 +39,6 @@ check-containers: check-mysql check-postgres check-aws check-gcp check-azure
 
 check-mysql:
 	docker compose up -d --wait sandbox-mysql
-	$(PY) -m capacitylab sandbox-check --sandbox mysql
 	CAPACITYLAB_TEST_MYSQL=1 $(PY) -m pytest -m mysql
 
 check-postgres:

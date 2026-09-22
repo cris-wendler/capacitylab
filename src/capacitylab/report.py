@@ -53,7 +53,7 @@ def render_markdown(run: SimulationRun, scenario: Scenario) -> str:
     w("|---|---|---|---|---|---|---|---|")
     for o in d.option_outcomes:
         w(f"| {o.option_id} | {o.peak_utilization_pct}% @ {o.peak_slot} | {o.slots_over_threshold} | {o.saturated_slots} | "
-          f"{o.total_slo_breach_slots} | ${o.cost_delta_event_usd} | ${o.cost_delta_month_usd} | {_cell('; '.join(o.unknowns)) or '—'} |")
+          f"{o.total_slo_breach_slots} | ${o.cost_delta_event_usd} | ${o.cost_delta_month_usd} | {_cell('; '.join(o.unknowns)) or '-'} |")
     w("")
 
     if d.optimization_proposals:
@@ -85,7 +85,7 @@ def render_markdown(run: SimulationRun, scenario: Scenario) -> str:
     w("|---|---|---|---|---|---|")
     for r in run.tool_calls:
         w(f"| {r.call_id} | {r.round} | {', '.join(r.requested_by)} | {r.tool} | {r.status}{(': ' + _cell(r.error)) if r.error else ''} "
-          f"| {r.evidence_id or '—'} |")
+          f"| {r.evidence_id or '-'} |")
     w("")
 
     w("## Transcript\n")

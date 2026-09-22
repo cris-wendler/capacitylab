@@ -7,7 +7,7 @@ There are no user accounts. CapacityLab is a tool you run for yourself or a smal
     CAPACITYLAB_SESSION_SECRET=<random string>               # keeps sessions valid across restarts
 
 The password is never stored in the clear if you use the hash form, comparisons are constant-time, and the cookie
-holds only an expiry and a signature - no password, no key material, nothing to decrypt. A cookie whose signature or
+holds only an expiry and a signature: no password, no key material, nothing to decrypt. A cookie whose signature or
 expiry does not check out is simply not a session.
 
 With no password configured the UI stays open, which is the default for a tool bound to localhost. Serving it on any

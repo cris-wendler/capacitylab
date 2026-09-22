@@ -10,7 +10,7 @@
     <td>{% if r.mocked %}Scripted agents{% else %}{{ r.model }}{% endif %}</td>
     <td>{{ status(r.status) }}</td>
     <td class="num">{{ r.rounds }}</td>
-    <td class="num">{{ r.extra or '—' }}</td>
+    <td class="num">{{ r.extra or '-' }}</td>
     <td class="num">{% if r.mocked %}<span class="muted">none</span>{% else %}${{ '%.4f' % r.spend }}{% endif %}</td>
     <td class="muted">{{ r.created_at }}</td>
   </tr>

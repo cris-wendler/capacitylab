@@ -108,7 +108,7 @@ Read honestly:
 | simple rules | `OPT-SCALE-TEMP` | 0 | $128.96 | no | 0.0 | 0 | 0 | $0.00 |
 
 Against Claude Sonnet 5 on the same scenario: same breach regret (0), but $128.96 of cost regret against $0.00, 34
-citation errors against 0, and no convergence - the five roles ended on four distinct positions, one of which was the
+citation errors against 0, and no convergence: the five roles ended on four distinct positions, one of which was the
 literal string `decided`, so the plurality was 1 of 5 and the scorer broke the tie alphabetically.
 
 What that supports:
@@ -154,3 +154,19 @@ What this does not show: whether the ensemble decides better when evidence is co
 is the case it is built for. That needs a scenario designed to punish a single confident reviewer, and several runs of
 each approach. Until then this is one data point, in favour of "use one reviewer for a clear decision, and five when
 you need to know what nobody has measured".
+
+## What one agent cannot reproduce
+
+**Before reading this as "one agent is enough", note what the baseline already had.** The single reviewer is given the
+whole evidence bundle and every tool, and it runs on the same model, so this is not a comparison between a specialist
+and a committee of amateurs. It is a comparison between one objective and five competing ones over identical
+evidence. Three differences a single agent cannot reproduce, whatever it knows about database engines:
+
+| | Why one agent cannot do it |
+|---|---|
+| 🔒 **Information asymmetry** | The tenant representative sees a redacted bundle. A single agent holds the whole context and cannot be made to un-know it |
+| 🧰 **Tools per role** | The SRE can run a failover check the tenant cannot. So "the SRE asked for a measurement nobody ran" is a recordable event, rather than a tool the one agent would simply call itself |
+| 🗣️ **Unanswered challenges** | A model that raises an objection answers it in the same breath. A challenge left unresolved across rounds only exists when the turns belong to different agents |
+
+Whether those differences change the *decision*, rather than the record around it, is exactly what the harder scenario
+is for.

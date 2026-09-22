@@ -45,7 +45,7 @@
     <div class="outcome-headline">
       {% if unanimous %}All {{ decided|length }} agents: {{ labels.get(leading, leading) }}
       {% elif leading %}{{ counts[leading] }} of {{ d.final_positions|length }} agents: {{ labels.get(leading, leading) }}
-      {% elif tied|length > 1 %}Tied {{ tied|map(attribute='1')|join('–') }}: {{ tied|map(attribute='0')|map('replace', 'OPT-', '')|join(' vs ') }}
+      {% elif tied|length > 1 %}Tied {{ tied|map(attribute='1')|join(' to ') }}: {{ tied|map(attribute='0')|map('replace', 'OPT-', '')|join(' vs ') }}
       {% else %}No role took a position{% endif %}
     </div>
     <div class="outcome-sub">

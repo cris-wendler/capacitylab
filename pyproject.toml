@@ -10,25 +10,26 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "AGPL-3.0-or-later"}
 dependencies = [
-  "pydantic>=2.7,<3",
-  "PyYAML>=6",
-  "fastapi>=0.111",
-  "uvicorn>=0.30",
-  "jinja2>=3.1",
-  "python-multipart>=0.0.9",
+  "pydantic==2.13.5",
+  "PyYAML==6.0.3",
+  "fastapi==0.141.1",
+  "uvicorn==0.53.0",
+  "jinja2==3.1.6",
+  "python-multipart==0.0.32",
 ]
 
+# Direct dependencies are pinned to the versions the test suite passes with. Dependabot proposes updates.
 [project.optional-dependencies]
-anthropic = ["anthropic>=1.5"]
-openai = ["openai>=1.40"]
-mysql = ["pymysql>=1.1"]
-aws = ["boto3>=1.34"]
-gcp = ["google-auth[requests]>=2.30"]
-azure = ["azure-identity>=1.17"]
-postgres = ["psycopg[binary]>=3.2"]
-dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.5"]
+anthropic = ["anthropic==1.7.0"]
+openai = ["openai==3.17.0"]
+mysql = ["pymysql==1.2.3"]
+aws = ["boto3==1.43.99"]
+gcp = ["google-auth[requests]==2.58.0"]
+azure = ["azure-identity==1.25.3"]
+postgres = ["psycopg[binary]==3.3.6"]
+dev = ["pytest==9.1.1", "httpx==0.28.1", "ruff==0.16.8"]
 all = ["capacitylab[anthropic,openai,mysql,postgres,aws,gcp,azure]"]  # every optional dependency, for the full test suite
-media = ["playwright>=1.45", "pillow>=10"]
+media = ["playwright==1.63.0", "pillow==12.3.0"]
 
 [project.scripts]
 capacitylab = "capacitylab.cli:main"

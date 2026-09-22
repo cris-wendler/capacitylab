@@ -10,7 +10,7 @@
     <span class="chip-dark">{{ scenario.cluster.id }}</span>
     <span class="chip-dark">writer {{ scenario.cluster.writer_instance }}</span>
     {% if scenario.cluster.reader_instances %}<span class="chip-dark">reader {{ scenario.cluster.reader_instances|join(', ') }}</span>{% endif %}
-    <span class="chip-dark">{{ scenario.horizon.date }} · {{ scenario.horizon.start }}–{{ scenario.horizon.end }}</span>
+    <span class="chip-dark">{{ scenario.horizon.date }} · {{ scenario.horizon.start }} to {{ scenario.horizon.end }}</span>
     <span class="chip-dark chip-soft">synthetic</span>
   </div>
   <div class="scenario-hero-body">
@@ -44,8 +44,8 @@
       <dt>Engine</dt><dd>{{ scenario.cluster.engine_assumption }}</dd>
       <dt>Tenants</dt><dd>{% for t in scenario.tenants %}{{ t.label }}{% if t.id == scenario.focal_tenant %} <span class="tag">affected</span>{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
       <dt>Tenant isolation</dt><dd>{{ scenario.tenant_isolation.model.replace('_', ' ') }} <span class="muted">(assumption)</span></dd>
-      <dt>Time window</dt><dd>{{ scenario.horizon.date }}, {{ scenario.horizon.start }}–{{ scenario.horizon.end }} in {{ scenario.horizon.slot_minutes }}-minute slots</dd>
-      <dt>Events</dt><dd>{% for e in scenario.events %}<div>{% if e.kind == 'campaign' %}Campaign for {{ e.tenant }}, {{ e.start }}–{{ e.end }}{% elif e.kind == 'batch_job' %}Batch job <span class="mono">{{ e.name }}</span> at {{ e.start }}, must finish by {{ e.deadline_next_day }} next day{% else %}{{ e.name }} at {{ e.start }}{% endif %}</div>{% else %}<span class="muted">none</span>{% endfor %}</dd>
+      <dt>Time window</dt><dd>{{ scenario.horizon.date }}, {{ scenario.horizon.start }} to {{ scenario.horizon.end }} in {{ scenario.horizon.slot_minutes }}-minute slots</dd>
+      <dt>Events</dt><dd>{% for e in scenario.events %}<div>{% if e.kind == 'campaign' %}Campaign for {{ e.tenant }}, {{ e.start }} to {{ e.end }}{% elif e.kind == 'batch_job' %}Batch job <span class="mono">{{ e.name }}</span> at {{ e.start }}, must finish by {{ e.deadline_next_day }} next day{% else %}{{ e.name }} at {{ e.start }}{% endif %}</div>{% else %}<span class="muted">none</span>{% endfor %}</dd>
     </dl>
   </div>
 

@@ -13,7 +13,7 @@
   <dt>Source</dt><dd class="mono">{{ item.source }}</dd>
   {% if item.method %}<dt>Method</dt><dd>{{ item.method }}</dd>{% endif %}
   {% if item.tenant_id %}<dt>Tenant</dt><dd>{{ item.tenant_id }}</dd>{% endif %}
-  {% if call %}<dt>Produced by</dt><dd><span class="mono">{{ call.call_id }}</span> {{ call.tool }} requested by {{ call.requested_by|join(', ') }} in round {{ call.round }} — {{ call.purpose }}</dd>{% endif %}
+  {% if call %}<dt>Produced by</dt><dd><span class="mono">{{ call.call_id }}</span> {{ call.tool }} requested by {{ call.requested_by|join(', ') }} in round {{ call.round }}: {{ call.purpose }}</dd>{% endif %}
   {% if item.assertions %}<dt>Assertions</dt><dd>{% for a in item.assertions %}<div class="mono">{{ a.key }} = {{ a.value }}{{ a.unit or '' }}</div>{% endfor %}</dd>{% endif %}
 </dl>
 {% if item.caveats %}

@@ -3,7 +3,7 @@
 
 This is deliberately not a forecast. Nothing is trained, nothing is fitted, and no future value is predicted. The
 envelope is descriptive statistics recomputed on read: group the stored samples into slots, keep the slots that fall
-in the same hour of the same weekday, and report what that group reached - typically, at the high end, and at worst.
+in the same hour of the same weekday, and report what that group reached: typically, at the high end, and at worst.
 A capacity decision then sizes for the high end plus headroom, which is wrong in the direction that costs money
 rather than the direction that drops checkouts.
 

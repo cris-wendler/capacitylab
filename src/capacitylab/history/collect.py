@@ -2,7 +2,7 @@
 """Collect one window of metrics from a cloud and append it to the history.
 
 This is the same read path the imports use (`aws_import`, `gcp_import`, `azure_import`), pointed at the store instead
-of at an evidence file: topology to learn the nodes, then each node's metrics. Run it as often as you like - a window
+of at an evidence file: topology to learn the nodes, then each node's metrics. Run it as often as you like: a window
 already held is written once, so overlapping runs cost nothing.
 
     capacitylab history collect aws --instance demo-writer --hours 3

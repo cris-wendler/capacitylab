@@ -57,10 +57,13 @@ def test_repeated_passes_report_a_spread():
 
 
 def _percona_image_present() -> bool:
+    import shutil
     import subprocess
 
     from capacitylab.lab.percona import DEFAULT_IMAGE
 
+    if shutil.which("docker") is None:  # no Docker at all: skip, do not fail collection
+        return False
     return subprocess.run(["docker", "image", "inspect", DEFAULT_IMAGE], capture_output=True).returncode == 0
 
 

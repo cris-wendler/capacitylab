@@ -39,7 +39,7 @@ Changes that do not fit:
 ## Setting up
 
 ```bash
-python3.11 -m venv .venv
+python3 -m venv .venv                   # Python 3.11 or newer
 .venv/bin/pip install -e ".[dev,all]"   # "[dev]" alone is enough for most of the suite
 make check                              # lint, tests, a demo run, replay, and the identifier scan
 ```

@@ -1,47 +1,50 @@
 # Changelog
 
-Notable changes, newest first. Dates are the day the work landed on `main`.
+Notable changes, newest first.
 
-## Unreleased
+## 0.1.0, 2026-09-22
 
-**Added**
+First tagged release. Everything below is new.
 
-- History store and capacity envelope: `capacitylab history collect|status|envelope`. Metrics from AWS, Google Cloud
-  or Azure accumulate in a local SQLite file, idempotently, with every collection recorded so a quiet stretch can be
-  told from one nobody collected. The envelope reports what each hour of each weekday reaches, weighted towards recent
-  days, with level shifts detected and thin evidence flagged. It is descriptive statistics, not a forecast.
-- Query rewrite as an option that competes on price, gated on an equivalence check: no benefit is credited until a
-  rewrite has been measured, and none at all if it returns different rows than the original.
-- Load attribution: each breaching slot broken down by statement, tenant and batch job, with the remedy that shape
-  argues for. Available as the `load_attribution` tool and as a finding.
-- Google Cloud and Azure imports (Cloud SQL and Cloud Monitoring, flexible servers and Azure Monitor), verified
-  against the floci-gcp and floci-az emulators in CI.
-- A reason the project exists, in the README: why reactive autoscaling does not answer a known event.
+**Review**
 
-- Password sign-in for the web UI: a PBKDF2 hash in `.env`, a signed session cookie, rate-limited attempts, and
-  `serve` refusing a non-local address while no password is set. `capacitylab hash-password` generates the lines.
-- Model settings page: provider, model, endpoint, prices and spend caps, with presets for Claude, OpenAI, Ollama and
-  vLLM. No API key is ever stored; the page chooses which environment variable holds it and reports presence only.
-- An Ollama container in `docker-compose.yml` (`--profile ollama`), so a review can run free and offline.
+- Five-agent review of a database capacity decision (database engineer, application owner, reliability engineer,
+  FinOps analyst, tenant representative), with a decision record that keeps disagreements, unanswered challenges and
+  evidence nobody has.
+- Scripted agents that run offline with no API key and give the same result every time. This is the default.
+- Language model agents through the Anthropic API or any OpenAI-compatible endpoint, with token counting before each
+  call and hard spend limits per run and in total.
+- Every agent turn is checked: citations must exist and be visible to that agent, numbers must appear in the cited
+  evidence, requested checks must be allowed for that role.
+- Replay of any run record, re-running every check and confirming the same results.
+- `capacitylab evaluate`: the five-agent review against a single agent and a simple threshold rule, scored against
+  assumptions none of them saw.
 
-**Changed**
+**Models**
 
-- Licensed under AGPL-3.0-or-later (was Apache-2.0), with a commercial licence available separately.
-- CI runs the cheap checks on every change and the container suites on request, which keeps it inside the free tier.
+- M/M/c CPU queueing model per 15-minute slot, and options priced from the scenario's rate card.
+- Load attribution: each slot over the threshold broken down by statement, tenant and batch job.
+- Tenant shares compared with what each tenant's plan guarantees.
+- Query rewrites as options, credited only after an equivalence check has measured them.
 
-## 0.1.0, 2026-09-17
+**Evidence**
 
-First working version.
+- Two sample scenarios, `campaign-overlap` and `downsize-reader`, with synthetic topology, metrics, digests, plans,
+  SLOs, rate card and budget.
+- SQLite experiment database for index and rewrite experiments; MySQL 8.0 as an option.
+- Local lab on MySQL 8.0 and PostgreSQL 17 in Docker, with Percona Toolkit support.
+- File importers for slow logs, digest exports, `EXPLAIN ANALYZE`, CloudWatch exports and Percona Toolkit reports.
+- Read-only imports from AWS, Google Cloud and Azure, against local emulators unless `--live` is passed.
+- History store and envelope: `capacitylab history collect|status|envelope`.
 
-- Five-role review of a database capacity decision, run by a language model, with a decision record that keeps
-  disagreements, unanswered challenges and evidence nobody has.
-- Deterministic capacity model: M/M/c queueing per 15-minute slot, options priced from the scenario's rate card,
-  revenue at risk from named assumptions.
-- Local database lab on MySQL 8.0 and PostgreSQL 17, with Percona Toolkit support, and a SQLite experiment sandbox for
-  index and rewrite experiments.
-- Importers for slow logs, digest exports, `EXPLAIN ANALYZE` output, CloudWatch exports, Percona Toolkit reports, and
-  a read-only AWS import.
-- Provider-agnostic LLM layer: the Anthropic API natively, or any OpenAI-compatible endpoint, with prompt caching,
-  token counting and hard spend caps.
-- Web UI, replay of any run, and an evaluation that compares the five-role review with a single reviewer and with
-  simple rules.
+**Interface**
+
+- Command line for every feature, and a local web UI (`capacitylab serve`) with optional password sign-in and a model
+  settings page.
+
+**Project**
+
+- Licensed under AGPL-3.0-or-later, with a commercial license available separately.
+- Direct dependencies pinned to exact versions.
+- CI on every push: lint, the test suite on Python 3.11 to 3.14, every command named in the README, and the README
+  quickstart run exactly as written. Container suites run on request.

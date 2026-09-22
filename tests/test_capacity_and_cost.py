@@ -27,6 +27,26 @@ def test_erlang_c_known_values():
     assert erlang_c(4, 4.0) == 1.0 and erlang_c(4, 0) == 0.0
 
 
+def test_wait_percentile_known_value():
+    # Two cores, 15 arrivals/s, 0.1 s service: offered load a = 1.5, so by the textbook formula
+    # C = (a^2/2! * 2/(2-a)) / (1 + a + a^2/2! * 2/(2-a)) = 4.5 / 7, and
+    # p95 wait = ln(C / 0.05) / (2 * 10 - 15) = ln(12.857) / 5 = 0.5108 s.
+    assert erlang_c(2, 1.5) == pytest.approx(4.5 / 7)
+    assert wait_percentile_s(2, arrival_rate=15, mean_service_s=0.1) == pytest.approx(0.51078, abs=1e-5)
+
+
+def test_slot_latency_known_value():
+    # 8 cores, 300 statements/s at 20 ms of CPU: 6 cores busy (75%). Erlang C from the closed form, then
+    # p95 wait = ln(C / 0.05) / (8 * 50 - 300) s; latency = 20 ms of CPU + that wait, rounded to 0.1 ms.
+    a, c = 6.0, 8
+    top = a**c / math.factorial(c) * c / (c - a)
+    erlang = top / (sum(a**k / math.factorial(k) for k in range(c)) + top)
+    wait_ms = 1000 * math.log(erlang / 0.05) / (c * 50 - 300)
+    slot = evaluate_slot(8, [StatementLoad("q", qps=300, cpu_ms=20)])
+    assert slot.utilization_pct == 75.0 and not slot.saturated
+    assert slot.p95_latency_ms["q"] == round(20 + wait_ms, 1) == 39.7
+
+
 def test_wait_percentile_is_unbounded_when_unstable():
     assert math.isinf(wait_percentile_s(2, arrival_rate=30, mean_service_s=0.1))
     assert wait_percentile_s(8, arrival_rate=10, mean_service_s=0.01) == 0.0

@@ -50,8 +50,6 @@ jobs:
           cache: pip
       - name: Install
         run: pip install -e ".[dev,mysql]"
-      - name: Sandbox check
-        run: capacitylab sandbox-check --sandbox mysql
       # Percona tests join the lab container's network namespace, which a GitHub service container name does not
       # provide; they skip here unless a container named capacitylab-* is present.
       - name: MySQL sandbox and lab tests

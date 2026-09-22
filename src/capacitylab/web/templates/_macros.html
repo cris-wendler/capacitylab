@@ -56,7 +56,7 @@
     <tr>
       <td class="mono">{{ fid }}</td>
       {% for n in names %}{% set cell = byphase.get(n, {}) %}
-      <td class="num">{% if cell.p95_ms is not none %}<strong>{{ cell.p95_ms }}</strong> ms{% else %}<span class="muted">—</span>{% endif %}
+      <td class="num">{% if cell.p95_ms is not none %}<strong>{{ cell.p95_ms }}</strong> ms{% else %}<span class="muted">-</span>{% endif %}
         <div class="muted small">{{ cell.calls or 0 }} calls{% if cell.errors %} · {{ cell.errors }} error{{ '' if cell.errors == 1 else 's' }}{% endif %}{% if cell.low_sample and cell.calls %} · <span class="flag">low sample</span>{% endif %}</div></td>
       {% endfor %}
     </tr>

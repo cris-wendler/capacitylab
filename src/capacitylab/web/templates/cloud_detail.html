@@ -38,7 +38,7 @@
   <tbody>
   {% for n in [topo.data.writer] + topo.data.readers %}
     <tr><td><strong>{{ n.role }}</strong>{% if n.get('promotion_tier') is not none %} <span class="tag">tier {{ n.promotion_tier }}</span>{% endif %}</td>
-      <td class="mono">{{ n.instance_class }}</td><td class="num">{{ n.get('vcpu', '—') }}</td><td class="num">{{ n.get('memory_gib', '—') }}</td>
+      <td class="mono">{{ n.instance_class }}</td><td class="num">{{ n.get('vcpu', '-') }}</td><td class="num">{{ n.get('memory_gib', '-') }}</td>
       <td class="num">{{ n.availability_zone_count }}</td>
       <td><span class="pill {{ 'pill-ok' if n.status in cloud.ok_states else 'pill-warn' }}">{{ n.status }}</span></td></tr>
   {% endfor %}

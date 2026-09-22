@@ -7,7 +7,7 @@ index or a rewrite, one tenant taking far more than they pay for is a commercial
 across everything is the only case where buying capacity is the honest answer.
 
 This module decomposes the same demand the capacity model uses - CPU cores per slot, from each statement's rate and
-its cost per execution - so the shares add up to the modeled utilization rather than to a separate estimate.
+its cost per execution, so the shares add up to the modeled utilization rather than to a separate estimate.
 
 What it does not do is decide. It reports the shares and which remedies the shape makes worth considering, with the
 thresholds it applied, and leaves the choice to the review. It also cannot see below the statement: which service or

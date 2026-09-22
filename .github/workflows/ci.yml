@@ -1,20 +1,10 @@
 name: CI
 
-# The cheap checks: lint, the test suite and the mock demo, on every change. Runs once per change (a push to a branch
-# is covered by its pull request), cancels a superseded run, and skips documentation-only changes. The jobs that start
+# Lint, the test suite, and the README quickstart as written, on every push and pull request. The jobs that start
 # database and cloud-emulator containers cost several times as much, so they live in containers.yml and run on request.
 on:
   push:
-    branches: [main]  # feature branches are covered by their pull request; running both doubles the minutes
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "LICENSE*"
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "LICENSE*"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -30,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -41,11 +31,30 @@ jobs:
         run: pip install -e ".[dev,anthropic,openai,mysql,aws]"
       - name: Lint
         run: ruff check src tests scripts
-      - name: Unit, integration, and end-to-end tests (mock provider, SQLite sandbox)
+      - name: Tests (scripted agents, SQLite sandbox; includes every command named in the README)
         run: pytest
-      - name: Demo run, replay verification, and reference scan
+      - name: Second scenario and the identifier scan
         run: |
-          capacitylab run campaign-overlap --provider mock --out runs/ci-campaign.json --quiet
-          capacitylab replay runs/ci-campaign.json
-          capacitylab run downsize-reader --provider mock --out runs/ci-downsize.json --quiet
+          capacitylab run downsize-reader --out runs/ci-downsize.json --quiet
+          capacitylab replay runs/ci-downsize.json
           capacitylab scan
+
+  quickstart:
+    name: README quickstart, as written
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # the quickstart clones this checkout
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Run the quickstart block from README.md in an empty directory, with no environment variables set
+        run: |
+          awk '/<!-- quickstart:start -->/{f=1;next} /<!-- quickstart:end -->/{f=0} f && !/^```/' README.md > "$RUNNER_TEMP/quickstart.sh"
+          # Clone this commit instead of the published main branch, so a pull request tests its own README.
+          sed -i "s#git clone https://github.com/cris-wendler/capacitylab.git#git clone $GITHUB_WORKSPACE capacitylab#" "$RUNNER_TEMP/quickstart.sh"
+          cat "$RUNNER_TEMP/quickstart.sh"
+          mkdir "$RUNNER_TEMP/empty" && cd "$RUNNER_TEMP/empty"
+          env -i HOME="$HOME" PATH="$PATH" bash -euxo pipefail "$RUNNER_TEMP/quickstart.sh"
+          test -s capacitylab/runs/demo.json

@@ -266,3 +266,37 @@ def test_import_against_floci_az(engine):
     assert topo["writer"]["vcpu"] == int(sku.split("_D")[1].split("ds")[0]) and topo["storage"]["allocated_gib"] == 512
     assert [s.split(":")[0] for s in result.skipped] == ["read replicas", "metrics", "prices", "month-to-date cost"]
     assert name not in json.dumps(result.items[0].model_dump(mode="json"))
+
+
+@pytest.mark.parametrize("cloud", ["gcp", "azure"])
+def test_history_collect_from_recorded_responses(tmp_path, cloud):
+    """`history collect gcp|azure`: the import's read path, appended to the store, idempotently, without identifiers."""
+    from capacitylab.history import History
+    from capacitylab.history.collect import COLLECTORS
+
+    if cloud == "gcp":
+        target, name, routes, cpu = GcpTarget(project=PROJECT), WRITER, gcp_routes, "cpu/utilization"
+    else:
+        target, name, routes, cpu = (AzureTarget(subscription=SUBSCRIPTION, resource_group=GROUP), SERVER,
+                                     azure_routes, "cpu_percent")
+    with History(tmp_path / "history.db") as history:
+        first = COLLECTORS[cloud](history, target, name, hours=2, now=NOW, label="evening", http=Recorded(routes()))
+        assert first.nodes == ["writer", "reader-1"] and first.written == first.seen > 0
+        assert cpu in first.metrics  # each cloud keeps its own metric names; pass them to `history envelope --metric`
+        again = COLLECTORS[cloud](history, target, name, hours=2, now=NOW, http=Recorded(routes()))
+        assert again.cluster_key == first.cluster_key and again.written == 0 and again.already_held == first.seen
+        assert history.samples(first.cluster_key, cpu, "writer")
+    stored = tmp_path.joinpath("history.db").read_bytes().decode("latin-1")
+    for identifier in (PROJECT, WRITER, REPLICA, SUBSCRIPTION, GROUP, SERVER, AZ_REPLICA):
+        assert identifier not in stored
+
+
+def test_history_collect_from_azure_emulator_notes_missing_metrics(tmp_path):
+    from capacitylab.history import History
+    from capacitylab.history.collect import collect_azure
+
+    target = AzureTarget(subscription=SUBSCRIPTION, resource_group=GROUP)
+    with History(tmp_path / "history.db") as history:
+        result = collect_azure(history, target, SERVER, hours=2, now=NOW,
+                               http=Recorded(azure_routes(metrics=CloudApiError(404, "not found"))))
+    assert result.written == 0 and "does not serve metrics" in result.note
