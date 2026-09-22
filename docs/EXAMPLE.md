@@ -195,7 +195,7 @@ fail do so for three different reasons.
 | `EXISTS`, tenant predicate kept | 0.29x | ✅ | - |
 | inner `JOIN` on orders | 0.67x | ❌ | join fan-out returns duplicate rows |
 | `NOT IN` to `NOT EXISTS` | 2.71x | ❌ | a NULL `customer_id` in suppressions makes `NOT IN` return nothing and `NOT EXISTS` return rows |
-| `EXISTS` without the tenant predicate | 0.33x | ❌ | extra rows qualify only through another tenant's orders: a tenant boundary violation |
+| `EXISTS` without the tenant predicate | 0.34x | ❌ | extra rows qualify only through another tenant's orders: a tenant boundary violation |
 
 The last one is the dangerous kind. It looks like the winner, being three times cheaper, and it leaks one tenant's
 customers into another tenant's audience. A benchmark that only timed the two statements would have recommended it.
