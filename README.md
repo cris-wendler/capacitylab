@@ -1,6 +1,35 @@
-# CapacityLab
+<p align="center">
+  <img src="docs/media/hero.svg" alt="CapacityLab: five LLM agents review a database capacity decision around shared, checked evidence" width="900">
+</p>
 
-[![CI](https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml/badge.svg)](https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml)
+<p align="center">
+  <img src="https://img.shields.io/badge/multi--agent-LLM-7a5ad6?style=for-the-badge" alt="Multi-agent LLM">
+  <img src="https://img.shields.io/badge/LLM-any%20provider-D97757?style=for-the-badge" alt="LLM, any provider">
+  <img src="https://img.shields.io/badge/capacity-planning-2d6cdf?style=for-the-badge" alt="Capacity planning">
+  <img src="https://img.shields.io/badge/SRE-reliability-c98a00?style=for-the-badge" alt="SRE, reliability">
+  <img src="https://img.shields.io/badge/FinOps-cost-1b9b6d?style=for-the-badge" alt="FinOps, cost">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/Pydantic-2-E92063?logo=pydantic&logoColor=white" alt="Pydantic 2">
+  <img src="https://img.shields.io/badge/FastAPI-Jinja-009688?logo=fastapi&logoColor=white" alt="FastAPI and Jinja">
+  <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white" alt="MySQL 8.0">
+  <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7-1c5cab" alt="Percona Toolkit 3.7">
+  <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/clouds-AWS%20%C2%B7%20GCP%20%C2%B7%20Azure-FF9900" alt="Cloud imports from AWS, Google Cloud and Azure">
+  <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-6b6a65" alt="AGPL 3.0 or later">
+  <img src="https://img.shields.io/badge/status-prototype-6b6a65" alt="Status: prototype">
+  <img src="https://img.shields.io/badge/five%20agents%20vs%20one-measured-1b9b6d" alt="Five agents versus one: measured">
+</p>
+
+<p align="center">
+  <a href="https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml"><img src="https://github.com/cris-wendler/capacitylab/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
+# CapacityLab
 
 CapacityLab runs a review of a database capacity decision by five agents (a database engineer, an application
 owner, a reliability engineer, a FinOps analyst and a tenant representative) and writes down what they decided, what
@@ -71,6 +100,13 @@ report: runs/demo.md
 
 `runs/demo.json` is the full record of the run and `runs/demo.md` is the same thing as a readable report.
 
+> **The question in the demo.** A tenant is about to run a flash sale on a cluster that already runs hot in the
+> evening, and a batch job starts halfway through. Scale up for the night, add an index, move the job, or a mix?
+
+<p align="center">
+  <img src="docs/media/demo.gif" alt="A scenario with its findings, a review run by LLM agents, where each agent landed, the discussion, replay, and the comparison" width="900">
+</p>
+
 ### What the sample contains
 
 The sample is a synthetic shared MySQL cluster (a writer and a reader, `db.r6i.16xlarge`) with five tenants, one of
@@ -93,6 +129,8 @@ capacitylab evaluate campaign-overlap        # five agents against one agent and
 capacitylab serve                            # web UI at http://127.0.0.1:8765
 ```
 
+![The CapacityLab web UI: decisions on the table with revenue at risk, the cheapest option that keeps SLOs, recent reviews and the agents](docs/media/home.png)
+
 ## The five agents
 
 Each agent gets a role, only the evidence that role would normally see, and a list of checks it may ask for. They
@@ -101,14 +139,54 @@ query rewrite check) run between rounds, and the results come back as new eviden
 
 | Agent | Looks at | Pushes for |
 |---|---|---|
-| Database engineer | metrics, statement digests, query plans, table sizes, experiments | fixing the workload before buying capacity |
-| Application owner | release and event calendars, batch schedule, SLOs | keeping the sale and the release on track |
-| Reliability engineer | metrics, SLOs, incident and failover history | headroom, and not relying on things nobody has measured |
-| FinOps analyst | rate card, budget, forecast | the cheapest option that keeps the SLOs |
-| Tenant representative | its own plan and calendar only, with other tenants' numbers removed | what its plan guarantees it |
+| 🟦 **Database engineer** | metrics, statement digests, query plans, table sizes, experiments | fixing the workload before buying capacity |
+| 🟩 **Application owner** | release and event calendars, batch schedule, SLOs | keeping the sale and the release on track |
+| 🟨 **Reliability engineer** | metrics, SLOs, incident and failover history | headroom, and not relying on things nobody has measured |
+| 🟧 **FinOps analyst** | rate card, budget, forecast | the cheapest option that keeps the SLOs |
+| 🟪 **Tenant representative** | its own plan and calendar only, with other tenants' numbers removed | what its plan guarantees it |
 
 A run ends at the round limit, or earlier when positions stop changing. The result is a decision record: each
 agent's final position and reasons, open disagreements, challenges nobody answered, and evidence nobody has.
+
+```mermaid
+flowchart LR
+  subgraph Evidence
+    FILES["Scenario files"] --> BUNDLE
+    LAB["Local MySQL or PostgreSQL lab<br/>real concurrent workload"] --> BUNDLE
+    IMPORTS["Your exports<br/>slow log · digests · plans · metrics"] --> BUNDLE
+    BUNDLE[("Evidence<br/>each item labeled by source")]
+  end
+  BUNDLE --> ROUNDS
+  subgraph Review
+    ROUNDS["Review rounds<br/>limits · budget"] -->|what each role may see| ANSWER{{"Role answers<br/>scripted or model"}}
+    ANSWER -->|position, claims, requests| CHECKS["Turn checks<br/>citations · numbers · permissions"]
+    CHECKS --> ROUNDS
+    ROUNDS -->|requested checks| TOOLS["Checks and experiments"]
+  end
+  TOOLS --> SANDBOX["Index and rewrite tests<br/>SQLite or MySQL"]
+  TOOLS --> MODEL["Capacity and cost model"]
+  TOOLS --> LOADTEST["Lab load test<br/>Percona checks"]
+  SANDBOX -->|measured| BUNDLE
+  MODEL -->|modeled| BUNDLE
+  LOADTEST -->|measured| BUNDLE
+  ROUNDS --> LOG[("Run log")]
+  LOG --> OUT["Decision record · web UI · replay · comparison"]
+
+  classDef source fill:#f1f0ec,stroke:#898781,color:#0b0b0b
+  classDef measured fill:#e3f5ee,stroke:#1baf7a,color:#0b0b0b
+  classDef imported fill:#eaf2fc,stroke:#2a78d6,color:#0b0b0b
+  classDef review fill:#efedfa,stroke:#4a3aa7,color:#0b0b0b
+  classDef check fill:#fff4dc,stroke:#eda100,color:#0b0b0b
+  classDef output fill:#ffffff,stroke:#52514e,color:#0b0b0b
+  class FILES,BUNDLE source
+  class LAB,SANDBOX,LOADTEST measured
+  class IMPORTS imported
+  class ROUNDS,ANSWER,TOOLS,MODEL review
+  class CHECKS check
+  class LOG,OUT output
+  style Evidence fill:#fafaf8,stroke:#c3c2b7,color:#52514e
+  style Review fill:#fafaf8,stroke:#c3c2b7,color:#52514e
+```
 
 Two kinds of agent are available. **Scripted** agents (`--provider mock`, the default) follow hand-written rules. They
 are free, offline and repeatable, and they show the process, not judgment. **Language model** agents (`--provider
@@ -132,6 +210,10 @@ can see it. Agents cannot add measurements; only code can (the capacity model, t
 database, the lab). `tests/test_simulation.py::test_validator_flags_invented_numbers_and_bad_citations` shows each of
 these checks catching a bad turn.
 
+<p align="center">
+  <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $129.92 that is not in the cited rate card is flagged" width="900">
+</p>
+
 In a real run with Claude Sonnet the checks caught, for example, the FinOps analyst quoting the $16,500 budget while
 citing the cost estimate instead of the budget, and working out a headroom figure itself instead of quoting one.
 
@@ -148,6 +230,23 @@ before any call and says so. Spend is capped per run and in total (`CAPACITYLAB_
 `CAPACITYLAB_MAX_USD_TOTAL`: $2 and $3 in `.env.example`). A two-round review of `campaign-overlap` with Claude Sonnet
 cost about $2.40. Any OpenAI-compatible endpoint works too, including a free local model through Ollama; see
 [docs/LLM.md](docs/LLM.md). Results of one scored run per model are in [docs/EVALUATION.md](docs/EVALUATION.md).
+
+## Five agents against one
+
+Five agents cost five times one agent, so CapacityLab tests whether they are worth it: the same decision runs three
+ways, and a scorer that can see the scenario's hidden truth marks all three. On the flash-sale scenario, with Claude
+Sonnet 5:
+
+| | The decision | What nobody had measured | Cost |
+|---|---|---|---:|
+| 🟣 **Five agents** | index and move the batch job ✅ | found **both** hidden gaps, left 7 disagreements on the record | $2.85 |
+| 🔵 **One agent** | index and move the batch job ✅ | found **one** of two, agreed with itself throughout | $0.64 |
+| ⚪ **A threshold rule** | scale up for the evening | found **none**, never spotted the cause | **+$128.96** |
+
+**One agent got the same answer for a quarter of the price.** The five did not find a better decision; they found more
+of what nobody had measured. The rule kept the SLO but spent more, because a threshold cannot tell a heavy query from a
+busy cluster. This is one run of one scenario with one model. The scored result is committed in
+[docs/evaluations/](docs/evaluations/), and the method is in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Supported databases and clouds
 
