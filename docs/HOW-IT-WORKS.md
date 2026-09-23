@@ -13,7 +13,7 @@
 | ![](https://img.shields.io/badge/clouds-c47f00?style=for-the-badge) | AWS (boto3), Google Cloud and Azure (REST); Floci emulators | Topology, metrics, prices and cost, read-only. A local emulator by default, a real account only with `--live`. |
 | ![](https://img.shields.io/badge/database-31577d?style=for-the-badge) | MySQL 8.0, PostgreSQL 17, SQLite, Percona Toolkit | Real load tests, `performance_schema` and `pg_stat_statements`, `EXPLAIN ANALYZE`, index and rewrite experiments. |
 | ![](https://img.shields.io/badge/app-0f6f78?style=for-the-badge) | FastAPI, Jinja, SVG charts, argparse | Web UI with password sign-in and a model settings page; every feature also on the command line. |
-| ![](https://img.shields.io/badge/quality-4b5563?style=for-the-badge) | pytest, ruff, GitHub Actions | The test suite on every push; container and cloud-emulator suites on request; replay of a full run; a scan for leftover identifiers. |
+| ![](https://img.shields.io/badge/quality-4b5563?style=for-the-badge) | pytest, ruff, GitHub Actions | The test suite on every push, plus the container and cloud-emulator suites; replay of a full run; a scan for leftover identifiers. |
 
 ## The five agents
 

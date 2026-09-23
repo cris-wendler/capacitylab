@@ -48,7 +48,7 @@ make check                              # lint, tests, a demo run, replay, and t
 directory. Every `capacitylab` command in the README is run by `tests/test_readme_commands.py`, so a command added
 there has to work. Commands in `docs/` are not executed (they need Docker, a cloud or a key), but the same test parses
 them, so a renamed flag or subcommand fails the build. The suites that need containers (MySQL, PostgreSQL, and the AWS, Google Cloud and Azure
-emulators) run with `make check-containers`, or in CI on request.
+emulators) run with `make check-containers` locally, and in the Containers workflow on every push.
 
 ## House rules
 

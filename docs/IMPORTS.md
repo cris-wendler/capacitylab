@@ -29,8 +29,8 @@ capacitylab import azure --subscription <id> --resource-group <group> --instance
 ```
 
 > [!NOTE]
-> Each import has been run against its emulator, with the evidence fed into a review; the Containers workflow and
-> `make check-containers` repeat that on request. All three emulator checks pass; none of the imports has been run
+> Each import runs against its emulator on every push, with the evidence fed into a review; `make check-containers`
+> does the same locally. All three emulator checks pass; none of the imports has been run
 > against a real account. The emulators do not serve everything, and what is missing is skipped with the
 > reason written into the evidence:
 >

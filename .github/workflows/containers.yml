@@ -1,9 +1,12 @@
 name: Containers
 
-# The jobs that start database and cloud-emulator containers. They are the expensive half of the checks, so they run
-# only when asked for: `gh workflow run containers.yml -f suite=gcp` (or suite=all). `make check-containers` runs the
-# same suites locally, where minutes are free.
+# The jobs that start database and cloud-emulator containers: the MySQL and PostgreSQL labs, and the AWS, Google Cloud
+# and Azure emulators. They run on every push and pull request (this repository is public, so runner minutes are free),
+# and a single suite can be run on its own with `gh workflow run containers.yml -f suite=gcp`. `make check-containers`
+# runs the same suites locally. No cloud account is involved anywhere here.
 on:
+  push:
+  pull_request:
   workflow_dispatch:
     inputs:
       suite:
@@ -22,7 +25,7 @@ permissions:
 jobs:
   mysql-sandbox:
     name: Engine-matched sandbox (MySQL 8.0)
-    if: contains(fromJSON('["all", "mysql"]'), inputs.suite)
+    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "mysql"]'), inputs.suite)
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -54,12 +57,14 @@ jobs:
       # provide; they skip here unless a container named capacitylab-* is present.
       - name: MySQL sandbox and lab tests
         run: pytest -m mysql tests/test_mysql_sandbox.py tests/test_lab_mysql.py
-      - name: Short lab run
-        run: capacitylab lab run campaign-overlap --duration 5 --qps 100 --out runs/ci-lab.yaml
+      - name: The lab run and review from docs/LAB.md, as written
+        run: |
+          capacitylab lab run campaign-overlap --duration 60 --qps 300 --out runs/lab/campaign.yaml
+          capacitylab run campaign-overlap --evidence runs/lab/campaign.yaml --sandbox mysql --quiet
 
   postgres-lab:
     name: PostgreSQL 17 lab
-    if: contains(fromJSON('["all", "postgres"]'), inputs.suite)
+    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "postgres"]'), inputs.suite)
     runs-on: ubuntu-latest
     env:
       CAPACITYLAB_TEST_POSTGRES: "1"
@@ -81,12 +86,12 @@ jobs:
         run: pip install -e ".[dev,postgres]"
       - name: PostgreSQL lab tests
         run: pytest -m postgres tests/test_postgres_lab.py
-      - name: Short lab run
-        run: capacitylab lab run campaign-overlap --engine postgres --duration 5 --qps 100 --out runs/ci-pg-lab.yaml
+      - name: The PostgreSQL lab run from docs/LAB.md, as written
+        run: capacitylab lab run campaign-overlap --engine postgres --repeats 3 --out runs/lab/campaign-pg.yaml
 
   aws-import:
     name: AWS import (Floci emulator)
-    if: contains(fromJSON('["all", "aws"]'), inputs.suite)
+    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "aws"]'), inputs.suite)
     runs-on: ubuntu-latest
     env:
       CAPACITYLAB_TEST_FLOCI: "1"
@@ -107,15 +112,15 @@ jobs:
         run: python scripts/floci_seed.py
       - name: AWS import tests
         run: pytest -m aws tests/test_aws_import.py
-      - name: Import through the CLI and use it in a review
+      - name: The import from docs/IMPORTS.md, as written, then a review that cites it
         run: |
-          capacitylab import aws --instance demo-writer --label "floci demo" --out runs/ci-aws.yaml
-          capacitylab run campaign-overlap --provider mock --evidence runs/ci-aws.yaml --out runs/ci-aws-run.json --quiet
+          capacitylab import aws --instance demo-writer --label "floci demo" --out runs/imports/aws.yaml
+          capacitylab run campaign-overlap --evidence runs/imports/aws.yaml --out runs/ci-aws-run.json --quiet
       - name: Keep the imported evidence
         uses: actions/upload-artifact@v7
         with:
           name: floci-import
-          path: runs/ci-aws.yaml
+          path: runs/imports/aws.yaml
           retention-days: 14
       - name: Floci logs on failure
         if: failure()
@@ -123,7 +128,7 @@ jobs:
 
   gcp-import:
     name: GCP import (floci-gcp emulator)
-    if: contains(fromJSON('["all", "gcp"]'), inputs.suite)
+    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "gcp"]'), inputs.suite)
     runs-on: ubuntu-latest
     env:
       CAPACITYLAB_TEST_FLOCI_GCP: "1"
@@ -144,15 +149,15 @@ jobs:
         run: python scripts/cloud_emulator_seed.py gcp
       - name: GCP import tests
         run: pytest -m gcp tests/test_gcp_azure_import.py
-      - name: Import through the CLI and use it in a review
+      - name: The import from docs/IMPORTS.md, as written, then a review that cites it
         run: |
-          capacitylab import gcp --project floci-local --instance demo-pg --label "floci-gcp demo" --out runs/ci-gcp.yaml
-          capacitylab run campaign-overlap --provider mock --evidence runs/ci-gcp.yaml --out runs/ci-gcp-run.json --quiet
+          capacitylab import gcp --project floci-local --instance demo-pg --label "floci-gcp demo" --out runs/imports/gcp.yaml
+          capacitylab run campaign-overlap --evidence runs/imports/gcp.yaml --out runs/ci-gcp-run.json --quiet
       - name: Keep the imported evidence
         uses: actions/upload-artifact@v7
         with:
           name: floci-gcp-import
-          path: runs/ci-gcp.yaml
+          path: runs/imports/gcp.yaml
           retention-days: 14
       - name: floci-gcp logs on failure
         if: failure()
@@ -160,7 +165,7 @@ jobs:
 
   azure-import:
     name: Azure import (floci-az emulator)
-    if: contains(fromJSON('["all", "azure"]'), inputs.suite)
+    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all", "azure"]'), inputs.suite)
     runs-on: ubuntu-latest
     env:
       CAPACITYLAB_TEST_FLOCI_AZ: "1"
@@ -184,16 +189,16 @@ jobs:
         run: python scripts/cloud_emulator_seed.py azure
       - name: Azure import tests
         run: pytest -m azure tests/test_gcp_azure_import.py
-      - name: Import through the CLI and use it in a review
+      - name: The import from docs/IMPORTS.md, as written, then a review that cites it
         run: |
           capacitylab import azure --subscription demo-subscription --resource-group capacitylab-demo \
-            --instance demo-mysql --label "floci-az demo" --out runs/ci-azure.yaml
-          capacitylab run campaign-overlap --provider mock --evidence runs/ci-azure.yaml --out runs/ci-azure-run.json --quiet
+            --instance demo-mysql --label "floci-az demo" --out runs/imports/azure.yaml
+          capacitylab run campaign-overlap --evidence runs/imports/azure.yaml --out runs/ci-azure-run.json --quiet
       - name: Keep the imported evidence
         uses: actions/upload-artifact@v7
         with:
           name: floci-az-import
-          path: runs/ci-azure.yaml
+          path: runs/imports/azure.yaml
           retention-days: 14
       - name: floci-az logs on failure
         if: failure()

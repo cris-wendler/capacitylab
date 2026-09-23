@@ -253,12 +253,12 @@ busy cluster. This is one run of one scenario with one model. The scored result 
 | | What is supported | How it is tested |
 |---|---|---|
 | **Capacity and cost model** | Any database: a CPU queueing model per 15-minute slot, options priced from a rate card | Unit tests with known numbers |
-| **Experiment database** | SQLite (built in, the default) or MySQL 8.0 in Docker, for index and query rewrite experiments | SQLite in CI; MySQL on request |
-| **Local lab** | MySQL 8.0 and PostgreSQL 17 in Docker, optionally with Percona Toolkit. See [docs/LAB.md](docs/LAB.md) | In the Containers workflow, run on request |
+| **Experiment database** | SQLite (built in, the default) or MySQL 8.0 in Docker, for index and query rewrite experiments | Both in CI |
+| **Local lab** | MySQL 8.0 and PostgreSQL 17 in Docker, optionally with Percona Toolkit. See [docs/LAB.md](docs/LAB.md) | Both engines in CI, running the commands from the docs |
 | **File imports** | MySQL slow log, `performance_schema` digest export, `EXPLAIN ANALYZE`, CloudWatch JSON, Percona Toolkit reports. See [docs/IMPORTS.md](docs/IMPORTS.md) | Synthetic sample files in CI |
-| **AWS** | RDS and Aurora: topology, CloudWatch metrics, on-demand prices, cost this month | Recorded API responses in CI; the Floci emulator on request |
-| **Google Cloud** | Cloud SQL: topology and metrics. No prices or cost | Recorded API responses in CI; the floci-gcp emulator on request |
-| **Azure** | Database for MySQL or PostgreSQL flexible server: topology, metrics, prices, cost | Recorded API responses in CI; the floci-az emulator (topology only) on request |
+| **AWS** | RDS and Aurora: topology, CloudWatch metrics, on-demand prices, cost this month | Recorded API responses and the Floci emulator, both in CI |
+| **Google Cloud** | Cloud SQL: topology and metrics. No prices or cost | Recorded API responses and the floci-gcp emulator, both in CI |
+| **Azure** | Database for MySQL or PostgreSQL flexible server: topology, metrics, prices, cost | Recorded API responses and the floci-az emulator (topology only), both in CI |
 
 Cloud imports are read-only, talk to a local emulator unless you pass `--live`, and store no account ids, names or
 endpoints.

@@ -1,7 +1,7 @@
 name: CI
 
 # Lint, the test suite, and the README quickstart as written, on every push and pull request. The jobs that start
-# database and cloud-emulator containers cost several times as much, so they live in containers.yml and run on request.
+# database and cloud-emulator containers take longer to start, so they live in containers.yml and run there.
 on:
   push:
   pull_request:
