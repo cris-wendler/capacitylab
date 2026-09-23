@@ -2,6 +2,22 @@
 
 Notable changes, newest first.
 
+## 0.1.2, 2026-09-23
+
+**Changed**
+
+- The MySQL, PostgreSQL and cloud emulator suites now run on every push, not only when asked for. They run the
+  commands from the docs as written, so a command that stops working fails the build.
+- One set of words everywhere. The tool used to say "stakeholder simulation" and "MOCK provider" where the docs said
+  "five-agent review" and "scripted agents". It now says the same as the docs.
+
+**Fixed**
+
+- Docs left broken when the README was split up: a lab file no command creates, a missing install step, cloud imports
+  shown before the emulator that serves them, a role named "cost analyst" that does not exist, an Ollama model name
+  that did not match, a setting that only applies to the web UI, and two baselines with three different names.
+- The same result was told twice in two places. It is now in one place, with links to it.
+
 ## 0.1.1, 2026-09-23
 
 **Fixed**

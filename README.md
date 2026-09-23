@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.svg" alt="CapacityLab 0.1.1: five agents review a database capacity decision around shared evidence, every number checked; the demo runs offline with one command and no API key" width="900">
+  <img src="docs/media/hero.svg" alt="CapacityLab 0.1.2: five agents review a database capacity decision around shared evidence, every number checked; the demo runs offline with one command and no API key" width="900">
 </p>
 
 <p align="center">
@@ -31,10 +31,10 @@
 
 # CapacityLab
 
-CapacityLab runs a review of a database capacity decision by five agents (a database engineer, an application
-owner, a reliability engineer, a FinOps analyst and a tenant representative) and writes down what they decided, what
-they still disagree on, and what nobody has measured. The agents argue; the numbers come from deterministic code, and
-every number an agent quotes is checked against the evidence it cites.
+Five agents review a database capacity decision: a database engineer, an application owner, a reliability engineer, a
+FinOps analyst and a tenant representative. You get a record of what they decided, what they still disagree on, and
+what nobody has measured. The agents argue. The numbers come from code, and every number an agent quotes is checked
+against the evidence it cites.
 
 ## Quickstart
 
@@ -109,8 +109,8 @@ report: runs/demo.md
 
 ### What the sample contains
 
-The sample is a synthetic shared MySQL cluster (a writer and a reader, `db.r6i.16xlarge`) with five tenants, one of
-which is about to run a flash sale while a batch job starts halfway through. It lives in
+The sample is a made-up MySQL cluster: a writer and a reader, shared by five tenants. One tenant is about to run a
+flash sale, and a batch job starts halfway through it. The data lives in
 [`src/capacitylab/data/scenarios/`](src/capacitylab/data/scenarios/): topology, CPU and connection metrics,
 statement digests, query plans, table sizes, SLOs, a rate card, a budget, tenant plans, and the batch schedule. Every
 item is labelled observed, forecast, assumption, modeled or measured. A second scenario, `downsize-reader`, asks the
@@ -214,8 +214,8 @@ these checks catching a bad turn.
   <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $129.92 that is not in the cited rate card is flagged" width="900">
 </p>
 
-In a real run with Claude Sonnet the checks caught, for example, the FinOps analyst quoting the $16,500 budget while
-citing the cost estimate instead of the budget, and working out a headroom figure itself instead of quoting one.
+In a real run with Claude Sonnet, the checks caught the FinOps analyst twice. It quoted the $16,500 budget but cited
+the cost estimate instead of the budget. And it worked out a headroom figure itself instead of quoting one.
 
 ## Using a model
 
@@ -233,8 +233,8 @@ cost about $2.40. Any OpenAI-compatible endpoint works too, including a free loc
 
 ## Five agents against one
 
-Five agents cost five times one agent, so CapacityLab tests whether they are worth it: the same decision runs three
-ways, and a scorer that can see the scenario's hidden truth marks all three. On the flash-sale scenario, with Claude
+Five agents cost five times one agent, so CapacityLab tests whether they are worth it. The same decision runs three
+ways. A scorer that can see the scenario's hidden truth marks all three. On the flash-sale scenario, with Claude
 Sonnet 5:
 
 | | The decision | What nobody had measured | Cost |
@@ -280,9 +280,9 @@ endpoints.
   instance and its readers.
 - **The lab is small.** A synthetic dataset on one container. Rare statements get few samples. It supports only the
   `campaign-overlap` statements.
-- **A saved run replays on the machine that recorded it.** The experiments measure work by counting steps inside
-  the database engine, and engine versions count differently, so replaying someone else's run on a different SQLite
-  or MySQL version reports differences. Replay names both versions when they differ.
+- **A saved run replays on the machine that recorded it.** The experiments measure work by counting steps inside the
+  database engine, and engine versions count differently. Replaying someone else's run on another version reports
+  differences. Replay names both versions when they differ.
 - **Imported files are redacted for emails and IPv4 addresses only.** Check them before sharing a run record.
 - **Real model runs are not committed as replayable records**, only their scores ([docs/evaluations/](docs/evaluations/)).
   The OpenAI-compatible provider has been tested against recorded responses, not a live endpoint.
