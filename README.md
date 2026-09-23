@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.svg" alt="CapacityLab 0.1.0: five agents review a database capacity decision around shared evidence, every number checked; the demo runs offline with one command and no API key" width="900">
+  <img src="docs/media/hero.svg" alt="CapacityLab 0.1.1: five agents review a database capacity decision around shared evidence, every number checked; the demo runs offline with one command and no API key" width="900">
 </p>
 
 <p align="center">
@@ -280,6 +280,9 @@ endpoints.
   instance and its readers.
 - **The lab is small.** A synthetic dataset on one container. Rare statements get few samples. It supports only the
   `campaign-overlap` statements.
+- **A saved run replays on the machine that recorded it.** The experiments measure work by counting steps inside
+  the database engine, and engine versions count differently, so replaying someone else's run on a different SQLite
+  or MySQL version reports differences. Replay names both versions when they differ.
 - **Imported files are redacted for emails and IPv4 addresses only.** Check them before sharing a run record.
 - **Real model runs are not committed as replayable records**, only their scores ([docs/evaluations/](docs/evaluations/)).
   The OpenAI-compatible provider has been tested against recorded responses, not a live endpoint.

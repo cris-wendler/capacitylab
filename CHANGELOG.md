@@ -2,13 +2,16 @@
 
 Notable changes, newest first.
 
-## Unreleased
+## 0.1.1, 2026-09-23
 
 **Fixed**
 
 - The query rewrite check took about 20 seconds on SQLite 3.53 (for example Homebrew's Python 3.14), and measured
   one candidate's work 1,500 times higher than on older SQLite. It now takes under a second on both, and the
   measurements agree within 3%.
+- `capacitylab replay` now names both engine versions when a run was recorded on a different one, instead of only
+  reporting that the run did not verify. Work measurements differ between engine versions, so this is expected
+  rather than a sign that the record was changed. The README says so too.
 
 ## 0.1.0, 2026-09-22
 

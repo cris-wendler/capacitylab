@@ -75,7 +75,7 @@
     <path class="spark" d="M47 14l1.2 2.8L51 18l-2.8 1.2L47 22l-1.2-2.8L43 18l2.8-1.2z" fill="#ffd27a"/>
   </g>
   <text x="104" y="78" class="title">CapacityLab</text>
-  <rect x="384" y="54" width="58" height="24" rx="12" fill="#ffd27a"/><text x="413" y="70.5" class="ver">v0.1.0</text>
+  <rect x="384" y="54" width="58" height="24" rx="12" fill="#ffd27a"/><text x="413" y="70.5" class="ver">v0.1.1</text>
   <text x="42" y="110" class="sub">Five agents review a database capacity decision.</text>
   <text x="42" y="132" class="sub">Every number they quote is checked against the evidence.</text>
 

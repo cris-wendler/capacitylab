@@ -19,6 +19,16 @@ def test_replay_reproduces_tools_and_decision(campaign_run):
     assert report.mismatches == [] and report.decision_match and report.verified
 
 
+def test_replay_names_a_different_engine_version(campaign_run):
+    """A run recorded on another SQLite version mismatches; replay says which versions, not just \"not verified\"."""
+    other = campaign_run.model_copy(deep=True)
+    other.sandbox_engine = "SQLite 3.41.2 (another machine)"
+    report = replay(other)
+    note = next((n for n in report.notes if n.startswith("Recorded on")), "")
+    assert "SQLite 3.41.2 (another machine)" in note and "replaying on SQLite" in note
+    assert not any(n.startswith("Recorded on") for n in replay(campaign_run).notes)  # same engine, no note
+
+
 def test_replay_detects_tampering(campaign_run):
     tampered = campaign_run.model_copy(deep=True)
     target = next(r for r in tampered.tool_calls if r.tool == "index_experiment")

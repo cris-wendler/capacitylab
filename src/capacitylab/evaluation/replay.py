@@ -35,6 +35,20 @@ class ReplayReport(BaseModel):
         return self.scenario_match and self.initial_evidence_match and not self.mismatches and self.decision_match
 
 
+def _engine_version(factory: Callable[[], Sandbox]) -> str:
+    """The engine this machine would replay with, so a version difference can be named rather than guessed at."""
+    try:
+        sandbox = factory()
+    except Exception:  # noqa: BLE001 - an unreachable engine is reported by the tool results themselves
+        return ""
+    try:
+        return sandbox.engine_version()
+    except Exception:  # noqa: BLE001
+        return ""
+    finally:
+        sandbox.close()
+
+
 def replay(run: SimulationRun, sandbox_factory: Callable[[], Sandbox] | None = None) -> ReplayReport:
     scenario, bundle = load_scenario(run.scenario_id)
     for item in run.extra_evidence_items:
@@ -49,6 +63,13 @@ def replay(run: SimulationRun, sandbox_factory: Callable[[], Sandbox] | None = N
         report.notes.append(f"Run used {recorded_engine}; pass a matching sandbox to replay sandbox tools.")
     factory = sandbox_factory or (SQLiteSandbox if not recorded_engine or recorded_engine.startswith("SQLite") else None)
     env = ToolEnvironment(scenario, bundle.copy(), factory or SQLiteSandbox)
+    current_engine = _engine_version(factory or SQLiteSandbox)
+    if recorded_engine and current_engine and current_engine != recorded_engine:
+        report.notes.append(
+            f"Recorded on {recorded_engine}, replaying on {current_engine}. Experiments measure work by counting "
+            "steps inside the engine, and engine versions count differently, so index and rewrite results (and the "
+            "forecasts that use them) can differ here without anything being wrong with the record."
+        )
     recorded_items = {e.id: e for e in run.tool_evidence}
     try:
         for record in run.tool_calls:

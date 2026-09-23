@@ -143,6 +143,9 @@ def cmd_replay(args, settings) -> int:
     report = replay(run, factory)
     print(json.dumps(report.model_dump(), indent=2))
     print("replay verified" if report.verified else "replay NOT verified")
+    if not report.verified:
+        for note in report.notes:
+            print(f"note: {note}")
     return 0 if report.verified else 1
 
 
