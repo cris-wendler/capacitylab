@@ -6,9 +6,12 @@
 |---|---|---|
 | **Five-role review** | The five roles, the full orchestrator, the scenario's round and tool budgets | Role-scoped |
 | **Single reviewer** | One role (`single reviewer`) that sees every evidence kind and every gap, can use every tool, same budgets | Everything |
-| **Rule-based** | Capacity-only rules: scale up when the status quo peaks over the threshold; downsize to the cheapest class under the threshold when peak is below half of it | Capacity model only |
+| **Simple rules** | Capacity-only rules: scale up when the status quo peaks over the threshold; downsize to the cheapest class under the threshold when peak is below half of it | Capacity model only |
 
 All three start from an **identical evidence bundle** (the test suite asserts the bundle digest is unchanged).
+
+`capacitylab evaluate` prints them as `multi_stakeholder`, `single_agent` and `rule_based`; this page calls them the
+five-role review, the single reviewer and simple rules.
 
 ## Reference outcomes
 
@@ -45,10 +48,10 @@ output is the set of positions, not a vote. A tie is reported and broken alphabe
 |---|---|---|---|---|---|---|---|---|---|
 | campaign-overlap | five-role review | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 7 |
 | campaign-overlap | single reviewer | OPT-INDEX-RESCHEDULE | 0 | 0.00 | yes | 1.0 | 0 | 0 | 0 |
-| campaign-overlap | rule-based | OPT-SCALE-TEMP | 0 | 128.96 | no | 0.0 | 0 | 0 | 0 |
+| campaign-overlap | simple rules | OPT-SCALE-TEMP | 0 | 128.96 | no | 0.0 | 0 | 0 | 0 |
 | downsize-reader | five-role review | OPT-KEEP | 0 | 0.00 | n/a | 1.0 | 0 | 0 | 6 |
 | downsize-reader | single reviewer | OPT-KEEP | 0 | 0.00 | n/a | 1.0 | 0 | 0 | 0 |
-| downsize-reader | rule-based | OPT-DOWNSIZE-16XL | 0 | −81,292.80 | n/a | 0.0 | 0 | 0 | 0 |
+| downsize-reader | simple rules | OPT-DOWNSIZE-16XL | 0 | -81,292.80 | n/a | 0.0 | 0 | 0 | 0 |
 
 ### What these results do and do not show
 
@@ -57,13 +60,14 @@ output is the set of positions, not a vote. A tie is reported and broken alphabe
   language models compare.
 - Zero citation errors and zero ungrounded numbers are expected for mock policies, which were built to cite correctly.
   For a real model these two metrics are the interesting ones.
-- The rule-based baseline's negative cost regret in `downsize-reader` means it saves money by accepting risks
+- The simple-rules baseline's negative cost regret in `downsize-reader` means it saves money by accepting risks
   (working set above the modeled buffer pool, a smaller failover target) that the reference excludes.
 
 ## Running a live evaluation
 
 ```bash
-export ANTHROPIC_API_KEY=...
+pip install -e ".[anthropic]"
+# ANTHROPIC_API_KEY in .env, as in .env.example
 capacitylab evaluate campaign-overlap --provider anthropic --out runs/eval-live.json
 ```
 
@@ -75,7 +79,9 @@ run per approach is an anecdote, not a result.
 
 `campaign-overlap`, Claude Sonnet 5, 2026-09-18, one run per approach. The scored result is committed at
 [docs/evaluations/campaign-overlap-sonnet-2026-09-18.json](evaluations/campaign-overlap-sonnet-2026-09-18.json),
-so every figure below can be checked against it rather than taken on trust:
+so the scored figures below (recommendation, regrets, root cause, gap recall, unsupported numbers, disagreements and
+spend) can be checked against it rather than taken on trust. The tool-call counts come from the run records, which are
+not committed:
 
 | Approach | Recommendation | Breach regret | Cost regret | Root cause | Gap recall | Unsupported numbers | Open disagreements | Tool calls | Spend |
 |---|---|---:|---:|:---:|---:|---:|---:|---:|---:|
@@ -93,7 +99,7 @@ Read honestly:
   does not carry. Each was flagged by the same grounding check, which is why they are countable at all.
 - **The rules were not wrong about the SLO, only about the price.** A threshold cannot distinguish a heavy query from
   a busy cluster, so it buys capacity and misses the cause.
-- **It stopped early.** The five-role run hit the $2.80 per-run cap in round 3, so its last round is incomplete.
+- **It stopped early.** The five-role run reached its per-run spend cap in round 3, so its last round is incomplete.
 
 ## The same test on a free open-weight model
 

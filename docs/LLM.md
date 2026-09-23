@@ -46,32 +46,11 @@ docker exec capacitylab-ollama ollama create capacitylab-llama3.2 -f /tmp/Modelf
 The endpoint is OpenAI-compatible, so nothing else changes: same prompt, same turn format, same checks, and the
 settings page lists the models the server is actually serving. A review costs nothing and nothing leaves the machine.
 
-**And here is what actually happened when I ran it.** Same scenario, same scorer, three models, one of them free:
-
-| Model | Five-role recommendation | Extra cost, 12 months | Root cause | Citation errors | Spend |
-|---|---|---:|:---:|---:|---:|
-| Claude Sonnet 5 | index and move the batch job | **$0.00** | yes | **0** | $2.85 |
-| `qwen2.5:32b`, local and free | scale up for the evening | $128.96 | yes | 34 | **$0.00** |
-| `llama3.2:3b`, local and free | *"Evolutionary Experiment Designer"*, not an option that exists | not scoreable | no | 96 | $0.00 |
-
-**A free 32B model on a laptop reaches a defensible decision.** It keeps every SLO, finds the root cause, and flags
-both hidden evidence gaps. What it does not do is find the *cheap* answer: it buys capacity for the evening where the
-frontier model fixed the workload instead, and that gap is $128.96 a year on one cluster. It also cited badly, 34
-times, and its five roles never converged: four different final positions, one of them the literal string `decided`.
-
-The 3B model is in the table to mark the floor: it invented an option name, so there was nothing to score.
-
-Two honest readings of that table.
-
-**On open weights.** The 32B run is the fair comparison, and it is respectable: a valid, SLO-safe decision for nothing,
-on a laptop, with no data leaving the machine. The difference from the frontier model was not safety, it was
-thrift, and thrift is the whole point of a FinOps review. If your alternative is no review at all, the free one is
-clearly worth running. If the decision is worth more than three dollars, the paid one paid for itself many times over
-here.
-
-**On the design.** The checks are what make the difference visible at all: **34 invented citations were caught and
-counted, and an invented option name could not be scored**, so nothing confident-sounding slipped into the decision
-record. A tool that only summarised model output would have reported all three runs as a recommendation.
+**What the free models did on this scenario.** A local `qwen2.5:32b` reached a defensible decision for nothing: it
+keeps every SLO and finds the root cause, but it buys capacity for the evening where the paid model fixed the workload
+instead, and it cited badly 34 times. A 3B model invented an option name, so there was nothing to score. The numbers,
+the scoring method and what the runs do and do not show are in
+[EVALUATION.md](EVALUATION.md#the-same-test-on-a-free-open-weight-model), not repeated here.
 
 Put keys in `.env` (git-ignored) and set the total you are willing to spend:
 
@@ -84,7 +63,7 @@ ANTHROPIC_API_KEY=...
 # or any OpenAI-compatible endpoint, for example a local model through Ollama
 CAPACITYLAB_PROVIDER=openai
 CAPACITYLAB_LLM_BASE_URL=http://localhost:11434/v1
-CAPACITYLAB_MODEL=llama3.1
+CAPACITYLAB_MODEL=capacitylab-llama3.2   # the variant built above
 CAPACITYLAB_INPUT_USD_PER_MTOK=0          # prices drive the spend limit; set your vendor's rates
 CAPACITYLAB_OUTPUT_USD_PER_MTOK=0
 
@@ -92,7 +71,8 @@ CAPACITYLAB_MAX_USD_TOTAL=10.00
 ```
 
 ```bash
-capacitylab run campaign-overlap --max-rounds 3 --evidence runs/lab/campaign.yaml
+capacitylab run campaign-overlap --max-rounds 3
+# or, after a lab run (see LAB.md): --evidence runs/lab/campaign.yaml
 capacitylab spend
 ```
 

@@ -108,7 +108,7 @@ def cmd_run(args, settings) -> int:
         sandbox=args.sandbox or settings.sandbox,
     )
     if provider.mocked:
-        print("MOCK provider: stakeholder turns come from deterministic policies, not a language model.")
+        print("Scripted agents: the turns come from fixed rules, not a language model.")
     progress = (lambda m: None) if args.quiet else (lambda m: print(f"  … {m}", flush=True))
     run = Orchestrator(scenario, bundle, provider, config, make_sandbox_factory(config.sandbox, settings),
                        progress=progress, lab_mysql=settings.mysql if config.sandbox == "mysql" else None).run()
@@ -658,7 +658,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--evidence", action="append", help="extra evidence YAML (from `lab run` or `import`); repeatable")
     p.set_defaults(func=cmd_findings)
 
-    p = sub.add_parser("run", help="run a stakeholder simulation")
+    p = sub.add_parser("run", help="run the five-agent review of a scenario")
     p.add_argument("scenario")
     p.add_argument("--provider", choices=["mock", "anthropic", "openai"], help="mock (scripted), anthropic, or openai (any OpenAI-compatible endpoint)")
     p.add_argument("--evidence", action="append", help="extra evidence YAML (from `lab run` or `import`); repeatable")
@@ -680,7 +680,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out")
     p.set_defaults(func=cmd_report)
 
-    p = sub.add_parser("evaluate", help="compare the five-role review with a single reviewer and simple rules")
+    p = sub.add_parser("evaluate", help="compare the five-agent review with a single reviewer and simple rules")
     p.add_argument("scenario")
     p.add_argument("--provider", choices=["mock", "anthropic", "openai"], help="mock (scripted), anthropic, or openai (any OpenAI-compatible endpoint)")
     p.add_argument("--evidence", action="append")

@@ -17,7 +17,7 @@ def render_markdown(run: SimulationRun, scenario: Scenario) -> str:
     w = out.append
     w(f"# CapacityLab run {run.run_id}")
     if run.mocked:
-        w("\n> **MOCK RUN.** Stakeholder turns were produced by deterministic hand-written policies, not a language model.\n")
+        w("\n> **SCRIPTED RUN.** The turns came from fixed rules, not a language model.\n")
     w(f"\n**Scenario:** {scenario.title} (`{scenario.id}`, synthetic)  ")
     w(f"**Provider:** {run.provider} / {run.model} · **Prompt:** {run.prompt_version}  ")
     w(f"**Status:** {run.state.status.value} after {run.rounds_completed} round(s) · **Model spend:** ${run.spend_usd:.4f} "
@@ -45,7 +45,7 @@ def render_markdown(run: SimulationRun, scenario: Scenario) -> str:
             w(f"- **{x.kind}**: {_cell(x.summary)}{ids}")
         w("")
     else:
-        w("All stakeholders ended on the same position. Agreement is not evidence of correctness.\n")
+        w("All five agents ended on the same position. Agreement is not evidence of correctness.\n")
 
     w("## Options (modeled)\n")
     w(f"_{d.outcome_basis}_\n")

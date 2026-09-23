@@ -17,20 +17,26 @@ from pathlib import Path
 
 import pytest
 
-README = Path(__file__).resolve().parents[1] / "README.md"
+ROOT = Path(__file__).resolve().parents[1]
+README = ROOT / "README.md"
+DOCS = sorted((ROOT / "docs").glob("*.md"))
 
 # A clean environment has no API key, so a model run must stop before any call, with exit code 2.
 EXPECTED_EXIT = {"capacitylab run campaign-overlap --provider anthropic": 2}
 
 
-def readme_commands() -> list[str]:
+def commands_in(path: Path) -> list[str]:
     commands = []
-    for block in re.findall(r"```bash\n(.*?)```", README.read_text(), flags=re.S):
+    for block in re.findall(r"```bash\n(.*?)```", path.read_text(), flags=re.S):
         for line in block.replace("\\\n", " ").splitlines():
             line = line.split(" #", 1)[0].strip()
             if line.startswith("capacitylab "):
                 commands.append(" ".join(line.split()))
     return commands
+
+
+def readme_commands() -> list[str]:
+    return commands_in(README)
 
 
 def clean_env(tmp_path: Path) -> dict[str, str]:
@@ -81,3 +87,22 @@ def test_every_readme_command_runs(tmp_path):
     assert (tmp_path / "runs" / "demo.json").is_file()
     for command in servers:  # last, because it can skip when the port is taken
         serve_and_fetch(command, tmp_path, env)
+
+
+def test_every_documented_command_parses():
+    """Commands in docs/ need Docker, a cloud or a key, so they are not run here, but they must still be real
+    commands with real flags. This catches a flag or subcommand that was renamed or removed."""
+    from capacitylab.cli import build_parser
+
+    parser = build_parser()
+    checked = 0
+    for path in DOCS:
+        for command in commands_in(path):
+            if any(ch in command for ch in "<>$"):  # a placeholder the reader fills in, not a runnable line
+                continue
+            try:
+                parser.parse_args(shlex.split(command)[1:])
+            except SystemExit as exc:
+                raise AssertionError(f"{path.name}: {command}") from exc
+            checked += 1
+    assert checked > 10, "the docs should still contain commands to check"

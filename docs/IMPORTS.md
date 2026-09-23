@@ -19,6 +19,9 @@ read calls only. Nothing that identifies the account is stored.
 | **Local emulator** | [Floci](https://github.com/floci-io/floci), port 4566 | [floci-gcp](https://github.com/floci-io/floci-gcp), port 4588 | [floci-az](https://github.com/floci-io/floci-az), port 4577 |
 | **Tested** | recorded responses, and against Floci | recorded responses, and against floci-gcp | recorded responses, and against floci-az (MySQL and PostgreSQL) |
 
+The shape of the two commands, for a real account (they need `--live` and the matching extra; to try them without
+one, start an emulator first, as below):
+
 ```bash
 capacitylab import gcp --project my-project --instance orders-primary --label "evening" --out runs/imports/gcp.yaml
 capacitylab import azure --subscription <id> --resource-group <group> --instance orders-mysql --db-engine mysql \
@@ -37,6 +40,8 @@ capacitylab import azure --subscription <id> --resource-group <group> --instance
 >   metrics, prices and cost are skipped; the metrics, price and cost parsing is tested against recorded responses.
 >
 > `pip install -e ".[gcp]"` or `".[azure]"` adds the credential libraries `--live` needs.
+
+Against the local emulators, which is what CI runs:
 
 ```bash
 docker compose --profile gcp up -d floci-gcp && python scripts/cloud_emulator_seed.py gcp

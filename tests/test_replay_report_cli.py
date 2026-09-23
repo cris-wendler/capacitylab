@@ -39,9 +39,9 @@ def test_replay_detects_tampering(campaign_run):
     assert [m["call_id"] for m in report.mismatches] == [target.call_id]
 
 
-def test_markdown_report_labels_mock_and_provenance(campaign_run, campaign):
+def test_markdown_report_labels_scripted_run_and_provenance(campaign_run, campaign):
     text = render_markdown(campaign_run, campaign[0])
-    assert "MOCK RUN" in text and "## Final positions" in text and "## Optimization proposals" in text
+    assert "SCRIPTED RUN" in text and "## Final positions" in text and "## Optimization proposals" in text
     assert "not evidence that a recommendation is correct" in text
     for option in campaign[0].options:
         assert option.id in text
@@ -55,4 +55,4 @@ def test_cli_run_replay_validate(tmp_path, capsys):
     assert ledger.is_file() and ledger.with_suffix(".md").is_file()
     assert cli.main(["replay", str(ledger)]) == 0
     out = capsys.readouterr().out
-    assert "MOCK provider" in out and "replay verified" in out
+    assert "Scripted agents" in out and "replay verified" in out

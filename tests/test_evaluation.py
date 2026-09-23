@@ -10,7 +10,7 @@ def test_three_approaches_scored_on_identical_evidence(campaign):
     assert bundle.digest() == digest, "comparison must not mutate the shared evidence"
     by_name = {a.approach: a for a in report.approaches}
     assert set(by_name) == {"multi_stakeholder", "single_agent", "rule_based"}
-    assert report.mocked and "MOCK provider" in report.caveats[0]
+    assert report.mocked and "Scripted agents" in report.caveats[0]
     rule = by_name["rule_based"]
     assert rule.recommendation == "OPT-SCALE-TEMP" and rule.root_cause_identified is False and rule.gap_recall == 0.0
     assert by_name["multi_stakeholder"].root_cause_identified is True

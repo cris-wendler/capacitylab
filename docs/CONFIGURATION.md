@@ -19,7 +19,9 @@ Everything is set through environment variables or `.env`; see [`.env.example`](
 | `CAPACITYLAB_MAX_USD_PER_RUN` | `3.00` (`.env.example`: `2.00`) | Spend limit per run |
 | `CAPACITYLAB_MAX_OUTPUT_TOKENS` | `5000` | Output limit per turn; also bounds the spend estimate |
 | `CAPACITYLAB_INPUT_USD_PER_MTOK` / `..._OUTPUT_...` | `5.00` / `25.00` | Prices used for the spend estimate; check current pricing |
-| `CAPACITYLAB_MAX_ROUNDS` / `CAPACITYLAB_MAX_TOOL_CALLS` | `3` / `40` | Run limits (a scenario may set lower ones) |
+| `CAPACITYLAB_MAX_TOOL_CALLS` | `40` | Ceiling on checks per run; a scenario may set a lower one |
+| `CAPACITYLAB_MAX_ROUNDS` | `3` | Rounds offered by the web UI. On the command line the rounds come from the scenario, or from `--max-rounds` |
+| `CAPACITYLAB_REFUSAL_FALLBACK` | `true` | If a model refuses a turn, ask the provider once more with a shorter request before failing the run |
 | `CAPACITYLAB_SANDBOX` | `sqlite` | Experiment database: `sqlite` or `mysql` |
 | `CAPACITYLAB_MYSQL_*` | `127.0.0.1:3307` | Local MySQL container (placeholder password) |
 | `CAPACITYLAB_POSTGRES_*` | `127.0.0.1:5433` | Local PostgreSQL container (placeholder password) |

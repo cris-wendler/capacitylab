@@ -17,8 +17,8 @@
 
 ## The five agents
 
-Each agent gets a role, the evidence that role would normally see, and a list of checks it may ask for. None of
-them sees everything.
+The short version is in the [README](../README.md#the-five-agents). In full, each agent gets a role, the evidence
+that role would normally see, and the checks it may ask for. None of them sees everything.
 
 > [!NOTE]
 > Concurrency shows up here as evidence, not as a constraint. Connections are imported, the bottleneck check flags a
@@ -28,11 +28,11 @@ them sees everything.
 
 | Agent | Looks at | Can ask for | Reasoning effort |
 |---|---|---|:---:|
-| 🟦 **Database engineer** | metrics (CPU, **connections**, memory, IOPS), statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, lab load test, redundant-index check | low |
-| 🟩 **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost | low |
-| 🟨 **Reliability engineer** · SRE | metrics (**connection saturation** included), forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, lab load test | medium |
-| 🟧 **FinOps analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost | low |
-| 🟪 **Tenant representative** | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast | low |
+| 🟦 **Database engineer** | metrics (CPU, **connections**, memory, IOPS), statement digests, plans, schema, table stats, forecast, batch schedule, experiments | top queries, tenant skew, plan review, index experiment, rewrite check, row-estimate check, table growth, bottleneck check, capacity forecast, load attribution, lab load test, redundant-index check | low |
+| 🟩 **Application owner** | calendars, releases, batch schedule and history, SLOs, digests, tenant profiles | top queries, batch reschedule check, capacity forecast, cost, load attribution, tenant entitlements | low |
+| 🟨 **Reliability engineer** · SRE | metrics (**connection saturation** included), forecast, SLOs, incident and failover history, calendars, batch, experiments | tenant skew, bottleneck check, batch reschedule check, capacity forecast, cost, load attribution, tenant entitlements, lab load test | medium |
+| 🟧 **FinOps analyst** | metric summary, forecast, rate card, budget, table stats, experiments | tenant skew, table growth, capacity forecast, cost, load attribution, tenant entitlements | low |
+| 🟪 **Tenant representative** | its own profile, calendar and SLOs, and model results with other tenants removed | tenant skew (own share only), capacity forecast, tenant entitlements (its own plan only) | low |
 
 **Why the effort differs.** Reasoning effort is how much the model thinks before it writes a turn: more effort means
 longer internal reasoning, more tokens and a higher cost. Four agents mostly read evidence and quote it (digests,
@@ -41,10 +41,6 @@ itself, which the checks then flag. The reliability engineer is the one agent th
 measured, such as an unknown failover time against headroom and cost, so it gets more room. `CAPACITYLAB_EFFORT=high`
 (or `low`, `medium`) applies one level to every agent instead. The same agents can also run from scripted rules, which
 is free, offline and repeatable.
-
-<p align="center">
-  <img src="media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $129.92 that is not in the cited rate card is flagged" width="900">
-</p>
 
 ## What you get
 
@@ -63,45 +59,8 @@ is free, offline and repeatable.
 
 ## How a review runs
 
-```mermaid
-flowchart LR
-  subgraph Evidence
-    FILES["Scenario files"] --> BUNDLE
-    LAB["Local MySQL or PostgreSQL lab<br/>real concurrent workload"] --> BUNDLE
-    IMPORTS["Your exports<br/>slow log · digests · plans · metrics"] --> BUNDLE
-    BUNDLE[("Evidence<br/>each item labeled by source")]
-  end
-  BUNDLE --> ROUNDS
-  subgraph Review
-    ROUNDS["Review rounds<br/>limits · budget"] -->|what each role may see| ANSWER{{"Role answers<br/>scripted or model"}}
-    ANSWER -->|position, claims, requests| CHECKS["Turn checks<br/>citations · numbers · permissions"]
-    CHECKS --> ROUNDS
-    ROUNDS -->|requested checks| TOOLS["Checks and experiments"]
-  end
-  TOOLS --> SANDBOX["Index and rewrite tests<br/>SQLite or MySQL"]
-  TOOLS --> MODEL["Capacity and cost model"]
-  TOOLS --> LOADTEST["Lab load test<br/>Percona checks"]
-  SANDBOX -->|measured| BUNDLE
-  MODEL -->|modeled| BUNDLE
-  LOADTEST -->|measured| BUNDLE
-  ROUNDS --> LOG[("Run log")]
-  LOG --> OUT["Decision record · web UI · replay · comparison"]
-
-  classDef source fill:#f1f0ec,stroke:#898781,color:#0b0b0b
-  classDef measured fill:#e3f5ee,stroke:#1baf7a,color:#0b0b0b
-  classDef imported fill:#eaf2fc,stroke:#2a78d6,color:#0b0b0b
-  classDef review fill:#efedfa,stroke:#4a3aa7,color:#0b0b0b
-  classDef check fill:#fff4dc,stroke:#eda100,color:#0b0b0b
-  classDef output fill:#ffffff,stroke:#52514e,color:#0b0b0b
-  class FILES,BUNDLE source
-  class LAB,SANDBOX,LOADTEST measured
-  class IMPORTS imported
-  class ROUNDS,ANSWER,TOOLS,MODEL review
-  class CHECKS check
-  class LOG,OUT output
-  style Evidence fill:#fafaf8,stroke:#c3c2b7,color:#52514e
-  style Review fill:#fafaf8,stroke:#c3c2b7,color:#52514e
-```
+The diagram of the whole loop is in the [README](../README.md#the-five-agents). What follows is what happens
+inside one round.
 
 Each round, every agent receives only the evidence its role gives it, plus the other agents' latest positions and
 challenges. It returns a structured turn: a position, claims with cited evidence ids, assumptions, challenges, missing

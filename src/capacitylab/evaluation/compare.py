@@ -191,7 +191,7 @@ def compare(scenario: Scenario, bundle: EvidenceBundle, provider_factory: Callab
         "Reference best excludes options with unmeasured risks (unknowns); a different risk preference changes it.",
     ]
     if provider.mocked:
-        caveats.insert(0, "MOCK provider: every role and the single reviewer are scripted rules, not a language model. This comparison "
+        caveats.insert(0, "Scripted agents: every agent and the single reviewer are fixed rules, not a language model. This comparison "
                           "tests the simulation code and the scoring, not model quality.")
     return ComparisonReport(scenario_id=scenario.id, provider=provider.name, mocked=provider.mocked,
                             reference_assumptions=overrides, approaches=approaches, caveats=caveats)

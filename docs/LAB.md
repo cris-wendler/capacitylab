@@ -59,7 +59,7 @@ checks run only there.
 
 > [!TIP]
 > A difference between phases only means something if it is larger than the range within a phase. This is how the
-> index question below is meant to be settled.
+> index question in [what the lab measured](EXAMPLE.md#what-the-lab-measured) is meant to be settled.
 
 ## Percona Toolkit
 

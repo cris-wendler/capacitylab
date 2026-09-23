@@ -49,7 +49,7 @@ order-history traffic, and the loyalty recalculation job starts at 19:00. Alder'
 |---|---|
 | ![sale](https://img.shields.io/badge/sale%20revenue-%244%2C350%2C000-1b9b6d?style=flat-square) | previous sale $2,900,000 ÷ 2 h = $1,450,000 an hour; × 3 h of sale = $4,350,000 |
 | ![risk](https://img.shields.io/badge/doing%20nothing-%24304%2C500%20at%20risk-b42318?style=flat-square) | 7 breached 15-minute sale slots × 0.25 h × $1,450,000 an hour × 12% lost = $304,500 |
-| ![evening](https://img.shields.io/badge/scale%20up%20tonight-%24129.92-c75b3b?style=flat-square) | 32xlarge $18.56 − 16xlarge $9.28 = $9.28 more an hour × 7 h (16:00 to 23:00) × 2 nodes = $129.92 |
+| ![evening](https://img.shields.io/badge/scale%20up%20tonight-%24129.92-c75b3b?style=flat-square) | 32xlarge $18.56 - 16xlarge $9.28 = $9.28 more an hour × 7 h (16:00 to 23:00) × 2 nodes = $129.92 |
 | ![season](https://img.shields.io/badge/scale%20up%20for%20the%20season-%2418%2C708.48-c75b3b?style=flat-square) | $9.28 more an hour × 24 h × 42 days × 2 nodes = $18,708.48 |
 | ![resize](https://img.shields.io/badge/resize%20permanently-%2413%2C548.80%20a%20month-c75b3b?style=flat-square) | $9.28 more an hour × 730 h × 2 nodes = $13,548.80 a month; × 12 = $162,585.60 a year |
 | ![move](https://img.shields.io/badge/move%20the%20batch%20job-%240-127a55?style=flat-square) | no instance change; keeps every SLO in the model, but runs at 95% CPU at the peak |
@@ -118,7 +118,7 @@ compares it with the CPU share each tenant's workload takes, modeled from calls 
 > connection pool (with a shared schema the database usually cannot tell tenants apart), MySQL 8.0 resource groups
 > for thread priority where the engine supports them (managed MySQL variants may not), or capacity for the window.
 
-The review is available to the application owner, reliability engineer and cost analyst as
+The review is available to the application owner, reliability engineer and FinOps analyst as
 `tenant_entitlement_review`; the tenant representative sees only its own plan.
 
 ### Who is actually causing it
@@ -319,13 +319,14 @@ varies even more (±132%, ±134%), so the index's effect on writes stays unanswe
 
 ### What the agents concluded
 
-With scripted roles and the lab file attached (`capacitylab run campaign-overlap --evidence runs/lab/campaign-overlap-lab.yaml`).
+With scripted agents and a lab file attached (`capacitylab run campaign-overlap --evidence runs/lab/campaign.yaml`,
+after a lab run: see [LAB.md](LAB.md)).
 The LLM runs are [in LLM.md](LLM.md#runs-with-a-real-model).
 
 ```mermaid
 flowchart LR
   R1["<b>Round 1</b><br/>everyone undecided<br/>11 checks run"] --> R2["<b>Round 2</b><br/>positions form<br/>rewrites: 1 safe, 3 unsafe"]
-  R2 --> R3["<b>Rounds 3 to 4</b><br/>reliability challenges cost<br/>cost analyst changes position"]
+  R2 --> R3["<b>Rounds 3 to 4</b><br/>reliability challenges cost<br/>FinOps analyst changes position"]
   R3 --> O["<b>Outcome</b><br/>4 to 1<br/>left open"]
   classDef start fill:#f1f0ec,stroke:#898781,color:#0b0b0b
   classDef round fill:#efedfa,stroke:#4a3aa7,color:#0b0b0b
@@ -342,13 +343,13 @@ flowchart LR
 - ![Round 2](https://img.shields.io/badge/-Round%202-4a3aa7?style=flat-square) `IN → EXISTS` returns identical results on all 15 fixture cases at 29% of the work. `IN → JOIN` returns
   duplicate rows. `NOT IN → NOT EXISTS` changes the results for Tenant Cedar because of NULLs, so it is a behavior
   change, not an optimization. Dropping the tenant filter leaks rows across tenants.
-- ![Rounds 3 to 4](https://img.shields.io/badge/-Rounds%203--4-9a6700?style=flat-square) Moving the batch job alone still peaks at 95% against an 80% threshold, so the cost analyst changes
+- ![Rounds 3 to 4](https://img.shields.io/badge/-Rounds%203--4-9a6700?style=flat-square) Moving the batch job alone still peaks at 95% against an 80% threshold, so the FinOps analyst changes
   position. The database engineer and the reliability engineer both cite the lab, including the checkout regression
   the index showed in that single-pass run. Three later passes put that regression inside the run-to-run noise, which
   is exactly the trap `--repeats` exists to catch.
-- ![Outcome](https://img.shields.io/badge/-Outcome-127a55?style=flat-square) Database engineer, application owner, cost analyst and tenant representative: index and move the batch
+- ![Outcome](https://img.shields.io/badge/-Outcome-127a55?style=flat-square) Database engineer, application owner, FinOps analyst and tenant representative: index and move the batch
   job, at $0.08 a month. Reliability engineer: scale up and move the batch job ($130 plus failovers), for more headroom
-  while the index benefit is unproven. The cost analyst also puts doing nothing at $304,500 of sale revenue at risk.
+  while the index benefit is unproven. The FinOps analyst also puts doing nothing at $304,500 of sale revenue at risk.
   Still missing: failover duration, a production-like test of the index, and whether the audience query can
   run on the reader.
 
@@ -376,9 +377,9 @@ Every proposed index or rewrite must include evidence, why it should help and ho
 
 `downsize-reader` covers the opposite question. The cluster runs a writer and a reader on `db.r6i.32xlarge` (128 vCPU,
 $18.56 × 730 h × 2 nodes = $27,097.60 a month against a $25,000 budget), and the reader peaks at 18.7% CPU. Downsizing
-it to `16xlarge` saves ($18.56 − $9.28) × 730 h = $6,774.40 a month ($81,292.80 a year); to `8xlarge`, ($18.56 − $4.64)
+it to `16xlarge` saves ($18.56 - $9.28) × 730 h = $6,774.40 a month ($81,292.80 a year); to `8xlarge`, ($18.56 - $4.64)
 × 730 h = $10,161.60 a month ($121,939.20 a year). CPU would allow either, but the
 working set (568 GiB) is larger than the smaller instance's modeled buffer pool, and the reader is the failover
-target. Four agents keep the reader; the cost analyst holds out for the $81,292.80 a year.
+target. Four agents keep the reader; the FinOps analyst holds out for the $81,292.80 a year.
 
 </details>

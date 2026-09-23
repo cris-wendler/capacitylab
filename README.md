@@ -53,7 +53,7 @@ The last step runs the full five-agent review of the `campaign-overlap` sample s
 takes under a minute and gives the same result every time. Output of the last step:
 
 ```text
-MOCK provider: stakeholder turns come from deterministic policies, not a language model.
+Scripted agents: the turns come from fixed rules, not a language model.
   … round 1: Database engineer
   … round 1: Application owner
   … round 1: Reliability engineer
@@ -309,8 +309,9 @@ ruff check src tests scripts
 capacitylab scan                             # checks the tree for leftover real names; must report 0 findings
 ```
 
-`tests/test_readme_commands.py` runs every `capacitylab` command in this README, and CI runs the quickstart exactly
-as written. [CONTRIBUTING.md](CONTRIBUTING.md) covers the container suites and the house rules;
+`tests/test_readme_commands.py` runs every `capacitylab` command in this README, and checks that the commands in
+`docs/` are real commands with real flags (they need Docker, a cloud or a key, so they are not executed). CI runs the
+quickstart exactly as written. [CONTRIBUTING.md](CONTRIBUTING.md) covers the container suites and the house rules;
 `scripts/capture_media.py` regenerates the screenshots in `docs/media` and is only for maintainers. Security problems
 go through [SECURITY.md](SECURITY.md).
 
