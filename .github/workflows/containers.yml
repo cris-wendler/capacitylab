@@ -1,11 +1,12 @@
 name: Containers
 
 # The jobs that start database and cloud-emulator containers: the MySQL and PostgreSQL labs, and the AWS, Google Cloud
-# and Azure emulators. They run on every push and pull request (this repository is public, so runner minutes are free),
+# and Azure emulators. They run on every push to main and every pull request (this repository is public, so runner minutes are free),
 # and a single suite can be run on its own with `gh workflow run containers.yml -f suite=gcp`. `make check-containers`
 # runs the same suites locally. No cloud account is involved anywhere here.
 on:
   push:
+    branches: [main]  # pull requests run below; a push to a PR branch would only repeat them
   pull_request:
   workflow_dispatch:
     inputs:
@@ -103,6 +104,7 @@ jobs:
           cache: pip
       - name: Start Floci
         run: |
+          for i in 1 2 3 4 5; do docker pull floci/floci:2.1.0 && break; sleep 20; done  # Docker Hub rate-limits shared runners
           docker run -d --name capacitylab-floci -p 127.0.0.1:4566:4566 \
             -v /var/run/docker.sock:/var/run/docker.sock floci/floci:2.1.0
           for i in $(seq 1 60); do docker logs capacitylab-floci 2>&1 | grep -q "Ready" && break; sleep 2; done
@@ -140,6 +142,7 @@ jobs:
           cache: pip
       - name: Start floci-gcp
         run: |
+          for i in 1 2 3 4 5; do docker pull floci/floci-gcp:0.9.0 && break; sleep 20; done  # Docker Hub rate-limits shared runners
           docker run -d --name capacitylab-floci-gcp -p 127.0.0.1:4588:4588 \
             -v /var/run/docker.sock:/var/run/docker.sock floci/floci-gcp:0.9.0
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:4588/health > /dev/null && break; sleep 2; done
@@ -179,6 +182,7 @@ jobs:
         # A user-defined network: floci-az reaches the database containers it starts by container name, which the
         # default bridge network does not resolve.
         run: |
+          for i in 1 2 3 4 5; do docker pull floci/floci-az:0.13.0 && break; sleep 20; done  # Docker Hub rate-limits shared runners
           docker network create floci
           docker run -d --name capacitylab-floci-az --network floci -p 127.0.0.1:4577:4577 \
             -v /var/run/docker.sock:/var/run/docker.sock floci/floci-az:0.13.0
