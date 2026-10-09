@@ -51,6 +51,7 @@ class ApproachResult(BaseModel):
 class ComparisonReport(BaseModel):
     scenario_id: str
     provider: str
+    model: str | None = None  # None for scripted agents
     mocked: bool
     reference_assumptions: dict
     approaches: list[ApproachResult]
@@ -193,5 +194,6 @@ def compare(scenario: Scenario, bundle: EvidenceBundle, provider_factory: Callab
     if provider.mocked:
         caveats.insert(0, "Scripted agents: every agent and the single reviewer are fixed rules, not a language model. This comparison "
                           "tests the simulation code and the scoring, not model quality.")
-    return ComparisonReport(scenario_id=scenario.id, provider=provider.name, mocked=provider.mocked,
+    return ComparisonReport(scenario_id=scenario.id, provider=provider.name,
+                            model=None if provider.mocked else provider.model, mocked=provider.mocked,
                             reference_assumptions=overrides, approaches=approaches, caveats=caveats)

@@ -16,7 +16,7 @@ from capacitylab.diagnostics.sandbox import UnsafeSandboxTarget
 from capacitylab.evidence.normalize import fingerprint_sql, redact_text
 from capacitylab.settings import MySQLSettings
 
-DEFAULT_IMAGE = os.environ.get("CAPACITYLAB_PERCONA_IMAGE", "percona/percona-toolkit:latest")
+DEFAULT_IMAGE = os.environ.get("CAPACITYLAB_PERCONA_IMAGE", "percona/percona-toolkit:3.7.1-4")
 DEFAULT_CONTAINER = os.environ.get("CAPACITYLAB_LAB_CONTAINER", "capacitylab-sandbox-mysql")
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 

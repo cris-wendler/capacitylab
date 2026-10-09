@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/FastAPI-Jinja-009688?logo=fastapi&logoColor=white" alt="FastAPI and Jinja">
   <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white" alt="MySQL 8.0">
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
-  <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7-1c5cab" alt="Percona Toolkit 3.7">
+  <img src="https://img.shields.io/badge/Percona%20Toolkit-3.7.1-1c5cab" alt="Percona Toolkit 3.7.1">
   <img src="https://img.shields.io/badge/SQLite-experiments-003B57?logo=sqlite&logoColor=white" alt="SQLite">
   <img src="https://img.shields.io/badge/clouds-AWS%20%C2%B7%20GCP%20%C2%B7%20Azure-FF9900" alt="Cloud imports from AWS, Google Cloud and Azure">
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
@@ -214,7 +214,7 @@ these checks catching a bad turn.
   <img src="docs/media/turn-checks.svg" alt="A FinOps analyst turn goes through four checks; a claim quoting $129.92 that is not in the cited rate card is flagged" width="900">
 </p>
 
-In a real run with Claude Sonnet, the checks caught the FinOps analyst twice. It quoted the $16,500 budget but cited
+In a real run with Claude Sonnet (2026-09-17, [docs/LLM.md](docs/LLM.md)), the checks caught the FinOps analyst twice. It quoted the $16,500 budget but cited
 the cost estimate instead of the budget. And it worked out a headroom figure itself instead of quoting one.
 
 ## Using a model
@@ -227,21 +227,25 @@ capacitylab spend                            # model spend so far against your l
 
 This needs `ANTHROPIC_API_KEY` in a `.env` file (copy [`.env.example`](.env.example)). Without it the run stops
 before any call and says so. Spend is capped per run and in total (`CAPACITYLAB_MAX_USD_PER_RUN` and
-`CAPACITYLAB_MAX_USD_TOTAL`: $2 and $3 in `.env.example`). A two-round review of `campaign-overlap` with Claude Sonnet
-cost about $2.40. Any OpenAI-compatible endpoint works too, including a free local model through Ollama; see
+`CAPACITYLAB_MAX_USD_TOTAL`: $2 and $3 in `.env.example`). The defaults are deliberately low: a two-round review of
+`campaign-overlap` with Claude Sonnet cost about $2.40, so raise both limits before running one. Any OpenAI-compatible endpoint works too, including a free local model through Ollama; see
 [docs/LLM.md](docs/LLM.md). Results of one scored run per model are in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Five agents against one
 
-Five agents cost five times one agent, so CapacityLab tests whether they are worth it. The same decision runs three
+Five agents cost several times what one agent does, so CapacityLab tests whether they are worth it. The same decision runs three
 ways. A scorer that can see the scenario's hidden truth marks all three. On the flash-sale scenario, with Claude
 Sonnet 5:
 
-| | The decision | What nobody had measured | Cost |
-|---|---|---|---:|
-| 🟣 **Five agents** | index and move the batch job ✅ | found **both** hidden gaps, left 7 disagreements on the record | $2.85 |
-| 🔵 **One agent** | index and move the batch job ✅ | found **one** of two, agreed with itself throughout | $0.64 |
-| ⚪ **A threshold rule** | scale up for the evening | found **none**, never spotted the cause | **+$128.96** |
+| | The decision | What nobody had measured | Model spend | Extra infrastructure cost |
+|---|---|---|---:|---:|
+| 🟣 **Five agents** | index and move the batch job ✅ | found **both** hidden gaps, left 7 disagreements on the record | $2.85 | $0.00 |
+| 🔵 **One agent** | index and move the batch job ✅ | found **one** of two, agreed with itself throughout | $0.64 | $0.00 |
+| ⚪ **A threshold rule** | scale up for the evening | found **none**, never spotted the cause | $0.00 | **+$128.96** |
+
+Model spend is what the review cost to run. Extra infrastructure cost is what the chosen option costs over twelve
+months beyond the cheapest option that keeps the SLOs. The five-agent run hit its spend limit in round 3, so its last
+round is incomplete.
 
 **One agent got the same answer for a quarter of the price.** The five did not find a better decision; they found more
 of what nobody had measured. The rule kept the SLO but spent more, because a threshold cannot tell a heavy query from a

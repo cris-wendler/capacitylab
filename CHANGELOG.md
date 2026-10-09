@@ -2,6 +2,19 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+**Changed**
+
+- The Percona Toolkit image is pinned to `percona/percona-toolkit:3.7.1-4`, the version the test data was captured
+  with, instead of `latest`.
+- `capacitylab evaluate` writes the model id into its result, so a committed score says which model produced it.
+
+**Fixed**
+
+- The five-against-one table in the README showed model spend and extra infrastructure cost in one column. They are
+  now two columns, and the table says the five-agent run stopped at its spend limit in round 3.
+
 ## 0.1.2, 2026-09-23
 
 **Changed**

@@ -64,7 +64,7 @@ checks run only there.
 ## Percona Toolkit
 
 ```bash
-docker pull percona/percona-toolkit
+docker pull percona/percona-toolkit:3.7.1-4
 capacitylab lab run campaign-overlap --percona --out runs/lab/campaign-percona.yaml
 ```
 

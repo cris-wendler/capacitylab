@@ -52,7 +52,7 @@
       </div>
       <label class="option"><input type="checkbox" name="percona" value="true">
         <span>Run Percona Toolkit too (MySQL only)
-          <small class="small muted">Needs <code>docker pull percona/percona-toolkit</code>. Logs every statement, so all phases get slightly slower.</small></span></label>
+          <small class="small muted">Needs <code>docker pull percona/percona-toolkit:3.7.1-4</code>. Logs every statement, so all phases get slightly slower.</small></span></label>
       <button type="submit" {% if not status.ok and not pg_status.ok %}disabled{% endif %}>Run lab</button>
     </form>
     <p class="small muted">A run takes about four times the phase length plus a few seconds to load data.</p>

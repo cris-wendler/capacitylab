@@ -67,7 +67,7 @@ def _percona_image_present() -> bool:
     return subprocess.run(["docker", "image", "inspect", DEFAULT_IMAGE], capture_output=True).returncode == 0
 
 
-@pytest.mark.skipif(not _percona_image_present(), reason="docker pull percona/percona-toolkit first")
+@pytest.mark.skipif(not _percona_image_present(), reason="docker pull percona/percona-toolkit:3.7.1-4 first")
 def test_lab_run_with_percona_toolkit():
     scenario, _ = load_scenario("campaign-overlap")
     items = run_lab(scenario, Settings.from_env().mysql, LabConfig(duration_s=4, total_qps=80, workers=8, percona=True))
@@ -80,7 +80,7 @@ def test_lab_run_with_percona_toolkit():
     assert "deadlocks" in by_id["EV-LAB-EVENT-LAT"].data["server_counters"]
 
 
-@pytest.mark.skipif(not _percona_image_present(), reason="docker pull percona/percona-toolkit first")
+@pytest.mark.skipif(not _percona_image_present(), reason="docker pull percona/percona-toolkit:3.7.1-4 first")
 def test_percona_duplicate_keys_tool_finds_redundant_index():
     scenario, bundle = load_scenario("campaign-overlap")
     env = ToolEnvironment(scenario, bundle.copy(), lab_mysql=Settings.from_env().mysql)
