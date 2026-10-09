@@ -324,6 +324,9 @@ go through [SECURITY.md](SECURITY.md).
 MySQL, PostgreSQL, SQLite, Percona Toolkit, FastAPI, Pydantic, Uvicorn, Jinja, pytest and ruff; the Floci, floci-gcp
 and floci-az emulators for cloud tests; Ollama for free local model runs.
 
+Built with [Claude Code](https://claude.com/claude-code), Anthropic's coding agent: Cris Wendler set the requirements
+and design direction and reviewed the work; Claude Code wrote much of the code, tests and docs.
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE). If you run a modified version as a network service, the AGPL asks you to publish your
