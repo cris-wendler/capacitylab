@@ -202,11 +202,7 @@ def main() -> int:
 
             run_url = page.url
             page.goto(run_url + "/replay")
-            page.screenshot(path=str(MEDIA / "replay.png"))
             frame("replay")
-
-            page.goto(BASE + "/scenarios/campaign-overlap/evaluate", timeout=120_000)
-            page.screenshot(path=str(MEDIA / "evaluation.png"))
             browser.close()
     finally:
         server.terminate()
