@@ -4,6 +4,7 @@ name: CI
 # database and cloud-emulator containers take longer to start, so they live in containers.yml and run there.
 on:
   push:
+    branches: [main]  # pull requests run below; a push to a PR branch would only repeat them
   pull_request:
 
 concurrency:
