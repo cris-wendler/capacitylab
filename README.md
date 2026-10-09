@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/hero.svg" alt="CapacityLab 0.1.2: five agents review a database capacity decision around shared evidence, every number checked; the demo runs offline with one command and no API key" width="900">
+  <img src="docs/media/hero.svg" alt="CapacityLab 0.1.3: five agents review a database capacity decision around shared evidence, every number checked; the demo runs offline with one command and no API key" width="900">
 </p>
 
 <p align="center">
